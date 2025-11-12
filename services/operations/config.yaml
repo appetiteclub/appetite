@@ -1,0 +1,48 @@
+# Default configuration for the operations service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: OPERATIONS_WEB_PORT
+  port: ":8080"
+
+services:
+  # AuthN service URL for authentication
+  # Env: OPERATIONS_SERVICES_AUTHN_URL
+  authn:
+    url: "http://localhost:8082"
+
+  # AuthZ service URL for authorization
+  # Env: OPERATIONS_SERVICES_AUTHZ_URL
+  authz:
+    url: "http://localhost:8083"
+
+  # Table service URL
+  # Env: OPERATIONS_SERVICES_TABLE_URL
+  table:
+    url: "http://localhost:8087"
+
+  # Order service URL
+  # Env: OPERATIONS_SERVICES_ORDER_URL
+  order:
+    url: "http://localhost:8086"
+
+auth:
+  session:
+    # Session cookie name
+    # Env: OPERATIONS_AUTH_SESSION_NAME
+    name: "appetite_ops_session"
+
+    # Session secret key (override in production!)
+    # Env: OPERATIONS_AUTH_SESSION_SECRET
+    secret: "change-me-operations-session-secret-key"
+
+    # Session TTL
+    # Env: OPERATIONS_AUTH_SESSION_TTL
+    ttl: "8h"
+
+log:
+  level: info
+
+debug:
+  routes: true

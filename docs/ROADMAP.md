@@ -24,5 +24,5 @@
 
 ## Core System
 - Shared logic, data, and state management.
-- Independent of the chosen interaction mode.  
+- Independent of the chosen interaction mode.
 
