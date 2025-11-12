@@ -1,0 +1,27 @@
+{{template "base.html" .}}
+
+{{define "signin"}}
+<div style="max-width: 400px; margin: 0 auto;">
+    <div class="card">
+        <h1 class="page-title">Sign In</h1>
+
+        {{if .Error}}
+        <div class="error">{{.Error}}</div>
+        {{end}}
+
+        <form hx-post="/signin" hx-target="body" hx-swap="innerHTML">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+        </form>
+    </div>
+</div>
+{{end}}

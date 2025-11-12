@@ -1,0 +1,26 @@
+{{template "base.html" .}}
+
+{{define "home"}}
+<h1 class="page-title">Operations Dashboard</h1>
+<p style="color: #666; margin-bottom: 2rem;">Welcome to the restaurant operations center</p>
+
+<div class="dashboard-grid">
+    <a href="/chat" class="dashboard-card">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+        <h2>Chat</h2>
+        <p>Conversational interface for quick operations. Manage tables, orders, and more through natural commands.</p>
+    </a>
+
+    <a href="/tables" class="dashboard-card">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🪑</div>
+        <h2>Tables</h2>
+        <p>View and manage restaurant tables. Check availability, assign servers, and track table status.</p>
+    </a>
+
+    <a href="/orders" class="dashboard-card">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+        <h2>Orders</h2>
+        <p>Track and manage orders. Monitor order status, update preparations, and coordinate deliveries.</p>
+    </a>
+</div>
+{{end}}

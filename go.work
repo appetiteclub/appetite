@@ -6,6 +6,7 @@ use (
 	./services/authz
 	./services/dictionary
 	./services/order
+	./services/operations
 	./services/table
 	./services/media
 	../aqm

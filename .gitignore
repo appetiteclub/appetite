@@ -9,6 +9,9 @@ services/*/admin
 services/*/table
 services/*/media
 services/*/todo
+services/*/operations
+services/*/order
+services/*/dictionary
 services/*/.gocache/
 
 # Root level runtime files

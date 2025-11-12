@@ -2,7 +2,7 @@
 
 # Variables
 PROJECT_NAME=appetite
-SERVICES=authn authz dictionary order table admin media
+SERVICES=authn authz dictionary order table operations admin media
 BASE_PORTS=8080 8081 8082 8083 8084 8085 8086 8087 8090
 PKG_LIBS=auth core fake telemetry
 COMPOSE_FILE?=deployments/docker/compose/docker-compose.yml
@@ -73,7 +73,7 @@ help:
 	@echo "  nomad-stop   - Stop and purge Nomad jobs"
 	@echo "  nomad-status - Show current job status in Nomad"
 	@echo ""
-	@echo "Individual service targets (replace <service> with authn/authz/dictionary/order/table/admin/media):"
+	@echo "Individual service targets (replace <service> with authn/authz/dictionary/order/table/operations/admin/media):"
 	@echo "  build-<service>  - Build specific service"
 	@echo "  test-<service>   - Test specific service"
 	@echo "  lint-<service>   - Lint specific service"
@@ -181,6 +181,10 @@ build-table:
 	@echo "📦 Building table service..."
 	@cd services/table && go build -o table .
 
+build-operations:
+	@echo "📦 Building operations service..."
+	@cd services/operations && go build -o operations .
+
 build-admin:
 	@echo "📦 Building admin service..."
 	@cd services/admin && go build -o admin .
@@ -260,6 +264,9 @@ test-order:
 
 test-table:
 	@cd services/table && go test ./...
+
+test-operations:
+	@cd services/operations && go test ./...
 
 test-admin:
 	@cd services/admin && go test ./...
@@ -350,6 +357,9 @@ lint-order:
 lint-table:
 	@cd services/table && golangci-lint run
 
+lint-operations:
+	@cd services/operations && golangci-lint run
+
 lint-admin:
 	@cd services/admin && golangci-lint run
 
@@ -378,12 +388,14 @@ run-all:
 	@cd services/order && nohup ./order > order.log 2>&1 & echo $$! > order.pid; sleep 2
 	@echo "   📦 Starting Table on :8087..."
 	@cd services/table && nohup ./table > table.log 2>&1 & echo $$! > table.pid; sleep 2
+	@echo "   📦 Starting Operations on :8080..."
+	@cd services/operations && nohup ./operations > operations.log 2>&1 & echo $$! > operations.pid; sleep 2
 	@echo "   📦 Starting Media on :8090..."
 	@cd services/media && nohup ./media > media.log 2>&1 & echo $$! > media.pid; sleep 2
 	@echo ""
 	@echo "🎉 All Appetite services started!"
 	@echo "📡 Services running:"
-	@echo "   • Portal (external): http://localhost:8080"
+	@echo "   • Operations: http://localhost:8080 (restaurant operations + chat)"
 	@echo "   • Admin:      http://localhost:8081 (business admin)"
 	@echo "   • AuthN:      http://localhost:8082 (authentication)"
 	@echo "   • AuthZ:      http://localhost:8083 (authorization)"
@@ -409,6 +421,9 @@ run-order: build-order
 
 run-table: build-table
 	@cd services/table && ./table
+
+run-operations: build-operations
+	@cd services/operations && ./operations
 
 run-admin: build-admin
 	@cd services/admin && ./admin
