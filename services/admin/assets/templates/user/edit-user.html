@@ -33,7 +33,21 @@
                     <option value="inactive" {{if eq .User.Status "inactive"}}selected{{end}}>Inactive</option>
                 </select>
             </div>
-            
+
+            <div class="form-group" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+                <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;">PIN Management</label>
+                <p style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">
+                    Generate a 6-character alphanumeric PIN for lightweight authentication in conversational contexts.
+                </p>
+                <button type="button"
+                        class="btn btn-secondary"
+                        hx-get="/generate-pin/{{.User.ID}}"
+                        hx-target="#pin-modal"
+                        hx-swap="innerHTML">
+                    Generate PIN
+                </button>
+            </div>
+
             <div class="form-group" style="margin-top: 2rem;">
                 <button type="submit" class="btn btn-primary">
                     <span class="htmx-indicator">Updating...</span>
@@ -44,4 +58,8 @@
         </div>
     </form>
 </div>
+
+<!-- PIN Modal Container -->
+<div id="pin-modal"></div>
+
 {{end}}

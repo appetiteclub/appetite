@@ -1,0 +1,94 @@
+<div class="modal-overlay" id="generate-pin-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Generate PIN</h2>
+            <button type="button" class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to generate a new PIN for <strong>{{.User.Name}}</strong>?</p>
+            <p style="color: #666; font-size: 0.9rem; margin-top: 1rem;">
+                This will replace any existing PIN. The new PIN will only be displayed once, so make sure to save it securely.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button type="button"
+                    class="btn btn-primary"
+                    hx-post="/generate-pin/{{.User.ID}}"
+                    hx-target="#pin-modal"
+                    hx-swap="innerHTML">
+                Generate PIN
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function closeModal() {
+        document.getElementById('pin-modal').innerHTML = '';
+    }
+</script>
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal {
+        background: var(--bg-primary, #fff);
+        border-radius: 8px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color, #e5e7eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        line-height: 1;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+    }
+
+    .modal-close:hover {
+        color: #000;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1.5rem;
+        border-top: 1px solid var(--border-color, #e5e7eb);
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+</style>

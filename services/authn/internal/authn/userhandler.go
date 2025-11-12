@@ -42,6 +42,7 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/{id}", h.GetUser)
 		r.Put("/{id}", h.UpdateUser)
 		r.Delete("/{id}", h.DeleteUser)
+		r.Post("/{id}/generate-pin", h.GeneratePIN)
 	})
 }
 
@@ -195,6 +196,60 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *UserHandler) GeneratePIN(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "UserHandler.GeneratePIN")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	id, ok := h.parseIDParam(w, r)
+	if !ok {
+		return
+	}
+
+	// Get the user
+	user, err := h.repo.Get(ctx, id)
+	if err != nil {
+		log.Error("error loading user", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve user")
+		return
+	}
+
+	if user == nil {
+		aqm.RespondError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Generate the PIN
+	pin, err := GeneratePINForUser(ctx, h.repo, h.config, user)
+	if err != nil {
+		log.Error("error generating PIN", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not generate PIN")
+		return
+	}
+
+	// Save the user with the new PIN
+	user.UpdatedBy = "pin:generation"
+	if err := h.repo.Save(ctx, user); err != nil {
+		log.Error("error saving user with PIN", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not save PIN")
+		return
+	}
+
+	// TODO: SECURITY - Remove PIN logging in production! This is only for development.
+	log.Info("⚠️  DEVELOPMENT ONLY - PIN generated for user (REMOVE THIS LOG IN PRODUCTION!)", "id", id.String(), "pin", pin)
+
+	// Return the PIN (only shown once)
+	response := map[string]interface{}{
+		"pin":     pin,
+		"user_id": id,
+		"message": "PIN generated successfully. This is the only time it will be displayed.",
+	}
+
+	aqm.RespondSuccess(w, response)
 }
 
 // Helper methods following same patterns as ListHandler

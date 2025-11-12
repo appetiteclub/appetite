@@ -1,0 +1,171 @@
+<div class="modal-overlay" id="pin-result-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>PIN Generated Successfully</h2>
+            <button type="button" class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="pin-display-box">
+                <p class="pin-label">
+                    User PIN (case-insensitive)
+                </p>
+                <p class="pin-value">
+                    {{.PIN}}
+                </p>
+            </div>
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 4px;">
+                <p style="margin: 0; font-size: 0.9rem; color: #92400e;">
+                    <strong>⚠️ Important:</strong> This is the only time this PIN will be displayed. Please save it securely before closing this window.
+                </p>
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <button type="button"
+                        class="btn btn-secondary btn-sm"
+                        onclick="copyPIN('{{.PIN}}')"
+                        style="width: 100%;">
+                    📋 Copy PIN to Clipboard
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-primary" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function closeModal() {
+        document.getElementById('pin-modal').innerHTML = '';
+    }
+
+    function copyPIN(pin) {
+        // Copy in lowercase (as stored in DB) - PIN is case-insensitive anyway
+        navigator.clipboard.writeText(pin.toLowerCase()).then(function() {
+            // Show feedback
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Copied (lowercase)';
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            setTimeout(function() {
+                btn.textContent = originalText;
+                btn.style.background = '';
+                btn.style.color = '';
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Failed to copy PIN:', err);
+            alert('Failed to copy PIN to clipboard');
+        });
+    }
+</script>
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal {
+        background: var(--bg-primary, #fff);
+        border-radius: 8px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color, #e5e7eb);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        line-height: 1;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+    }
+
+    .modal-close:hover {
+        color: #000;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1.5rem;
+        border-top: 1px solid var(--border-color, #e5e7eb);
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .pin-display-box {
+        background: var(--accent);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border: 2px solid var(--accent-strong, #247c83);
+    }
+
+    .pin-label {
+        margin: 0 0 0.5rem 0;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--primary);
+        opacity: 0.7;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .pin-value {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        font-family: 'Courier New', monospace;
+        letter-spacing: 0.3em;
+        /* Light mode: dark text */
+        color: #1e3455;
+        /* Display PIN in uppercase (stored as lowercase) */
+        text-transform: uppercase;
+    }
+
+    /* Dark mode: light text with good contrast */
+    :root[data-theme="dark"] .pin-value {
+        color: var(--white);
+    }
+
+    /* Auto dark mode support */
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme]) .pin-value {
+            color: #c0caf5;
+        }
+    }
+</style>

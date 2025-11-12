@@ -22,6 +22,10 @@ type UserRepo interface {
 	// GetByUsername retrieves a User by normalized username handle.
 	GetByUsername(ctx context.Context, username string) (*User, error)
 
+	// GetByPINLookup retrieves a User by PIN lookup hash.
+	// This is used for lightweight authentication in conversational contexts.
+	GetByPINLookup(ctx context.Context, lookup []byte) (*User, error)
+
 	// Save updates an existing User aggregate.
 	Save(ctx context.Context, user *User) error
 

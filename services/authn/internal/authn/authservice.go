@@ -170,7 +170,7 @@ func BootstrapSuperadmin(ctx context.Context, repo UserRepo, config *aqm.Config)
 		return nil, "", fmt.Errorf("encrypt email: %w", err)
 	}
 
-	password := generateSecurePassword(32)
+	password := authpkg.GenerateSecurePassword(32)
 	passwordSalt := authpkg.GeneratePasswordSalt()
 	passwordHash := authpkg.HashPassword([]byte(password), passwordSalt)
 
@@ -196,6 +196,58 @@ func BootstrapSuperadmin(ctx context.Context, repo UserRepo, config *aqm.Config)
 	}
 
 	return user, password, nil
+}
+
+// GeneratePINForUser generates a unique PIN for a user and stores it encrypted.
+// Returns the plain PIN (which should be shown only once) and updates the user.
+func GeneratePINForUser(ctx context.Context, repo UserRepo, config *aqm.Config, user *User) (string, error) {
+	if repo == nil {
+		return "", errors.New("user repository is required")
+	}
+	if config == nil {
+		return "", errors.New("configuration is required")
+	}
+	if user == nil {
+		return "", errors.New("user is required")
+	}
+
+	encryptionKeyStr, _ := config.GetString("auth.encryption.key")
+	signingKeyStr, _ := config.GetString("auth.signing.key")
+	encryptionKey := []byte(encryptionKeyStr)
+	signingKey := []byte(signingKeyStr)
+
+	// Try up to 10 times to generate a unique PIN
+	const maxAttempts = 10
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		pin := authpkg.GeneratePIN()
+		pinLookup := authpkg.ComputePINLookupHash(pin, signingKey)
+
+		// Check if PIN already exists
+		existing, err := repo.GetByPINLookup(ctx, pinLookup)
+		if err != nil {
+			return "", fmt.Errorf("check PIN collision: %w", err)
+		}
+		if existing != nil {
+			// Collision detected, try again
+			continue
+		}
+
+		// Encrypt the PIN
+		encryptedPIN, err := authpkg.EncryptEmail(pin, encryptionKey) // Reusing email encryption
+		if err != nil {
+			return "", fmt.Errorf("encrypt PIN: %w", err)
+		}
+
+		// Store encrypted PIN in user
+		user.PINCT = encryptedPIN.Ciphertext
+		user.PINIV = encryptedPIN.IV
+		user.PINTag = encryptedPIN.Tag
+		user.PINLookup = pinLookup
+
+		return pin, nil
+	}
+
+	return "", errors.New("failed to generate unique PIN after multiple attempts")
 }
 
 func generateSessionToken(config *aqm.Config, userID uuid.UUID) (string, error) {

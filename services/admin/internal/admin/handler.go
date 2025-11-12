@@ -84,6 +84,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/edit-user/{id}", h.EditUser)
 		r.Post("/update-user/{id}", h.UpdateUser)
 		r.Post("/delete-user/{id}", h.DeleteUser)
+		r.Get("/generate-pin/{id}", h.ShowGeneratePINModal)
+		r.Post("/generate-pin/{id}", h.GeneratePIN)
 
 		h.log().Info("Registering role management routes...")
 		r.Get("/list-roles", h.ListRoles)
@@ -620,6 +622,123 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) ShowGeneratePINModal(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.http.Start(w, r, "Handler.ShowGeneratePINModal")
+	defer finish()
+
+	idStr := chi.URLParam(r, "id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.service.GetUser(r.Context(), id)
+	if err != nil {
+		h.log(r).Error("error fetching user", "error", err, "id", id)
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	tmpl, err := h.tmplMgr.Get("generate-pin-modal.html")
+	if err != nil {
+		h.log(r).Error("error getting generate-pin-modal template", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]interface{}{
+		"User": user,
+	}
+
+	if err := tmpl.Execute(w, data); err != nil {
+		h.log(r).Error("error rendering template", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+func (h *Handler) GeneratePIN(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.http.Start(w, r, "Handler.GeneratePIN")
+	defer finish()
+
+	idStr := chi.URLParam(r, "id")
+	if idStr == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	if code, err := h.pfc(r, "user:update", idStr); err != nil {
+		http.Error(w, err.Error(), code)
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Call the AuthN service to generate the PIN
+	if h.authnClient == nil {
+		h.log(r).Error("authn client not configured")
+		http.Error(w, "Authentication service unavailable", http.StatusInternalServerError)
+		return
+	}
+
+	endpoint := fmt.Sprintf("/users/%s/generate-pin", id.String())
+	resp, err := h.authnClient.Request(r.Context(), http.MethodPost, endpoint, nil)
+	if err != nil {
+		h.log(r).Error("error calling generate-pin endpoint", "error", err, "id", id)
+		http.Error(w, "Failed to generate PIN", http.StatusInternalServerError)
+		return
+	}
+
+	if resp == nil || resp.Data == nil {
+		h.log(r).Error("generate-pin returned empty response")
+		http.Error(w, "Failed to generate PIN", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract the PIN from the response
+	data, ok := resp.Data.(map[string]interface{})
+	if !ok {
+		h.log(r).Error("invalid response format from generate-pin")
+		http.Error(w, "Invalid response from service", http.StatusInternalServerError)
+		return
+	}
+
+	pin, ok := data["pin"].(string)
+	if !ok || pin == "" {
+		h.log(r).Error("PIN not found in response")
+		http.Error(w, "PIN not returned by service", http.StatusInternalServerError)
+		return
+	}
+
+	// Render the success response with the PIN
+	tmpl, err := h.tmplMgr.Get("pin-result.html")
+	if err != nil {
+		h.log(r).Error("error getting pin-result template", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"PIN":     pin,
+		"UserID":  id,
+		"Message": "PIN generated successfully. This is the only time it will be displayed. Please save it securely.",
+	}
+
+	if err := tmpl.Execute(w, responseData); err != nil {
+		h.log(r).Error("error rendering template", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request) {

@@ -21,6 +21,10 @@ type User struct {
 	PasswordHash []byte             `json:"-" db:"password_hash" bson:"pass_hash"`
 	PasswordSalt []byte             `json:"-" db:"password_salt" bson:"pass_salt"`
 	MFASecretCT  []byte             `json:"-" db:"mfa_secret_ct" bson:"mfa_secret_ct,omitempty"`
+	PINCT        []byte             `json:"-" db:"pin_ct" bson:"pin_ct,omitempty"`
+	PINIV        []byte             `json:"-" db:"pin_iv" bson:"pin_iv,omitempty"`
+	PINTag       []byte             `json:"-" db:"pin_tag" bson:"pin_tag,omitempty"`
+	PINLookup    []byte             `json:"-" db:"pin_lookup" bson:"pin_lookup,omitempty"`
 	Status       authpkg.UserStatus `json:"status" db:"status" bson:"status"`
 	CreatedAt    time.Time          `json:"created_at" db:"created_at" bson:"created_at"`
 	CreatedBy    string             `json:"created_by" db:"created_by" bson:"created_by"`
@@ -87,6 +91,10 @@ func (u *User) ToDomainUser() *authpkg.User {
 		PasswordHash: u.PasswordHash,
 		PasswordSalt: u.PasswordSalt,
 		MFASecretCT:  u.MFASecretCT,
+		PINCT:        u.PINCT,
+		PINIV:        u.PINIV,
+		PINTag:       u.PINTag,
+		PINLookup:    u.PINLookup,
 		Status:       u.Status,
 		CreatedAt:    u.CreatedAt,
 	}
@@ -105,6 +113,10 @@ func FromDomainUser(domainUser *authpkg.User) *User {
 		PasswordHash: domainUser.PasswordHash,
 		PasswordSalt: domainUser.PasswordSalt,
 		MFASecretCT:  domainUser.MFASecretCT,
+		PINCT:        domainUser.PINCT,
+		PINIV:        domainUser.PINIV,
+		PINTag:       domainUser.PINTag,
+		PINLookup:    domainUser.PINLookup,
 		Status:       domainUser.Status,
 		CreatedAt:    domainUser.CreatedAt,
 		// Service-specific fields remain zero values initially
