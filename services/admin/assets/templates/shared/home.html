@@ -1,0 +1,32 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="page-header">
+    <h1 class="page-title">Admin Dashboard</h1>
+</div>
+
+<div class="card">
+    <h2>System Administration</h2>
+    <p>Welcome to the Appetite administration panel. Use the navigation above to manage system resources.</p>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-top: 2rem;">
+        <div class="card" style="margin: 0;">
+            <h3>User Management</h3>
+            <p>Manage system users, roles, and permissions.</p>
+            <a href="/list-users" class="btn btn-primary">Manage Users</a>
+        </div>
+        
+        <div class="card" style="margin: 0;">
+            <h3>System Configuration</h3>
+            <p>Manage system settings and configuration.</p>
+            <a href="/config" class="btn btn-primary">System Config</a>
+        </div>
+        
+        <div class="card" style="margin: 0;">
+            <h3>System Health</h3>
+            <p>Monitor system status and health checks.</p>
+            <a href="/health" class="btn btn-secondary">Check Status</a>
+        </div>
+    </div>
+</div>
+{{end}}

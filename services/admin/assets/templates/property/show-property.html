@@ -1,0 +1,186 @@
+{{template "base.html" .}}
+
+{{define "show-property"}}
+<div class="page-header">
+    <h1 class="page-title">{{.Property.Name}}</h1>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/edit-property/{{.Property.ID}}" class="btn btn-edit">Edit Property</a>
+        <a href="/list-properties" class="btn btn-secondary">← Back to Properties</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Basic Information</h2>
+
+    <div class="form-group">
+        <label>Name</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Name}}</p>
+    </div>
+
+    <div class="form-group">
+        <label>Description</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Description}}</p>
+    </div>
+
+    <div class="form-group">
+        <label>Status</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;"><span class="status-{{.Property.Status}}">{{.Property.Status}}</span></p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Location</h2>
+
+    <div class="form-group">
+        <label>Address</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">
+            {{.Property.Location.Address.Street}} {{.Property.Location.Address.Number}}
+            {{if .Property.Location.Address.Unit}}, {{.Property.Location.Address.Unit}}{{end}}<br>
+            {{.Property.Location.Address.City}}, {{.Property.Location.Address.State}} {{.Property.Location.Address.PostalCode}}<br>
+            {{.Property.Location.Address.Country}}
+        </p>
+    </div>
+
+    {{if .Property.Location.Region}}
+    <div class="form-group">
+        <label>Region</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Location.Region}}</p>
+    </div>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Features</h2>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+        <div class="form-group">
+            <label>Total Area</label>
+            <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{printf "%.0f" .Property.Features.TotalArea}} m²</p>
+        </div>
+
+        <div class="form-group">
+            <label>Bedrooms</label>
+            <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Features.Bedrooms}}</p>
+        </div>
+
+        <div class="form-group">
+            <label>Bathrooms</label>
+            <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Features.Bathrooms}}</p>
+        </div>
+
+        <div class="form-group">
+            <label>Parking</label>
+            <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Features.Parking}}</p>
+        </div>
+
+        {{if .Property.Features.YearBuilt}}
+        <div class="form-group">
+            <label>Year Built</label>
+            <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Features.YearBuilt}}</p>
+        </div>
+        {{end}}
+
+        {{if .Property.Features.Condition}}
+        <div class="form-group">
+            <label>Condition</label>
+            <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.Features.Condition}}</p>
+        </div>
+        {{end}}
+    </div>
+
+    <div class="form-group" style="margin-top: 1rem;">
+        <label>Amenities</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">
+            {{if .Property.Features.Pool}}✓ Pool &nbsp;{{end}}
+            {{if .Property.Features.Garden}}✓ Garden &nbsp;{{end}}
+            {{if .Property.Features.Balcony}}✓ Balcony &nbsp;{{end}}
+            {{if .Property.Features.Terrace}}✓ Terrace &nbsp;{{end}}
+            {{if .Property.Features.Elevator}}✓ Elevator &nbsp;{{end}}
+            {{if .Property.Features.AirConditioning}}✓ A/C &nbsp;{{end}}
+            {{if .Property.Features.Heating}}✓ Heating &nbsp;{{end}}
+            {{if .Property.Features.Furnished}}✓ Furnished &nbsp;{{end}}
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Media</h2>
+
+    {{if .PropertyMedia}}
+    <div class="media-grid">
+        {{range .PropertyMedia}}
+        {{$categoryID := printf "%s" .CategoryID}}
+        {{$category := index $.MediaCategoryLabels $categoryID}}
+        {{$kind := index $.MediaKindLabels .Kind}}
+        <div class="media-card">
+            <div class="media-card-header">
+                <span class="media-chip">{{if $kind}}{{$kind}}{{else}}{{.Kind}}{{end}}</span>
+                {{if not .Enabled}}
+                <span class="media-chip disabled">Disabled</span>
+                {{end}}
+            </div>
+            <p class="media-meta">{{if $category}}{{$category}}{{else}}{{$categoryID}}{{end}}</p>
+            <p class="media-meta">{{.MimeType}} • {{.Resolution.Width}}x{{.Resolution.Height}} • {{.Filesize}} bytes</p>
+            {{if .StoragePath}}
+            <p class="media-path">{{.StoragePath}}</p>
+            {{end}}
+            {{if .Tags}}
+            <div class="media-tags">
+                {{range .Tags}}
+                {{$tagID := printf "%s" .}}
+                {{$tagLabel := index $.MediaTagLabels $tagID}}
+                <span class="media-tag">{{if $tagLabel}}{{$tagLabel}}{{else}}{{$tagID}}{{end}}</span>
+                {{end}}
+            </div>
+            {{end}}
+            {{if .Variants}}
+            <div class="media-variants">
+                {{range $name, $variant := .Variants}}
+                <div class="media-variant"><strong>{{$name}}</strong> {{$variant.Width}}x{{$variant.Height}} • {{$variant.Filesize}} bytes</div>
+                {{end}}
+            </div>
+            {{end}}
+            <p class="media-timestamp">Updated {{.UpdatedAt.Format "2006-01-02 15:04"}}</p>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">No media recorded.</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Prices</h2>
+
+    {{if .Property.Prices}}
+    <div class="price-grid readonly">
+        {{range .Property.Prices}}
+        {{$label := index $.PriceTypeLabels .Type}}
+        <div class="price-card readonly">
+            <h3>{{if $label}}{{$label}}{{else}}{{.Type}}{{end}}</h3>
+            <p class="price-value">{{printf "%.2f" .Amount}} {{.Currency}}</p>
+            {{if .Negotiable}}
+            <p class="price-note">Negotiable</p>
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">No pricing data recorded.</p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Metadata</h2>
+
+    <div class="form-group">
+        <label>Created</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.CreatedAt.Format "2006-01-02 15:04:05"}} by {{.Property.CreatedBy}}</p>
+    </div>
+
+    <div class="form-group">
+        <label>Last Updated</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Property.UpdatedAt.Format "2006-01-02 15:04:05"}} by {{.Property.UpdatedBy}}</p>
+    </div>
+</div>
+{{end}}

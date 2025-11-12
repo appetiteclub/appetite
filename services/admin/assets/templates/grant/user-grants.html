@@ -1,0 +1,144 @@
+{{template "base.html" .}}
+
+{{define "user-grants"}}
+<div class="page-header">
+    <h1 class="page-title">Manage Grants for {{.User.Name}}</h1>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/list-users" class="btn btn-secondary">← Back to Users</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 1.5rem;">Current Grants</h2>
+    
+    {{if .Grants}}
+    <div style="margin-bottom: 2rem;">
+        {{range .Grants}}
+        <div style="padding: 1rem; border: 1px solid var(--accent); border-radius: 0.25rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong>{{if eq .GrantType "role"}}Role{{else}}Permission{{end}}:</strong> 
+                <code>{{.Value}}</code>
+                <br>
+                <small style="color: #666;">
+                    Scope: {{.Scope.Type}}{{if .Scope.ID}} ({{.Scope.ID}}){{end}}
+                    {{if .ExpiresAt}} | Expires: {{.ExpiresAt.Format "2006-01-02"}}{{end}}
+                </small>
+            </div>
+            <button 
+                hx-post="/delete-grant/{{.ID}}"
+                hx-confirm="Are you sure you want to revoke this grant?"
+                hx-target="closest div"
+                hx-swap="outerHTML swap:0.5s"
+                class="btn btn-sm btn-danger">
+                Revoke
+            </button>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <p style="color: #666; padding: 2rem; text-align: center; background: var(--bg-secondary); border-radius: 0.25rem;">
+        No grants assigned yet. Create one below to give this user access.
+    </p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 1.5rem;">Add New Grant</h2>
+    
+    <form hx-post="/create-grant" hx-target="#form-container">
+        <div id="form-container">
+            <input type="hidden" name="user_id" value="{{.User.ID}}">
+            
+            <div class="form-group">
+                <label>Grant Type</label>
+                <select name="grant_type" id="grant_type" onchange="toggleGrantValue()">
+                    <option value="role">Assign Role</option>
+                    <option value="permission">Grant Permission</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="role_selector">
+                <label>Select Role</label>
+                <select name="value" id="role_value">
+                    {{range .Roles}}
+                    <option value="{{.ID}}">{{.Name}} - {{len .Permissions}} permission(s)</option>
+                    {{end}}
+                </select>
+            </div>
+            
+            <div class="form-group" id="permission_selector" style="display: none;">
+                <label>Select Permission</label>
+                <select name="permission_value" id="permission_value" disabled>
+                    {{range .PermissionRegistry}}
+                    <optgroup label="{{.Name}}">
+                        {{range .Permissions}}
+                        <option value="{{.Code}}">{{.Name}}</option>
+                        {{end}}
+                    </optgroup>
+                    {{end}}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Scope Type</label>
+                <select name="scope_type" id="scope_type" onchange="toggleScopeId()">
+                    <option value="global">Global</option>
+                    <option value="team">Team</option>
+                    <option value="organization">Organization</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="scope_id_field" style="display: none;">
+                <label>Scope ID</label>
+                <input type="text" name="scope_id" id="scope_id" placeholder="e.g., engineering, sales">
+                <small style="color: #666; font-size: 0.8em;">Enter the team or organization identifier</small>
+            </div>
+            
+            <div class="form-group" style="margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary">
+                    <span class="htmx-indicator">Creating...</span>
+                    <span>Grant Access</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleGrantValue() {
+    const grantType = document.getElementById('grant_type').value;
+    const roleSelector = document.getElementById('role_selector');
+    const permissionSelector = document.getElementById('permission_selector');
+    const roleValue = document.getElementById('role_value');
+    const permissionValue = document.getElementById('permission_value');
+    
+    if (grantType === 'role') {
+        roleSelector.style.display = 'block';
+        permissionSelector.style.display = 'none';
+        roleValue.disabled = false;
+        roleValue.name = 'value';
+        permissionValue.disabled = true;
+        permissionValue.name = '';
+    } else {
+        roleSelector.style.display = 'none';
+        permissionSelector.style.display = 'block';
+        roleValue.disabled = true;
+        roleValue.name = '';
+        permissionValue.disabled = false;
+        permissionValue.name = 'value';
+    }
+}
+
+function toggleScopeId() {
+    const scopeType = document.getElementById('scope_type').value;
+    const scopeIdField = document.getElementById('scope_id_field');
+    
+    if (scopeType === 'global') {
+        scopeIdField.style.display = 'none';
+        document.getElementById('scope_id').value = '';
+    } else {
+        scopeIdField.style.display = 'block';
+    }
+}
+</script>
+{{end}}

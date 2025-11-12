@@ -1,0 +1,23 @@
+# Default configuration for the dictionary service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: DICTIONARY_WEB_PORT
+  port: ":8085"
+
+db:
+  mongo:
+    # MongoDB connection string.
+    # Env: DICTIONARY_DB_MONGO_URL
+    url: "mongodb://admin:password@localhost:27017/dictionary?authSource=admin"
+
+    # MongoDB database name.
+    # Env: DICTIONARY_DB_MONGO_NAME
+    name: "appetite_dictionary"
+
+log:
+  level: "info"
+
+debug:
+  routes: true

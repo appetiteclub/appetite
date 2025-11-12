@@ -1,0 +1,55 @@
+{{template "base.html" .}}
+
+{{define "users-content"}}
+<div class="page-header">
+    <h1 class="page-title">User Management</h1>
+    <a href="/new-user" class="btn btn-manage">Add New User</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{if .Users}}
+                {{range .Users}}
+                <tr>
+                    <td>{{.Username}}</td>
+                    <td>{{.Name}}</td>
+                    <td>{{.Email}}</td>
+                    <td><span class="status-{{.Status}}">{{.Status}}</span></td>
+                    <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                    <td class="actions">
+                        <a href="/show-user/{{.ID}}" class="btn btn-sm btn-view">View</a>
+                        <a href="/edit-user/{{.ID}}" class="btn btn-sm btn-edit">Edit</a>
+                        <a href="/user-grants/{{.ID}}" class="btn btn-sm btn-manage">Grants</a>
+                        <button 
+                            hx-post="/delete-user/{{.ID}}" 
+                            hx-confirm="Are you sure you want to delete {{.Name}}?"
+                            hx-target="closest tr"
+                            hx-swap="outerHTML swap:1s"
+                            class="btn btn-sm btn-danger">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+                {{end}}
+            {{else}}
+            <tr>
+                <td colspan="6" class="text-center">
+                    <p style="padding: 2rem; color: #666;">No users found. <a href="/new-user">Create the first user</a>.</p>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

@@ -1,0 +1,16 @@
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - revive
+    - gocritic
+    - forbidigo
+
+linters-settings:
+  forbidigo:
+    forbid:
+      - pattern: 'config\.XParams\{'
+        message: "use config.NewXParams(...) instead of struct literal"
+
+run:
+  timeout: 5m

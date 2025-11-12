@@ -1,0 +1,18 @@
+module github.com/appetiteclub/appetite/services/authn
+
+go 1.24.0
+
+toolchain go1.24.7
+
+// Dependencies are resolved by go.work workspace
+// The workspace includes both the monorepo root and this service
+
+require (
+	github.com/aquamarinepk/aqm v0.0.0
+	github.com/go-chi/chi/v5 v5.2.3
+	github.com/google/uuid v1.6.0
+	go.mongodb.org/mongo-driver v1.17.4
+	golang.org/x/crypto v0.43.0
+	google.golang.org/grpc v1.76.0
+	google.golang.org/protobuf v1.36.10
+)

@@ -1,0 +1,64 @@
+<div id="location-fields">
+  {{if .Location.Error}}
+  <div class="form-error">{{.Location.Error}}</div>
+  {{end}}
+  <div class="form-group">
+    <label for="location_search">Search Address</label>
+    <input
+      type="text"
+      id="location_search"
+      name="location_search"
+      autocomplete="off"
+      value="{{.Location.SearchValue}}"
+    />
+    <small class="form-hint">Type at least 3 characters to see suggestions</small>
+    <div id="location_suggestions" class="location-suggestions"></div>
+  </div>
+
+  <div class="form-group">
+    <label for="street">Street *</label>
+    <input type="text" id="street" name="street" required value="{{.Location.Street}}" />
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem">
+    <div class="form-group">
+      <label for="number">Number</label>
+      <input type="text" id="number" name="number" value="{{.Location.Number}}" />
+    </div>
+
+    <div class="form-group">
+      <label for="unit">Unit</label>
+      <input type="text" id="unit" name="unit" value="{{.Location.Unit}}" />
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem">
+    <div class="form-group">
+      <label for="city">City *</label>
+      <input type="text" id="city" name="city" required value="{{.Location.City}}" />
+    </div>
+
+    <div class="form-group">
+      <label for="state">State</label>
+      <input type="text" id="state" name="state" value="{{.Location.State}}" />
+    </div>
+
+    <div class="form-group">
+      <label for="postal_code">Postal Code</label>
+      <input type="text" id="postal_code" name="postal_code" value="{{.Location.PostalCode}}" />
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="country">Country *</label>
+    <input type="text" id="country" name="country" required value="{{.Location.Country}}" />
+  </div>
+
+  <input type="hidden" id="location_provider" name="location_provider" value="{{.Location.Provider}}" />
+  <input type="hidden" id="location_provider_ref" name="location_provider_ref" value="{{.Location.ProviderRef}}" />
+  <input type="hidden" id="location_provider_url" name="location_provider_url" value="{{.Location.ProviderURL}}" />
+  <input type="hidden" id="location_latitude" name="location_latitude" value="{{.Location.Latitude}}" />
+  <input type="hidden" id="location_longitude" name="location_longitude" value="{{.Location.Longitude}}" />
+  <input type="hidden" id="location_raw" name="location_raw" value="{{.Location.RawJSON}}" />
+  <input type="hidden" id="location_display_name" name="location_display_name" value="{{.Location.SelectedText}}" />
+</div>

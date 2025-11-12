@@ -1,0 +1,62 @@
+{{define "base.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Appetite Admin</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+    <script src="/static/js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">Appetite Admin</a>
+                <div class="nav-section">
+                    {{if not .HideNav}}
+                    <nav>
+                        <ul>
+                            <li><a href="/list-users" {{if eq .ActiveNav "users"}}class="active"{{end}}>Users</a></li>
+                            <li><a href="/list-roles" {{if eq .ActiveNav "roles"}}class="active"{{end}}>Roles</a></li>
+                            <li><a href="/list-sets" {{if eq .ActiveNav "dictionary"}}class="active"{{end}}>Dictionary</a></li>
+                            <li><a href="/list-tables" {{if eq .ActiveNav "tables"}}class="active"{{end}}>Tables</a></li>
+                            <li><a href="/list-media" {{if eq .ActiveNav "media"}}class="active"{{end}}>Media</a></li>
+                            <li>
+                                <form method="post" action="/signout" class="signout-form" style="margin:0;">
+                                    <button type="submit" class="nav-signout" style="background:none;border:none;padding:0;color:inherit;font:inherit;cursor:pointer;">Sign out</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </nav>
+                    {{end}}
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle theme">
+                        <span class="sun-icon">☀️</span>
+                        <span class="moon-icon">🌙</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container{{if .AuthPage}} auth-container{{end}}">
+            {{if .Flash}}
+            <div class="flash flash-{{.Flash.Type}}">
+                {{.Flash.Message}}
+            </div>
+            {{end}}
+            
+            {{if eq .Template "new-user"}}{{template "new-user" .}}{{else if eq .Template "edit-user"}}{{template "edit-user" .}}{{else if eq .Template "show-user"}}{{template "show-user" .}}{{else if eq .Template "new-role"}}{{template "new-role" .}}{{else if eq .Template "edit-role"}}{{template "edit-role" .}}{{else if eq .Template "show-role"}}{{template "show-role" .}}{{else if eq .Template "user-grants"}}{{template "user-grants" .}}{{else if eq .Template "users-content"}}{{template "users-content" .}}{{else if eq .Template "roles-content"}}{{template "roles-content" .}}{{else if eq .Template "list-sets-content"}}{{template "list-sets-content" .}}{{else if eq .Template "list-options-content"}}{{template "list-options-content" .}}{{else if eq .Template "new-set"}}{{template "new-set" .}}{{else if eq .Template "edit-set"}}{{template "edit-set" .}}{{else if eq .Template "show-set"}}{{template "show-set" .}}{{else if eq .Template "new-option"}}{{template "new-option" .}}{{else if eq .Template "edit-option"}}{{template "edit-option" .}}{{else if eq .Template "show-option"}}{{template "show-option" .}}{{else if eq .Template "list-tables-content"}}{{template "list-tables-content" .}}{{else if eq .Template "list-media-content"}}{{template "list-media-content" .}}{{else if eq .Template "show-media"}}{{template "show-media" .}}{{else if eq .Template "signin"}}{{template "signin" .}}{{else if eq .Template "signup"}}{{template "signup" .}}{{else}}{{template "content" .}}{{end}}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Appetite Admin. System Administration Panel.</p>
+        </div>
+    </footer>
+</body>
+</html>
+{{end}}

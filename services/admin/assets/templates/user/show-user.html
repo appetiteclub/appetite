@@ -1,0 +1,43 @@
+{{template "base.html" .}}
+
+{{define "show-user"}}
+<div class="page-header">
+    <h1 class="page-title">View User</h1>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/edit-user/{{.User.ID}}" class="btn btn-edit">Edit User</a>
+        <a href="/list-users" class="btn btn-secondary">← Back to Users</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="form-group">
+        <label>Username</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.User.Username}}</p>
+    </div>
+
+    <div class="form-group">
+        <label>Full Name</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.User.Name}}</p>
+    </div>
+
+    <div class="form-group">
+        <label>Email Address</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.User.Email}}</p>
+    </div>
+
+    <div class="form-group">
+        <label>Status</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;"><span class="status-{{.User.Status}}">{{.User.Status}}</span></p>
+    </div>
+    
+    <div class="form-group">
+        <label>Created</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.User.CreatedAt.Format "2006-01-02 15:04:05"}}</p>
+    </div>
+    
+    <div class="form-group">
+        <label>Last Updated</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.User.UpdatedAt.Format "2006-01-02 15:04:05"}}</p>
+    </div>
+</div>
+{{end}}

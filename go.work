@@ -1,0 +1,13 @@
+go 1.24.7
+
+use (
+	./services/admin
+	./services/authn
+	./services/authz
+	./services/dictionary
+	./services/table
+	./services/media
+	../aqm
+)
+
+replace github.com/aquamarinepk/aqm v0.0.0 => ../aqm

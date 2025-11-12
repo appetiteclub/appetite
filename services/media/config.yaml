@@ -1,0 +1,50 @@
+# Default configuration for the media service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: MEDIA_WEB_PORT
+  port: ":8090"
+
+log:
+  level: info
+
+storage:
+  # Storage backend: "local" or "noop".
+  # Env: MEDIA_STORAGE_BACKEND
+  backend: local
+
+  local:
+    # Directory for storing media files locally.
+    # Env: MEDIA_STORAGE_LOCAL_DIRECTORY
+    directory: ./data/media
+
+processing:
+  # Enable image cropping.
+  # Env: MEDIA_PROCESSING_CROPPING
+  cropping: false
+
+  # Enable image compression.
+  # Env: MEDIA_PROCESSING_COMPRESSION
+  compression: false
+
+  # Image variants to generate.
+  variants:
+    - name: thumb
+      width: 150
+      height: 150
+    - name: preview
+      width: 800
+      height: 600
+    - name: web
+      width: 1280
+      height: 720
+
+services:
+  # Dictionary service URL.
+  # Env: MEDIA_SERVICES_DICTIONARY_URL
+  dictionary:
+    url: http://localhost:8082
+
+debug:
+  routes: true

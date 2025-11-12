@@ -1,0 +1,76 @@
+# Default configuration for the admin service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: ADMIN_WEB_PORT
+  port: ":8081"
+
+services:
+  # Authentication service URL.
+  # Env: ADMIN_SERVICES_AUTHN_URL
+  authn:
+    url: "http://localhost:8082"
+
+  # Authorization service URL.
+  # Env: ADMIN_SERVICES_AUTHZ_URL
+  authz:
+    url: "http://localhost:8083"
+
+  # Table service URL.
+  # Env: ADMIN_SERVICES_TABLE_URL
+  table:
+    url: "http://localhost:8084"
+
+  # Dictionary service URL.
+  # Env: ADMIN_SERVICES_DICTIONARY_URL
+  dictionary:
+    url: "http://localhost:8085"
+
+  # Media service URL.
+  # Env: ADMIN_SERVICES_MEDIA_URL
+  media:
+    url: "http://localhost:8086"
+
+auth:
+  # Cache TTL for auth tokens.
+  # Env: ADMIN_AUTH_CACHE_TTL
+  cache:
+    ttl: "5m"
+
+  # Session secret for cookie signing.
+  # Env: ADMIN_AUTH_SESSION_SECRET
+  session:
+    secret: "change-this-in-production"
+
+log:
+  level: "info"
+
+debug:
+  routes: true
+
+geocode:
+  # Geocoding provider: "locationiq", "google", or "osm".
+  # Env: ADMIN_GEOCODE_PROVIDER
+  provider: "locationiq"
+
+  # Google Maps configuration (optional).
+  # google:
+  #   api:
+  #     key: ""
+  #   endpoint: "https://maps.googleapis.com/maps/api"
+
+  # OpenStreetMap Nominatim configuration (optional).
+  # osm:
+  #   endpoint: "https://nominatim.openstreetmap.org"
+  #   email: ""
+
+  # LocationIQ configuration.
+  locationiq:
+    # LocationIQ API key.
+    # Env: ADMIN_GEOCODE_LOCATIONIQ_KEY
+    key: ""
+
+    # LocationIQ API endpoint.
+    # Env: ADMIN_GEOCODE_LOCATIONIQ_ENDPOINT
+    endpoint: "https://api.locationiq.com/v1"

@@ -1,0 +1,114 @@
+{{template "base.html" .}}
+
+{{define "list-media-content"}}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Media Library</h1>
+        <p class="page-subtitle">Review and manage media assets stored through the platform.</p>
+    </div>
+    <div class="stats-card">
+        <div class="stat">
+            <span class="label">Total</span>
+            <span class="value">{{len .MediaItems}}</span>
+        </div>
+        <div class="stat">
+            <span class="label">Enabled</span>
+            <span class="value">{{.EnabledCount}}</span>
+        </div>
+        <div class="stat">
+            <span class="label">Disabled</span>
+            <span class="value">{{.DisabledCount}}</span>
+        </div>
+    </div>
+</div>
+
+{{if .ResourceTypeCounters}}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2>Assets by Resource</h2>
+    <div class="resource-summary">
+        {{range $resource, $count := .ResourceTypeCounters}}
+        <div class="resource-chip"><strong>{{$resource}}</strong> {{$count}}</div>
+        {{end}}
+    </div>
+</div>
+{{end}}
+
+<div class="table-container">
+    <table class="media-table">
+        <thead>
+            <tr>
+                <th>Resource</th>
+                <th>Kind</th>
+                <th>Category</th>
+                <th>Tags</th>
+                <th>Size</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{if .MediaItems}}
+                {{range .MediaItems}}
+                {{$categoryID := printf "%s" .CategoryID}}
+                {{$category := index $.MediaCategoryLabels $categoryID}}
+                {{$kind := index $.MediaKindLabels .Kind}}
+                <tr>
+                    <td>
+                        <div class="resource-cell">
+                            <span class="resource-type">{{.TargetType}}</span>
+                            <span class="resource-id">{{.TargetID}}</span>
+                        </div>
+                    </td>
+                    <td>{{if $kind}}{{$kind}}{{else}}{{.Kind}}{{end}}</td>
+                    <td>{{if $category}}{{$category}}{{else}}{{$categoryID}}{{end}}</td>
+                    <td>
+                        {{if .Tags}}
+                        <div class="media-tag-row">
+                            {{range .Tags}}
+                            {{$tagID := printf "%s" .}}
+                            {{$label := index $.MediaTagLabels $tagID}}
+                            <span class="media-tag">{{if $label}}{{$label}}{{else}}{{$tagID}}{{end}}</span>
+                            {{end}}
+                        </div>
+                        {{else}}
+                        <span class="muted">—</span>
+                        {{end}}
+                    </td>
+                    <td>{{.Filesize}} bytes</td>
+                    <td>
+                        {{if .Enabled}}
+                        <span class="status-available">Enabled</span>
+                        {{else}}
+                        <span class="status-draft">Disabled</span>
+                        {{end}}
+                    </td>
+                    <td>{{.UpdatedAt.Format "2006-01-02 15:04"}}</td>
+                    <td class="actions">
+                        <a href="/show-media/{{.ID}}" class="btn btn-sm btn-view">View</a>
+                        {{if .Enabled}}
+                        <form method="POST" action="/media/{{.ID}}/disable" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-secondary">Disable</button>
+                        </form>
+                        {{else}}
+                        <form method="POST" action="/media/{{.ID}}/enable" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-success">Enable</button>
+                        </form>
+                        {{end}}
+                        <form method="POST" action="/media/{{.ID}}/delete" style="display:inline;" onsubmit="return confirm('Delete media asset {{.ID}}?');">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            {{else}}
+            <tr>
+                <td colspan="8" class="text-center">
+                    <p style="padding: 2rem; color: #666;">No media assets found. Upload media through the property editor to populate the library.</p>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
