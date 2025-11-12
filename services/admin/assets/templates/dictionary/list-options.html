@@ -1,0 +1,103 @@
+{{template "base.html" .}}
+
+{{define "list-options-content"}}
+<div class="page-header">
+    <h1 class="page-title">
+        {{if .SelectedSet}}
+            Options for {{.SelectedSet.Name}} - {{.SelectedSet.Locale}}
+        {{else}}
+            Dictionary Options
+        {{end}}
+    </h1>
+    <div style="display: flex; gap: 1rem;">
+        {{if .SelectedSet}}
+            <a href="/show-set/{{.SelectedSet.ID}}" class="btn btn-secondary">Back to Set</a>
+            <a href="/new-option?set_id={{.SelectedSet.ID}}" class="btn btn-manage">Add New Option</a>
+        {{else}}
+            <a href="/list-sets" class="btn btn-secondary">View Sets</a>
+            <a href="/new-option" class="btn btn-manage">Add New Option</a>
+        {{end}}
+    </div>
+</div>
+
+{{if .Sets}}
+<div class="filter-section" style="margin-bottom: 1.5rem;">
+    <label for="set-filter">Filter by Set:</label>
+    <select id="set-filter" onchange="window.location.href='/list-options?set_id=' + this.value">
+        <option value="">All Sets</option>
+        {{range .Sets}}
+        <option value="{{.ID}}" {{if eq $.SelectedSetID .ID.String}}selected{{end}}>{{.Name}} - {{.Locale}} ({{.Label}})</option>
+        {{end}}
+    </select>
+    {{if .SelectedSetID}}
+        <a href="/list-options" style="color: #666; text-decoration: none; font-size: 0.9rem; margin-left: 0.5rem;">✕ Clear filter</a>
+    {{end}}
+</div>
+{{end}}
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Label</th>
+                <th>Short Code</th>
+                <th>Value</th>
+                <th>Set</th>
+                <th>Parent</th>
+                <th>Order</th>
+                <th>Status</th>
+                <th>Locale</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{if .Options}}
+                {{range .Options}}
+                <tr>
+                    <td><code>{{.Key}}</code></td>
+                    <td>{{.Label}}</td>
+                    <td><code>{{.ShortCode}}</code></td>
+                    <td>{{.Value}}</td>
+                    <td>{{.SetName}}</td>
+                    <td>
+                        {{if .ParentLabel}}
+                            {{.ParentLabel}}
+                        {{else}}
+                            <em>Root</em>
+                        {{end}}
+                    </td>
+                    <td>{{.Order}}</td>
+                    <td>
+                        {{if .Active}}
+                            <span class="status-active">Active</span>
+                        {{else}}
+                            <span class="status-inactive">Inactive</span>
+                        {{end}}
+                    </td>
+                    <td><span style="font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">{{.Locale}}</span></td>
+                    <td class="actions">
+                        <a href="/show-option/{{.ID}}" class="btn btn-sm btn-view">View</a>
+                        <a href="/edit-option/{{.ID}}" class="btn btn-sm btn-edit">Edit</a>
+                        <button
+                            hx-post="/delete-option/{{.ID}}"
+                            hx-confirm="Are you sure you want to delete {{.Label}}?"
+                            hx-target="closest tr"
+                            hx-swap="outerHTML swap:1s"
+                            class="btn btn-sm btn-danger">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+                {{end}}
+            {{else}}
+            <tr>
+                <td colspan="10" class="text-center">
+                    <p style="padding: 2rem; color: #666;">No options found. <a href="/new-option">Create the first option</a>.</p>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

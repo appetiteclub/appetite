@@ -1,0 +1,58 @@
+# Default configuration for the auth service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: AUTH_WEB_PORT
+  port: ":8082"
+
+grpc:
+  # The gRPC port the internal server will listen on.
+  # Env: AUTHN_GRPC_PORT
+  port: ":9082"
+
+db:
+  # Path to the SQLite database file.
+  # Env: AUTHN_DB_PATH
+  path: "./authn.db"
+
+  mongo:
+    # MongoDB connection string.
+    # Env: AUTHN_DB_MONGO_URL
+    url: "mongodb://admin:password@localhost:27017/authn?authSource=admin"
+
+    # MongoDB database name.
+    # Env: AUTHN_DB_MONGO_NAME
+    name: "appetite_authn"
+
+auth:
+  encryption:
+    # AES-GCM encryption key for PII data (32 bytes).
+    # Env: AUTH_ENCRYPTION_KEY
+    key: "12345678901234567890123456789012"
+
+  signing:
+    # HMAC signing key for lookup hashes.
+    # Env: AUTH_SIGNING_KEY
+    key: "change-me-signing-key-for-hmac"
+
+  session:
+    # Session TTL duration.
+    # Env: AUTH_SESSION_TTL
+    ttl: "24h"
+
+  token:
+    key:
+      # RSA private key for token signing (PEM format).
+      # Env: AUTH_TOKEN_KEY_PRIVATE
+      private: ""
+
+      # RSA public key for token verification (PEM format).
+      # Env: AUTH_TOKEN_KEY_PUBLIC
+      public: ""
+
+log:
+  level: "info"
+
+debug:
+  routes: true

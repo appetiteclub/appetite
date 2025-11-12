@@ -1,0 +1,65 @@
+{{template "base.html" .}}
+
+{{define "list-properties-content"}}
+<div class="page-header">
+    <h1 class="page-title">Property Management</h1>
+    <a href="/new-property" class="btn btn-manage">Add New Property</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Type</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{if .Properties}}
+                {{range .Properties}}
+                <tr>
+                    <td><strong>{{.Name}}</strong></td>
+                    <td>{{.Location.Address.City}}, {{.Location.Address.Country}}</td>
+                    <td>{{.Features.Bedrooms}} bed / {{.Features.Bathrooms}} bath</td>
+                    <td>
+                        {{if .Prices}}
+                            <ul class="price-list">
+                                {{range .Prices}}
+                                {{$label := index $.PriceTypeLabels .Type}}
+                                <li><span>{{if $label}}{{$label}}{{else}}{{.Type}}{{end}}</span> {{printf "%.0f" .Amount}} {{.Currency}}</li>
+                                {{end}}
+                            </ul>
+                        {{else}}
+                            —
+                        {{end}}
+                    </td>
+                    <td><span class="status-{{.Status}}">{{.Status}}</span></td>
+                    <td class="actions">
+                        <a href="/show-property/{{.ID}}" class="btn btn-sm btn-view">View</a>
+                        <a href="/edit-property/{{.ID}}" class="btn btn-sm btn-edit">Edit</a>
+                        <button
+                            hx-post="/delete-property/{{.ID}}"
+                            hx-confirm="Are you sure you want to delete {{.Name}}?"
+                            hx-target="closest tr"
+                            hx-swap="outerHTML swap:1s"
+                            class="btn btn-sm btn-danger">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+                {{end}}
+            {{else}}
+            <tr>
+                <td colspan="6" class="text-center">
+                    <p style="padding: 2rem; color: #666;">No properties found. <a href="/new-property">Create the first property</a>.</p>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

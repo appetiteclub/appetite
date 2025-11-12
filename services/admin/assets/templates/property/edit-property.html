@@ -1,0 +1,243 @@
+{{template "base.html" .}}
+
+{{define "edit-property"}}
+<div class="page-header">
+    <h1 class="page-title">Edit Property</h1>
+    <a href="/show-property/{{.Property.ID}}" class="btn btn-secondary">← Back to Property</a>
+</div>
+
+<div class="card">
+    <form method="POST" action="/update-property/{{.Property.ID}}">
+        <h2>Basic Information</h2>
+
+        <div class="form-group">
+            <label for="name">Property Name *</label>
+            <input type="text" id="name" name="name" value="{{.Property.Name}}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="4">{{.Property.Description}}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="status">Status *</label>
+            <select id="status" name="status" required>
+                <option value="available" {{if eq .Property.Status "available"}}selected{{end}}>Available</option>
+                <option value="sold" {{if eq .Property.Status "sold"}}selected{{end}}>Sold</option>
+                <option value="rented" {{if eq .Property.Status "rented"}}selected{{end}}>Rented</option>
+                <option value="reserved" {{if eq .Property.Status "reserved"}}selected{{end}}>Reserved</option>
+                <option value="draft" {{if eq .Property.Status "draft"}}selected{{end}}>Draft</option>
+            </select>
+        </div>
+
+        <h2 style="margin-top: 2rem;">Classification</h2>
+
+        <div class="form-group">
+            <label for="category_id">Category *</label>
+            <select id="category_id" name="category_id" required
+                    hx-get="/htmx/types-by-category"
+                    hx-target="#type_id"
+                    hx-trigger="change"
+                    hx-include="[name='category_id']"
+                    hx-swap="innerHTML">
+                <option value="">-- Select Category --</option>
+                {{range .Categories}}
+                <option value="{{.id}}" {{if eq .id (printf "%s" $.Property.Classification.CategoryID)}}selected{{end}}>{{.name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="type_id">Type *</label>
+            <select id="type_id" name="type_id" required
+                    hx-get="/htmx/subtypes-by-type"
+                    hx-target="#subtype_id"
+                    hx-trigger="change"
+                    hx-include="[name='type_id']"
+                    hx-swap="innerHTML">
+                <option value="">-- Select Type --</option>
+                {{range .Types}}
+                <option value="{{.id}}" {{if eq .id (printf "%s" $.Property.Classification.TypeID)}}selected{{end}}>{{.name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="subtype_id">Subtype</label>
+            <select id="subtype_id" name="subtype_id">
+                <option value="">-- Select Subtype (Optional) --</option>
+                {{range .Subtypes}}
+                <option value="{{.id}}" {{if eq .id (printf "%s" $.Property.Classification.SubtypeID)}}selected{{end}}>{{.name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <h2 style="margin-top: 2rem;">Location</h2>
+        {{template "location-fields.html" .}}
+
+        <h2 style="margin-top: 2rem;">Features</h2>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+            <div class="form-group">
+                <label for="total_area">Total Area (m²) *</label>
+                <input type="number" id="total_area" name="total_area" step="0.01" value="{{.Property.Features.TotalArea}}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="bedrooms">Bedrooms *</label>
+                <input type="number" id="bedrooms" name="bedrooms" min="0" value="{{.Property.Features.Bedrooms}}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="bathrooms">Bathrooms *</label>
+                <input type="number" id="bathrooms" name="bathrooms" min="0" value="{{.Property.Features.Bathrooms}}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="parking">Parking Spaces</label>
+                <input type="number" id="parking" name="parking" min="0" value="{{.Property.Features.Parking}}">
+            </div>
+        </div>
+
+        <h2 style="margin-top: 2rem;">Prices</h2>
+        <p class="form-hint">Update any price type that is relevant for this property. Leave the amount empty to clear it.</p>
+
+        <div class="price-grid">
+            {{range .PriceTypes}}
+            {{if .key}}
+            {{$price := index $.PriceValues .key}}
+            <div class="price-card">
+                <h3>{{.name}}</h3>
+                <div class="form-group">
+                    <label for="price_{{.key}}_amount">Amount</label>
+                    <input
+                        type="number"
+                        id="price_{{.key}}_amount"
+                        name="price_{{.key}}_amount"
+                        step="0.01"
+                        {{with $price}}value="{{printf "%.2f" .Amount}}"{{end}}>
+                </div>
+                <div class="form-group">
+                    <label for="price_{{.key}}_currency">Currency</label>
+                    <select id="price_{{.key}}_currency" name="price_{{.key}}_currency">
+                        <option value="USD" {{if or (not $price) (and $price (eq $price.Currency "USD"))}}selected{{end}}>USD</option>
+                        <option value="EUR" {{if and $price (eq $price.Currency "EUR")}}selected{{end}}>EUR</option>
+                        <option value="PLN" {{if and $price (eq $price.Currency "PLN")}}selected{{end}}>PLN</option>
+                    </select>
+                </div>
+            </div>
+            {{end}}
+            {{end}}
+        </div>
+
+        <div class="form-group">
+            <label for="owner_id">Owner ID</label>
+            <input type="text" id="owner_id" name="owner_id" value="{{.Property.OwnerID}}">
+        </div>
+
+        <div class="form-group" style="margin-top: 2rem;">
+            <button type="submit" class="btn btn-primary">Update Property</button>
+            <a href="/show-property/{{.Property.ID}}" class="btn btn-secondary" style="margin-left: 1rem;">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Media</h2>
+
+    {{if .PropertyMedia}}
+    <div class="media-grid">
+        {{range .PropertyMedia}}
+        {{$categoryID := printf "%s" .CategoryID}}
+        {{$category := index $.MediaCategoryLabels $categoryID}}
+        {{$kind := index $.MediaKindLabels .Kind}}
+        <div class="media-card">
+            <div class="media-card-header">
+                <span class="media-chip">{{if $kind}}{{$kind}}{{else}}{{.Kind}}{{end}}</span>
+                {{if not .Enabled}}
+                <span class="media-chip disabled">Disabled</span>
+                {{end}}
+            </div>
+            <p class="media-meta">{{if $category}}{{$category}}{{else}}{{$categoryID}}{{end}}</p>
+            <p class="media-meta">{{.MimeType}} • {{.Resolution.Width}}x{{.Resolution.Height}} • {{.Filesize}} bytes</p>
+            {{if .StoragePath}}
+            <p class="media-path">{{.StoragePath}}</p>
+            {{end}}
+            {{if .Tags}}
+            <div class="media-tags">
+                {{range .Tags}}
+                {{$tagID := printf "%s" .}}
+                {{$tagLabel := index $.MediaTagLabels $tagID}}
+                <span class="media-tag">{{if $tagLabel}}{{$tagLabel}}{{else}}{{$tagID}}{{end}}</span>
+                {{end}}
+            </div>
+            {{end}}
+            {{if .Variants}}
+            <div class="media-variants">
+                {{range $name, $variant := .Variants}}
+                <div class="media-variant"><strong>{{$name}}</strong> {{$variant.Width}}x{{$variant.Height}} • {{$variant.Filesize}} bytes</div>
+                {{end}}
+            </div>
+            {{end}}
+            <p class="media-timestamp">Updated {{.UpdatedAt.Format "2006-01-02 15:04"}}</p>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">No media recorded.</p>
+    {{end}}
+
+    <form method="POST" action="/properties/{{.Property.ID}}/media" enctype="multipart/form-data" class="media-upload-form">
+        <h3 style="margin-top: 1.5rem;">Upload New Media</h3>
+        <div class="form-group">
+            <label for="media_file">File *</label>
+            <input type="file" id="media_file" name="file" accept="image/*" required>
+        </div>
+
+        <div class="form-group">
+            <label for="media_category_id">Location *</label>
+            <select id="media_category_id" name="media_category_id" required>
+                <option value="">-- Select Location --</option>
+                {{range .MediaCategories}}
+                <option value="{{.ID}}">{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="media_kind">Kind *</label>
+            <select id="media_kind" name="media_kind" required>
+                {{range .MediaKinds}}
+                {{$value := .Key}}
+                {{if eq $value ""}}
+                    {{$value = (printf "%s" .ID)}}
+                {{end}}
+                <option value="{{$value}}">{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="form-group" style="display: flex; gap: 1rem; align-items: center;">
+            <label for="media_enabled" style="margin: 0;">Enabled</label>
+            <input type="checkbox" id="media_enabled" name="media_enabled" value="1" checked>
+        </div>
+
+        {{range $group := .MediaTagGroups}}
+        <div class="form-group">
+            <label>{{$group.Label}}</label>
+            <div class="media-tags-input">
+                {{range $opt := $group.Options}}
+                <label class="media-tag-checkbox">
+                    <input type="checkbox" name="{{$group.ID}}" value="{{$opt.ID}}">
+                    <span>{{$opt.Name}}</span>
+                </label>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+
+        <button type="submit" class="btn btn-primary">Upload Media</button>
+    </form>
+</div>
+{{end}}

@@ -1,0 +1,33 @@
+# Default configuration for the authz service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: AUTHZ_WEB_PORT
+  port: ":8083"
+
+db:
+  # Path to the SQLite database file.
+  # Env: AUTHZ_DB_PATH
+  path: "./authz.db"
+
+  mongo:
+    # MongoDB connection string.
+    # Env: AUTHZ_DB_MONGO_URL
+    url: "mongodb://admin:password@localhost:27017/authz?authSource=admin"
+
+    # MongoDB database name.
+    # Env: AUTHZ_DB_MONGO_NAME
+    name: "appetite_authz"
+
+auth:
+  # Authentication service URL for bootstrap status checks.
+  # Env: AUTHZ_AUTH_AUTHN_URL
+  authn:
+    url: "http://localhost:8082"
+
+log:
+  level: "info"
+
+debug:
+  routes: true

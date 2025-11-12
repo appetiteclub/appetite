@@ -1,0 +1,57 @@
+{{template "base.html" .}}
+
+{{define "show-role"}}
+<div class="page-header">
+    <h1 class="page-title">View Role: {{.Role.Name}}</h1>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/edit-role/{{.Role.ID}}" class="btn btn-edit">Edit Role</a>
+        <a href="/list-roles" class="btn btn-secondary">← Back to Roles</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="form-group">
+        <label>Role Name</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Role.Name}}</p>
+    </div>
+    
+    <div class="form-group">
+        <label>Description</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">
+            {{if .Role.Description}}{{.Role.Description}}{{else}}<em style="color: #999;">No description provided</em>{{end}}
+        </p>
+    </div>
+    
+    <div class="form-group">
+        <label>Status</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;"><span class="status-{{.Role.Status}}">{{.Role.Status}}</span></p>
+    </div>
+    
+    <div class="form-group">
+        <label>Permissions ({{len .Role.Permissions}})</label>
+        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">
+            {{if .Role.Permissions}}
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                {{range .Role.Permissions}}
+                <li style="padding: 0.5rem; margin-bottom: 0.5rem; background: var(--white); border-radius: 0.25rem; border-left: 3px solid var(--accent-strong);">
+                    <code>{{.}}</code>
+                </li>
+                {{end}}
+            </ul>
+            {{else}}
+            <p style="color: #999; font-style: italic;">No permissions assigned</p>
+            {{end}}
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label>Created</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Role.CreatedAt.Format "2006-01-02 15:04:05"}} by {{.Role.CreatedBy}}</p>
+    </div>
+    
+    <div class="form-group">
+        <label>Last Updated</label>
+        <p style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 0.25rem; margin-top: 0.5rem;">{{.Role.UpdatedAt.Format "2006-01-02 15:04:05"}} by {{.Role.UpdatedBy}}</p>
+    </div>
+</div>
+{{end}}

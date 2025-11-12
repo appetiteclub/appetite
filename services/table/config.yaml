@@ -1,0 +1,23 @@
+# Default configuration for the table service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: TABLE_WEB_PORT
+  port: ":8087"
+
+db:
+  mongo:
+    # MongoDB connection string.
+    # Env: TABLE_DB_MONGO_URL
+    url: "mongodb://localhost:27017"
+
+    # MongoDB database name.
+    # Env: TABLE_DB_MONGO_NAME
+    name: "appetite_table"
+
+log:
+  level: info
+
+debug:
+  routes: true

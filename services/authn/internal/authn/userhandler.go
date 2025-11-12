@@ -1,0 +1,309 @@
+package authn
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+
+	"github.com/aquamarinepk/aqm"
+	authpkg "github.com/aquamarinepk/aqm/auth"
+	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+)
+
+const UserMaxBodyBytes = 1 << 20
+
+// NewUserHandler creates a new UserHandler for the User aggregate.
+func NewUserHandler(repo UserRepo, config *aqm.Config, logger aqm.Logger) *UserHandler {
+	if logger == nil {
+		logger = aqm.NewNoopLogger()
+	}
+	return &UserHandler{
+		repo:   repo,
+		logger: logger,
+		config: config,
+		tlm:    telemetry.NewHTTP(),
+	}
+}
+
+type UserHandler struct {
+	repo   UserRepo
+	logger aqm.Logger
+	config *aqm.Config
+	tlm    *telemetry.HTTP
+}
+
+func (h *UserHandler) RegisterRoutes(r chi.Router) {
+	r.Route("/users", func(r chi.Router) {
+		r.Post("/", h.CreateUser)
+		r.Get("/", h.GetAllUsers)
+		r.Get("/{id}", h.GetUser)
+		r.Put("/{id}", h.UpdateUser)
+		r.Delete("/{id}", h.DeleteUser)
+	})
+}
+
+func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "UserHandler.CreateUser")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	req, ok := h.decodeUserCreatePayload(w, r)
+	if !ok {
+		return
+	}
+
+	validationErrors := ValidateCreateUserRequest(ctx, req)
+	if len(validationErrors) > 0 {
+		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		return
+	}
+
+	user := req.ToUser()
+	user.EnsureID()
+	user.BeforeCreate()
+
+	if err := h.repo.Create(ctx, &user); err != nil {
+		log.Error("cannot create user", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not create user")
+		return
+	}
+
+	// Standard links
+	links := aqm.RESTfulLinksFor(&user)
+
+	w.WriteHeader(http.StatusCreated)
+	aqm.RespondSuccess(w, user, links...)
+}
+
+func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "UserHandler.GetUser")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	id, ok := h.parseIDParam(w, r)
+	if !ok {
+		return
+	}
+
+	user, err := h.repo.Get(ctx, id)
+	if err != nil {
+		log.Error("error loading user", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve user")
+		return
+	}
+
+	if user == nil {
+		aqm.RespondError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Decrypt email before responding
+	userData := h.userToMap(user)
+
+	// Standard links
+	links := aqm.RESTfulLinksFor(user)
+
+	aqm.RespondSuccess(w, userData, links...)
+}
+
+func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "UserHandler.GetAllUsers")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	users, err := h.repo.List(ctx)
+	if err != nil {
+		log.Error("error retrieving users", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not list all users")
+		return
+	}
+
+	// Decrypt emails before responding
+	usersData := make([]map[string]interface{}, len(users))
+	for i, user := range users {
+		usersData[i] = h.userToMap(user)
+	}
+
+	// Collection response
+	aqm.RespondCollection(w, usersData, "user")
+}
+
+func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "UserHandler.UpdateUser")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	id, ok := h.parseIDParam(w, r)
+	if !ok {
+		return
+	}
+
+	req, ok := h.decodeUserUpdatePayload(w, r)
+	if !ok {
+		return
+	}
+
+	validationErrors := ValidateUpdateUserRequest(ctx, id, req)
+	if len(validationErrors) > 0 {
+		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		return
+	}
+
+	user := req.ToUser()
+	user.SetID(id)
+	user.BeforeUpdate()
+
+	if err := h.repo.Save(ctx, &user); err != nil {
+		log.Error("cannot save user", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not update user")
+		return
+	}
+
+	// Standard links
+	links := aqm.RESTfulLinksFor(&user)
+
+	aqm.RespondSuccess(w, user, links...)
+}
+
+func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "UserHandler.DeleteUser")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	id, ok := h.parseIDParam(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.repo.Delete(ctx, id); err != nil {
+		log.Error("error deleting user", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not delete user")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Helper methods following same patterns as ListHandler
+
+func (h *UserHandler) log(req ...*http.Request) aqm.Logger {
+	if len(req) > 0 && req[0] != nil {
+		r := req[0]
+		return h.logger.With(
+			"request_id", aqm.RequestIDFrom(r.Context()),
+			"method", r.Method,
+			"path", r.URL.Path,
+		)
+	}
+	return h.logger
+}
+
+func (h *UserHandler) parseIDParam(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	idStr := chi.URLParam(r, "id")
+	if strings.TrimSpace(idStr) == "" {
+		aqm.RespondError(w, http.StatusBadRequest, "Missing or invalid id")
+		return uuid.Nil, false
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid id format")
+		return uuid.Nil, false
+	}
+
+	return id, true
+}
+
+func (h *UserHandler) decodeUserCreatePayload(w http.ResponseWriter, r *http.Request) (UserCreateRequest, bool) {
+	var req UserCreateRequest
+
+	r.Body = http.MaxBytesReader(w, r.Body, UserMaxBodyBytes)
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		return req, false
+	}
+
+	if len(strings.TrimSpace(string(body))) == 0 {
+		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		return req, false
+	}
+
+	if err := json.Unmarshal(body, &req); err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		return req, false
+	}
+
+	return req, true
+}
+
+func (h *UserHandler) decodeUserUpdatePayload(w http.ResponseWriter, r *http.Request) (UserUpdateRequest, bool) {
+	var req UserUpdateRequest
+
+	r.Body = http.MaxBytesReader(w, r.Body, UserMaxBodyBytes)
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		return req, false
+	}
+
+	if len(strings.TrimSpace(string(body))) == 0 {
+		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		return req, false
+	}
+
+	if err := json.Unmarshal(body, &req); err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		return req, false
+	}
+
+	return req, true
+}
+
+func (h *UserHandler) userToMap(user *User) map[string]interface{} {
+	email := ""
+	if len(user.EmailCT) > 0 && len(user.EmailIV) > 0 && len(user.EmailTag) > 0 {
+		encryptionKey, _ := h.config.GetString("auth.encryption.key")
+		encrypted := &authpkg.EncryptedData{
+			Ciphertext: user.EmailCT,
+			IV:         user.EmailIV,
+			Tag:        user.EmailTag,
+		}
+		decrypted, err := authpkg.DecryptEmail(encrypted, []byte(encryptionKey))
+		if err != nil {
+			h.log().Error("failed to decrypt email", "error", err, "user_id", user.ID)
+			email = "[encrypted]"
+		} else {
+			email = decrypted
+		}
+	}
+
+	return map[string]interface{}{
+		"id":         user.ID,
+		"username":   user.Username,
+		"name":       user.Name,
+		"email":      email,
+		"status":     user.Status,
+		"created_at": user.CreatedAt,
+		"updated_at": user.UpdatedAt,
+		"created_by": user.CreatedBy,
+		"updated_by": user.UpdatedBy,
+	}
+}

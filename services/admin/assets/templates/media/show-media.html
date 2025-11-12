@@ -1,0 +1,182 @@
+{{template "base.html" .}}
+
+{{define "show-media"}}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Media Asset</h1>
+        <p class="page-subtitle">Identifier: {{.Media.ID}}</p>
+    </div>
+    <a href="/list-media" class="btn btn-secondary">← Back to Media</a>
+</div>
+
+<div class="card">
+    <h2>Overview</h2>
+    <div class="media-overview-grid">
+        <div>
+            <span class="label">Resource Type</span>
+            <p class="value">{{.Media.TargetType}}</p>
+        </div>
+        <div>
+            <span class="label">Resource ID</span>
+            <p class="value">{{.Media.TargetID}}</p>
+        </div>
+        <div>
+            <span class="label">Kind</span>
+            {{$kindLabel := index .MediaKindLabels .Media.Kind}}
+            <p class="value">{{if $kindLabel}}{{$kindLabel}}{{else}}{{.Media.Kind}}{{end}}</p>
+        </div>
+        <div>
+            <span class="label">Category</span>
+            {{$categoryID := printf "%s" .Media.CategoryID}}
+            {{$category := index .MediaCategoryLabels $categoryID}}
+            <p class="value">{{if $category}}{{$category}}{{else}}{{$categoryID}}{{end}}</p>
+        </div>
+        <div>
+            <span class="label">Mime Type</span>
+            <p class="value">{{.Media.MimeType}}</p>
+        </div>
+        <div>
+            <span class="label">Resolution</span>
+            <p class="value">{{.Media.Resolution.Width}} × {{.Media.Resolution.Height}}</p>
+        </div>
+        <div>
+            <span class="label">Filesize</span>
+            <p class="value">{{.Media.Filesize}} bytes</p>
+        </div>
+        <div>
+            <span class="label">Storage Path</span>
+            <p class="value mono">{{.Media.StoragePath}}</p>
+        </div>
+        <div>
+            <span class="label">Created</span>
+            <p class="value">{{.Media.CreatedAt.Format "2006-01-02 15:04"}}</p>
+        </div>
+        <div>
+            <span class="label">Updated</span>
+            <p class="value">{{.Media.UpdatedAt.Format "2006-01-02 15:04"}}</p>
+        </div>
+        <div>
+            <span class="label">Status</span>
+            {{if .Media.Enabled}}
+            <p class="value"><span class="status-available">Enabled</span></p>
+            {{else}}
+            <p class="value"><span class="status-draft">Disabled</span></p>
+            {{end}}
+        </div>
+    </div>
+
+    <div class="media-section">
+        <h3>Tags</h3>
+        {{if .Media.Tags}}
+        <div class="media-tag-row">
+            {{range .Media.Tags}}
+            {{$tagID := printf "%s" .}}
+            {{$tagLabel := index $.MediaTagLabels $tagID}}
+            <span class="media-tag">{{if $tagLabel}}{{$tagLabel}}{{else}}{{$tagID}}{{end}}</span>
+            {{end}}
+        </div>
+        {{else}}
+        <p class="muted">No tags recorded.</p>
+        {{end}}
+    </div>
+
+    {{if .Media.Metadata}}
+    <div class="media-section">
+        <h3>Metadata</h3>
+        <dl class="metadata-list">
+            {{range $key, $value := .Media.Metadata}}
+            <dt>{{$key}}</dt>
+            <dd>{{$value}}</dd>
+            {{end}}
+        </dl>
+    </div>
+    {{end}}
+
+    {{if .Media.Variants}}
+    <div class="media-section">
+        <h3>Variants</h3>
+        <ul class="variant-list">
+            {{range $name, $variant := .Media.Variants}}
+            <li><strong>{{$name}}</strong> {{$variant.Width}}×{{$variant.Height}} • {{$variant.Filesize}} bytes • {{$variant.MimeType}}</li>
+            {{end}}
+        </ul>
+    </div>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>Edit Media</h2>
+    <form method="POST" action="/media/{{.Media.ID}}/update" class="form-grid">
+        <div class="form-group">
+            <label for="media_kind">Kind</label>
+            <select id="media_kind" name="media_kind" required>
+                {{range .MediaKinds}}
+                {{$value := .Key}}
+                {{if eq $value ""}}
+                    {{$value = (printf "%s" .ID)}}
+                {{end}}
+                <option value="{{$value}}" {{if eq $.Media.Kind $value}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="media_category_id">Category</label>
+            <select id="media_category_id" name="media_category_id" required>
+                {{range .MediaCategories}}
+                {{$id := printf "%s" .ID}}
+                <option value="{{$id}}" {{if eq $id (printf "%s" $.Media.CategoryID)}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <label for="media_enabled">Enabled</label>
+            <input type="checkbox" id="media_enabled" name="media_enabled" value="1" {{if .Media.Enabled}}checked{{end}}>
+        </div>
+
+        <div class="form-group wide">
+            <label for="media_storage_path">Storage Path</label>
+            <input type="text" id="media_storage_path" name="media_storage_path" value="{{.Media.StoragePath}}">
+        </div>
+
+        {{range $group := .MediaTagGroups}}
+        <div class="form-group wide">
+            <label>{{$group.Label}}</label>
+            <div class="media-tags-input">
+                {{range $opt := $group.Options}}
+                {{$tagID := printf "%s" $opt.ID}}
+                {{$label := $opt.Name}}
+                <label class="media-tag-checkbox">
+                    <input type="checkbox" name="{{$group.ID}}" value="{{$tagID}}" {{if index $.MediaTagSelected $tagID}}checked{{end}}>
+                    <span>{{$label}}</span>
+                </label>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+
+        <div class="form-group wide">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Quick Actions</h2>
+    <div class="action-row">
+        {{if .Media.Enabled}}
+        <form method="POST" action="/media/{{.Media.ID}}/disable">
+            <button type="submit" class="btn btn-secondary">Disable</button>
+        </form>
+        {{else}}
+        <form method="POST" action="/media/{{.Media.ID}}/enable">
+            <button type="submit" class="btn btn-success">Enable</button>
+        </form>
+        {{end}}
+        <form method="POST" action="/media/{{.Media.ID}}/delete" onsubmit="return confirm('Delete media asset {{.Media.ID}}?');">
+            <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+    </div>
+</div>
+{{end}}

@@ -1,0 +1,25 @@
+# Auth service build artifacts
+auth
+*.db
+*.db-journal
+
+# Environment variables
+.envrc
+.env
+.env.local
+
+# Go build artifacts
+*.so
+*.dylib
+*.exe
+*.test
+*.prof
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log

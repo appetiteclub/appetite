@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package appetite.authn.v1;
+
+option go_package = "github.com/appetiteclub/appetite/services/authn/internal/authn/proto;authnpb";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+message SignUpRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message SignInRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  User user = 1;
+  string token = 2;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string password = 2;
+  string status = 3;
+  string name = 4;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  string email = 2;
+  string password = 3;
+  string status = 4;
+  string name = 5;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message ListUsersRequest {
+  string status = 1;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message User {
+  string id = 1;
+  string status = 2;
+  google.protobuf.Timestamp created_at = 3;
+  string created_by = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  string updated_by = 6;
+}
+
+message BootstrapStatusResponse {
+  bool needs_bootstrap = 1;
+  string superadmin_id = 2;
+}
+
+message BootstrapResponse {
+  string superadmin_id = 1;
+  string email = 2;
+  string password = 3;
+}
+
+service Auth {
+  rpc SignUp(SignUpRequest) returns (AuthResponse);
+  rpc SignIn(SignInRequest) returns (AuthResponse);
+  rpc SignOut(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+service Users {
+  rpc Create(CreateUserRequest) returns (User);
+  rpc Get(GetUserRequest) returns (User);
+  rpc List(ListUsersRequest) returns (ListUsersResponse);
+  rpc Update(UpdateUserRequest) returns (User);
+  rpc Delete(DeleteUserRequest) returns (google.protobuf.Empty);
+}
+
+service System {
+  rpc GetBootstrapStatus(google.protobuf.Empty) returns (BootstrapStatusResponse);
+  rpc Bootstrap(google.protobuf.Empty) returns (BootstrapResponse);
+}

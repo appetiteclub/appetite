@@ -1,0 +1,61 @@
+{{template "base.html" .}}
+
+{{define "edit-role"}}
+<div class="page-header">
+    <h1 class="page-title">Edit Role: {{.Role.Name}}</h1>
+    <a href="/list-roles" class="btn btn-secondary">← Back to Roles</a>
+</div>
+
+<div class="card">
+    <form hx-post="/update-role/{{.Role.ID}}" hx-target="#form-container">
+        <div id="form-container">
+            <div class="form-group">
+                <label for="name">Role Name</label>
+                <input type="text" id="name" name="name" value="{{.Role.Name}}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3">{{.Role.Description}}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="active" {{if eq .Role.Status "active"}}selected{{end}}>Active</option>
+                    <option value="suspended" {{if eq .Role.Status "suspended"}}selected{{end}}>Suspended</option>
+                    <option value="deleted" {{if eq .Role.Status "deleted"}}selected{{end}}>Deleted</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Permissions</label>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 1rem;">Select the permissions this role should have:</p>
+                
+                {{range $category := $.PermissionRegistry}}
+                <fieldset style="border: 1px solid var(--accent); padding: 1.5rem; margin-bottom: 1rem; border-radius: 0.25rem;">
+                    <legend style="font-weight: 600; padding: 0 0.5rem;">{{$category.Name}}</legend>
+                    <div style="display: grid; grid-template-columns: 40px 250px 1fr; gap: 1rem; align-items: center;">
+                    {{range $perm := $category.Permissions}}
+                        <input type="checkbox" name="permissions" value="{{$perm.Code}}" 
+                            {{range $.Role.Permissions}}{{if eq . $perm.Code}}checked{{end}}{{end}}
+                            style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-strong);">
+                        <strong>{{$perm.Name}}</strong>
+                        <small style="color: #666;">{{$perm.Description}}</small>
+                    {{end}}
+                    </div>
+                </fieldset>
+                {{end}}
+            </div>
+            
+            <div class="form-group" style="margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary">
+                    <span class="htmx-indicator">Updating...</span>
+                    <span>Update Role</span>
+                </button>
+                <a href="/list-roles" class="btn btn-secondary" style="margin-left: 1rem;">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+{{end}}

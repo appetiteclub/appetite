@@ -1,0 +1,59 @@
+{
+  "users": [
+    {
+      "name": "Reference Superadmin",
+      "email": "superadmin@system",
+      "password": "<auto>",
+      "status": "active",
+      "reference": true
+    },
+    {
+      "name": "Demo Admin",
+      "username": "demo-admin",
+      "email": "admin@example.com",
+      "password": "Adm1n!Pass",
+      "status": "active",
+      "reference": false
+    },
+    {
+      "name": "Demo User",
+      "username": "demo-user",
+      "email": "user@example.com",
+      "password": "User!Pass123",
+      "status": "active",
+      "reference": false
+    }
+  ],
+  "roles": [
+    {
+      "name": "superadmin",
+      "permissions": ["*:*"]
+    },
+    {
+      "name": "admin",
+      "permissions": [
+        "users:create",
+        "users:read",
+        "users:update",
+        "users:delete",
+        "users:list",
+        "roles:create",
+        "roles:read",
+        "roles:update",
+        "roles:delete",
+        "roles:list",
+        "grants:create",
+        "grants:read",
+        "grants:delete",
+        "grants:list"
+      ]
+    },
+    {
+      "name": "user",
+      "permissions": [
+        "users:read",
+        "users:update"
+      ]
+    }
+  ]
+}

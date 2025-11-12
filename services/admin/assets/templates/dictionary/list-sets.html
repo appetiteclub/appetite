@@ -1,0 +1,79 @@
+{{template "base.html" .}}
+
+{{define "list-sets-content"}}
+<div class="page-header">
+    <h1 class="page-title">Dictionary Management</h1>
+    <div style="display: flex; gap: 1rem;">
+        <a href="/new-set" class="btn btn-manage">Add New Set</a>
+    </div>
+</div>
+
+<div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+    <label for="locale-filter" style="font-weight: 500;">Filter by Locale:</label>
+    <select
+        id="locale-filter"
+        style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;"
+        onchange="window.location.href = this.value === '' ? '/list-sets' : '/list-sets?locale=' + this.value">
+        <option value="">All Locales</option>
+        {{range .Locales}}
+            <option value="{{.}}" {{if eq . $.SelectedLocale}}selected{{end}}>{{.}}</option>
+        {{end}}
+    </select>
+    {{if .SelectedLocale}}
+        <a href="/list-sets" style="color: #666; text-decoration: none; font-size: 0.9rem;">✕ Clear filter</a>
+    {{end}}
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Label</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Locale</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{if .Sets}}
+                {{range .Sets}}
+                <tr>
+                    <td><strong>{{.Name}}</strong></td>
+                    <td>{{.Label}}</td>
+                    <td>{{.Description}}</td>
+                    <td>
+                        {{if .Active}}
+                            <span class="status-active">Active</span>
+                        {{else}}
+                            <span class="status-inactive">Inactive</span>
+                        {{end}}
+                    </td>
+                    <td><span style="font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">{{.Locale}}</span></td>
+                    <td class="actions">
+                        <a href="/list-options?set_id={{.ID}}" class="btn btn-sm btn-manage">Options</a>
+                        <a href="/show-set/{{.ID}}" class="btn btn-sm btn-view">View</a>
+                        <a href="/edit-set/{{.ID}}" class="btn btn-sm btn-edit">Edit</a>
+                        <button
+                            hx-post="/delete-set/{{.ID}}"
+                            hx-confirm="Are you sure you want to delete {{.Name}}?"
+                            hx-target="closest tr"
+                            hx-swap="outerHTML swap:1s"
+                            class="btn btn-sm btn-danger">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+                {{end}}
+            {{else}}
+            <tr>
+                <td colspan="6" class="text-center">
+                    <p style="padding: 2rem; color: #666;">No sets found. <a href="/new-set">Create the first set</a>.</p>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
