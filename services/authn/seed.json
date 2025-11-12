@@ -8,12 +8,21 @@
       "reference": true
     },
     {
+      "name": "Agent",
+      "username": "agent",
+      "email": "agent@system",
+      "password": "<auto>",
+      "status": "active",
+      "reference": true
+    },
+    {
       "name": "Demo Admin",
       "username": "demo-admin",
       "email": "admin@example.com",
       "password": "Adm1n!Pass",
       "status": "active",
-      "reference": false
+      "reference": false,
+      "pin": "<auto>"
     },
     {
       "name": "Demo User",
@@ -21,7 +30,8 @@
       "email": "user@example.com",
       "password": "User!Pass123",
       "status": "active",
-      "reference": false
+      "reference": false,
+      "pin": "<auto>"
     }
   ],
   "roles": [

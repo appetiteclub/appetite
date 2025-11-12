@@ -447,24 +447,20 @@ dev-deps:
 # Reset MongoDB collections for local/Nomad development (host network)
 db-reset-dev:
 	@command -v mongosh >/dev/null 2>&1 || { echo "❌ mongosh not found. Install MongoDB Shell."; exit 1; }
-	@echo "🧹 Clearing host MongoDB collections..."
-	@echo "🧹 Clearing AuthN users collection ($(AUTHN_DB).users)..."
-	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHN_DB)"); result = db.users.deleteMany({}); printjson(result);'
+	@echo "🧹 FULL RESET - Dropping ALL development databases to square one..."
+	@echo "🧹 Dropping AuthN database ($(AUTHN_DB)) - includes users, seeds, everything..."
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHN_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(AUTHN_DB)" });'
 	@if [ "$(AUTHN_DB)" != "auth" ]; then \
-		echo "🧹 Also clearing legacy AuthN database (auth.users)..."; \
-		mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("auth"); result = db.users.deleteMany({}); printjson(result);'; \
+		echo "🧹 Also dropping legacy AuthN database (auth)..."; \
+		mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("auth"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "auth" });'; \
 	fi
-	@echo "🧹 Clearing AuthZ roles collection ($(AUTHZ_DB).roles)..."
-	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHZ_DB)"); result = db.roles.deleteMany({}); printjson(result);'
-	@echo "🧹 Clearing AuthZ grants collection ($(AUTHZ_DB).grants)..."
-	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHZ_DB)"); result = db.grants.deleteMany({}); printjson(result);'
-	@echo "🧹 Clearing AuthZ seed tracker ($(AUTHZ_DB)._seeds)..."
-	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHZ_DB)"); result = db.getCollection("_seeds").deleteMany({}); printjson(result);'
+	@echo "🧹 Dropping AuthZ database ($(AUTHZ_DB)) - includes roles, grants, seeds..."
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHZ_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(AUTHZ_DB)" });'
 	@echo "🧹 Dropping Dictionary database ($(DICTIONARY_DB))..."
-	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(DICTIONARY_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, droppedDatabase: result.dropped });'
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(DICTIONARY_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(DICTIONARY_DB)" });'
 	@echo "🧹 Dropping Table database ($(TABLE_DB))..."
-	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(TABLE_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, droppedDatabase: result.dropped });'
-	@echo "✅ Host MongoDB collections cleared."
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(TABLE_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(TABLE_DB)" });'
+	@echo "✅ All development databases dropped - back to square one!"
 
 # Reset MongoDB collections for Docker Compose (container network)
 db-reset-compose:

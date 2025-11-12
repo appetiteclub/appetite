@@ -28,6 +28,7 @@ type userSeed struct {
 	Username  string `json:"username,omitempty"`
 	Email     string `json:"email"`
 	Password  string `json:"password"`
+	PIN       string `json:"pin,omitempty"`
 	Status    string `json:"status"`
 	Reference bool   `json:"reference"`
 }
@@ -113,8 +114,11 @@ func buildUserSeedDefinitions(raw []userSeed, repo UserRepo, config *aqm.Config,
 	for _, s := range raw {
 		seedData := s
 		if seedData.shouldSkip() {
+			logger.Info("Skipping seed user", "email", seedData.Email, "reference", seedData.Reference, "password", seedData.Password)
 			continue
 		}
+
+		logger.Info("Including seed user", "email", seedData.Email, "reference", seedData.Reference, "has_pin", seedData.PIN != "")
 
 		seedID := fmt.Sprintf("2024-11-15_authn_user_%s", seedIdentifier(seedData.Email))
 		description := fmt.Sprintf("Ensure AuthN bootstrap user %s", seedData.Email)
@@ -191,12 +195,15 @@ func (s userSeed) shouldSkip() bool {
 		return true
 	}
 
-	if strings.Contains(s.Password, "<auto") {
+	// Skip superadmin (handled by bootstrap)
+	normalized := authpkg.NormalizeEmail(s.Email)
+	if normalized == authpkg.NormalizeEmail(SuperadminEmail) {
 		return true
 	}
 
-	normalized := authpkg.NormalizeEmail(s.Email)
-	if normalized == authpkg.NormalizeEmail(SuperadminEmail) {
+	// Skip only if password is <auto> AND it's NOT a reference user
+	// Reference users (like Agent) can have auto-generated passwords
+	if strings.Contains(s.Password, "<auto") && !s.Reference {
 		return true
 	}
 
@@ -215,20 +222,74 @@ func (s userSeed) ensureUser(ctx context.Context, repo UserRepo, config *aqm.Con
 		return fmt.Errorf("seed user %s missing name", s.Email)
 	}
 
-	user, err := SignUpUser(ctx, repo, config, s.Email, s.Password, username, name)
+	// Generate password if <auto> for reference users
+	password := s.Password
+	if strings.Contains(password, "<auto>") {
+		password = authpkg.GenerateSecurePassword(32)
+		// TODO: SECURITY - Remove password logging in production! This is only for development.
+		logger.Info("⚠️  DEVELOPMENT ONLY - Generated password for seed user (REMOVE THIS LOG IN PRODUCTION!)", "email", s.Email, "password", password)
+	}
+
+	user, err := SignUpUser(ctx, repo, config, s.Email, password, username, name)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
 			logger.Info("Seed user already exists", "email", s.Email)
+
+			// If user exists but needs PIN generation, handle it
+			if strings.Contains(s.PIN, "<auto>") {
+				// Get existing user to check if PIN needs generation
+				signingKeyStr, _ := config.GetString("auth.signing.key")
+				signingKey := []byte(signingKeyStr)
+				normalizedEmail := authpkg.NormalizeEmail(s.Email)
+				emailLookup := authpkg.ComputeLookupHash(normalizedEmail, signingKey)
+
+				existingUser, err := repo.GetByEmailLookup(ctx, emailLookup)
+				if err != nil {
+					return fmt.Errorf("lookup existing user %s: %w", s.Email, err)
+				}
+
+				if existingUser != nil && len(existingUser.PINLookup) == 0 {
+					// User exists but has no PIN, generate one
+					pin, err := GeneratePINForUser(ctx, repo, config, existingUser)
+					if err != nil {
+						return fmt.Errorf("generate PIN for existing seed user %s: %w", s.Email, err)
+					}
+					existingUser.UpdatedBy = "seed:bootstrap"
+					if err := repo.Save(ctx, existingUser); err != nil {
+						return fmt.Errorf("save PIN for existing seed user %s: %w", s.Email, err)
+					}
+					// TODO: SECURITY - Remove PIN logging in production! This is only for development.
+					logger.Info("⚠️  DEVELOPMENT ONLY - Generated PIN for existing seed user (REMOVE THIS LOG IN PRODUCTION!)", "email", s.Email, "pin", pin)
+				}
+			}
+
 			return nil
 		}
 		return fmt.Errorf("create seed user %s: %w", s.Email, err)
 	}
 
+	needsSave := false
+
+	// Generate PIN if specified
+	if strings.Contains(s.PIN, "<auto>") {
+		pin, err := GeneratePINForUser(ctx, repo, config, user)
+		if err != nil {
+			return fmt.Errorf("generate PIN for seed user %s: %w", s.Email, err)
+		}
+		needsSave = true
+		// TODO: SECURITY - Remove PIN logging in production! This is only for development.
+		logger.Info("⚠️  DEVELOPMENT ONLY - Generated PIN for seed user (REMOVE THIS LOG IN PRODUCTION!)", "email", s.Email, "pin", pin)
+	}
+
 	if desiredStatus != "" && desiredStatus != authpkg.UserStatusActive {
 		user.Status = desiredStatus
+		needsSave = true
+	}
+
+	if needsSave {
 		user.UpdatedBy = "seed:bootstrap"
 		if err := repo.Save(ctx, user); err != nil {
-			return fmt.Errorf("update seed user %s status: %w", s.Email, err)
+			return fmt.Errorf("update seed user %s: %w", s.Email, err)
 		}
 	}
 

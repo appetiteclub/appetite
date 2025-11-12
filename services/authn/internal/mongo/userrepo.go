@@ -101,6 +101,12 @@ func (r *UserMongoRepo) createIndexes(ctx context.Context) error {
 		Options: options.Index().SetUnique(true),
 	}
 
+	// Index on pin_lookup (unique, sparse - only for users with PIN)
+	pinLookupIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "pin_lookup", Value: 1}},
+		Options: options.Index().SetUnique(true).SetSparse(true),
+	}
+
 	// Index on status
 	statusIndex := mongo.IndexModel{
 		Keys: bson.D{{Key: "status", Value: 1}},
@@ -114,6 +120,7 @@ func (r *UserMongoRepo) createIndexes(ctx context.Context) error {
 	_, err := r.collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		emailLookupIndex,
 		usernameIndex,
+		pinLookupIndex,
 		statusIndex,
 		createdAtIndex,
 	})
@@ -133,6 +140,10 @@ type userDocument struct {
 	PasswordHash []byte    `bson:"password_hash"`
 	PasswordSalt []byte    `bson:"password_salt"`
 	MFASecretCT  []byte    `bson:"mfa_secret_ct,omitempty"`
+	PINCT        []byte    `bson:"pin_ct,omitempty"`
+	PINIV        []byte    `bson:"pin_iv,omitempty"`
+	PINTag       []byte    `bson:"pin_tag,omitempty"`
+	PINLookup    []byte    `bson:"pin_lookup,omitempty"`
 	Status       string    `bson:"status"`
 	CreatedAt    time.Time `bson:"created_at"`
 	CreatedBy    string    `bson:"created_by"`
@@ -153,6 +164,10 @@ func (r *UserMongoRepo) toDocument(user *authn.User) *userDocument {
 		PasswordHash: user.PasswordHash,
 		PasswordSalt: user.PasswordSalt,
 		MFASecretCT:  user.MFASecretCT,
+		PINCT:        user.PINCT,
+		PINIV:        user.PINIV,
+		PINTag:       user.PINTag,
+		PINLookup:    user.PINLookup,
 		Status:       string(user.Status),
 		CreatedAt:    user.CreatedAt,
 		CreatedBy:    user.CreatedBy,
@@ -179,6 +194,10 @@ func (r *UserMongoRepo) fromDocument(doc *userDocument) (*authn.User, error) {
 		PasswordHash: doc.PasswordHash,
 		PasswordSalt: doc.PasswordSalt,
 		MFASecretCT:  doc.MFASecretCT,
+		PINCT:        doc.PINCT,
+		PINIV:        doc.PINIV,
+		PINTag:       doc.PINTag,
+		PINLookup:    doc.PINLookup,
 		Status:       authpkg.UserStatus(doc.Status),
 		CreatedAt:    doc.CreatedAt,
 		CreatedBy:    doc.CreatedBy,
@@ -254,6 +273,22 @@ func (r *UserMongoRepo) GetByUsername(ctx context.Context, username string) (*au
 	return r.fromDocument(&doc)
 }
 
+// GetByPINLookup retrieves a User by PIN lookup hash.
+func (r *UserMongoRepo) GetByPINLookup(ctx context.Context, lookup []byte) (*authn.User, error) {
+	filter := bson.M{"pin_lookup": lookup}
+
+	var doc userDocument
+	err := r.collection.FindOne(ctx, filter).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("could not get user by PIN lookup: %w", err)
+	}
+
+	return r.fromDocument(&doc)
+}
+
 // Save updates an existing User in MongoDB.
 func (r *UserMongoRepo) Save(ctx context.Context, user *authn.User) error {
 	if user == nil {
@@ -274,6 +309,10 @@ func (r *UserMongoRepo) Save(ctx context.Context, user *authn.User) error {
 			"password_hash": user.PasswordHash,
 			"password_salt": user.PasswordSalt,
 			"mfa_secret_ct": user.MFASecretCT,
+			"pin_ct":        user.PINCT,
+			"pin_iv":        user.PINIV,
+			"pin_tag":       user.PINTag,
+			"pin_lookup":    user.PINLookup,
 			"status":        string(user.Status),
 			"updated_at":    user.UpdatedAt,
 			"updated_by":    user.UpdatedBy,
