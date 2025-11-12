@@ -1,0 +1,29 @@
+# Default configuration for the order service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: ORDER_WEB_PORT
+  port: ":8086"
+
+db:
+  mongo:
+    # MongoDB connection string.
+    # Env: ORDER_DB_MONGO_URL
+    url: "mongodb://localhost:27017"
+
+    # MongoDB database name.
+    # Env: ORDER_DB_MONGO_NAME
+    name: "appetite_order"
+
+services:
+  # Table service URL for querying table state
+  # Env: ORDER_SERVICES_TABLE_URL
+  table:
+    url: "http://localhost:8087"
+
+log:
+  level: info
+
+debug:
+  routes: true
