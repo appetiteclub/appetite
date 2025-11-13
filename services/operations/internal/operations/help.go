@@ -10,6 +10,29 @@ func (p *DeterministicParser) handleHelp(ctx context.Context, params []string) (
 			<h3>🎯 Command Reference Guide</h3>
 			<p><em>Supports: English | Español | Polski</em></p>
 
+			<h4>🔐 Authentication</h4>
+			<table style="width: 100%; font-size: 0.85em; margin-bottom: 1.5rem;">
+				<thead>
+					<tr>
+						<th style="text-align: left; width: 30%;">Command</th>
+						<th style="text-align: left; width: 15%;">Short</th>
+						<th style="text-align: left;">Example</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>login [pin]</code></td>
+						<td><code>.[pin]</code></td>
+						<td>login abc123 | .abc123</td>
+					</tr>
+					<tr>
+						<td><code>exit</code></td>
+						<td><code>.</code></td>
+						<td>exit | . | logout</td>
+					</tr>
+				</tbody>
+			</table>
+
 			<h4>📦 Order Management</h4>
 			<table style="width: 100%; font-size: 0.85em; margin-bottom: 1.5rem;">
 				<thead>

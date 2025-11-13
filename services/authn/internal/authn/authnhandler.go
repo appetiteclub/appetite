@@ -28,6 +28,16 @@ type SignInRequest struct {
 	Password string `json:"password"`
 }
 
+// PINLoginRequest represents PIN authentication payload
+type PINLoginRequest struct {
+	PIN string `json:"pin"`
+}
+
+// PINLoginResponse represents PIN authentication response
+type PINLoginResponse struct {
+	UserID string `json:"user_id"`
+}
+
 // AuthResponse represents successful authentication response
 type AuthResponse struct {
 	User  *User  `json:"user"`
@@ -59,6 +69,7 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 		r.Post("/signup", h.SignUp)
 		r.Post("/signin", h.SignIn)
 		r.Post("/signout", h.SignOut)
+		r.Post("/pin-login", h.PINLogin)
 	})
 }
 
@@ -187,6 +198,71 @@ func (h *AuthHandler) decodeSignUpPayload(w http.ResponseWriter, r *http.Request
 
 func (h *AuthHandler) decodeSignInPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (SignInRequest, bool) {
 	var req SignInRequest
+
+	r.Body = http.MaxBytesReader(w, r.Body, AuthMaxBodyBytes)
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Debug("cannot read request body", "error", err)
+		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		return req, false
+	}
+
+	if len(strings.TrimSpace(string(body))) == 0 {
+		log.Debug("empty request body")
+		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		return req, false
+	}
+
+	if err := json.Unmarshal(body, &req); err != nil {
+		log.Debug("cannot decode JSON", "error", err)
+		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		return req, false
+	}
+
+	return req, true
+}
+
+func (h *AuthHandler) PINLogin(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "AuthHandler.PINLogin")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	req, ok := h.decodePINLoginPayload(w, r, log)
+	if !ok {
+		return
+	}
+
+	if req.PIN == "" {
+		log.Debug("empty PIN provided")
+		aqm.RespondError(w, http.StatusBadRequest, "PIN is required")
+		return
+	}
+
+	userID, err := SignInByPIN(ctx, h.repo, h.config, req.PIN)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidCredentials):
+			log.Debug("invalid PIN")
+			aqm.RespondError(w, http.StatusUnauthorized, "Invalid PIN")
+		case errors.Is(err, ErrInactiveAccount):
+			log.Debug("inactive account")
+			aqm.RespondError(w, http.StatusForbidden, "Account is not active")
+		default:
+			log.Error("PIN authentication failed", "error", err)
+			aqm.RespondError(w, http.StatusInternalServerError, "Authentication failed")
+		}
+		return
+	}
+
+	aqm.RespondSuccess(w, PINLoginResponse{UserID: userID.String()})
+}
+
+func (h *AuthHandler) decodePINLoginPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (PINLoginRequest, bool) {
+	var req PINLoginRequest
 
 	r.Body = http.MaxBytesReader(w, r.Body, AuthMaxBodyBytes)
 	defer r.Body.Close()

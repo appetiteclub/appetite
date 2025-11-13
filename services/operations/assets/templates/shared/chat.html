@@ -6,26 +6,34 @@
         display: flex;
         flex-direction: column;
         height: 80vh;
-        width: 100%;
-        max-width: none;
+        width: 85vw;
+        min-width: 85vw;
+        max-width: 85vw;
         margin: 0 auto;
+        box-sizing: border-box;
+        position: relative;
     }
 
     .chat-messages {
         flex: 1;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 2rem 3rem;
         background: #ffffff;
         border: 1px solid #e1e4e8;
         border-radius: 8px 8px 0 0;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         min-height: 400px;
+        box-sizing: border-box;
+        width: 100%;
     }
 
     .message {
         margin-bottom: 1.5rem;
         border-bottom: 1px solid #f0f0f0;
         padding-bottom: 1.5rem;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .message:last-child {
@@ -52,14 +60,29 @@
         color: #2d3748;
         line-height: 1.6;
         font-size: 0.95rem;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+        box-sizing: border-box;
+    }
+
+    .message-content * {
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     /* Markdown-like styling */
     .message-content table {
         width: 100%;
+        max-width: 100%;
         border-collapse: collapse;
         margin: 1rem 0;
         font-size: 0.9rem;
+        table-layout: auto;
+        overflow-x: auto;
+        display: block;
     }
 
     .message-content table th {
@@ -114,6 +137,8 @@
         display: flex;
         gap: 1rem;
         align-items: center;
+        box-sizing: border-box;
+        width: 100%;
     }
 
     .chat-input {
@@ -192,8 +217,8 @@
             <p>Agent-based conversational interface for restaurant operations</p>
             <div class="hint">
                 <strong>Quick Start:</strong><br>
+                • Type <code>login [pin]</code> or <code>.[pin]</code> to authenticate<br>
                 • Type <code>help</code> for full command reference<br>
-                • Type <code>login [pin]</code> to authenticate (planned)<br>
                 • Example: <code>list tables</code>, <code>open order 5</code>, <code>undo</code>
             </div>
         </div>
@@ -212,9 +237,77 @@
 </div>
 
 <script>
+    // Store actual PIN value when masking is active
+    let actualPinValue = '';
+    let isPinMode = false;
+    let pinModeCommand = '';
+
     function sendMessage() {
         const input = document.getElementById('chat-input');
-        const message = input.value.trim();
+        let message = input.value.trim();
+
+        // Check if entering PIN mode (but only if PIN not already provided)
+        if (!isPinMode && (message === '.' || message === 'login')) {
+            isPinMode = true;
+            pinModeCommand = message.startsWith('login') ? 'login' : '.';
+
+            const messagesContainer = document.getElementById('messages');
+
+            // Remove welcome message if present
+            const welcome = messagesContainer.querySelector('.welcome-message');
+            if (welcome) welcome.remove();
+
+            // Show user command
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            userMsg.innerHTML = `
+                <div class="message-header">You</div>
+                <div class="message-content">${escapeHtml(message)}</div>
+            `;
+            messagesContainer.appendChild(userMsg);
+
+            // Show PIN prompt
+            const promptMsg = document.createElement('div');
+            promptMsg.className = 'message assistant';
+            promptMsg.innerHTML = `
+                <div class="message-header">System</div>
+                <div class="message-content">
+                    <div style="padding: 1rem; background: #eff6ff; border-radius: 0.5rem; border-left: 4px solid #3b82f6;">
+                        <p style="margin: 0;"><strong>🔐 Enter PIN</strong></p>
+                        <p style="margin: 0.5rem 0 0 0; font-size: 0.9em;">Type your PIN (it will be masked)</p>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(promptMsg);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            input.value = '';
+            input.style.height = 'auto';
+            return;
+        }
+
+        // Use actual PIN value if in PIN mode
+        if (isPinMode && actualPinValue) {
+            // Remove any leading space from actual PIN value
+            const cleanPIN = actualPinValue.replace(/^\s+/, '');
+            if (pinModeCommand === 'login') {
+                message = 'login ' + cleanPIN;
+            } else {
+                message = '.' + cleanPIN;
+            }
+        }
+        // Handle direct .pin entry (not in PIN mode but starts with .)
+        else if (!isPinMode && input.value.trim().startsWith('.') && actualPinValue) {
+            // Remove any leading space from actual PIN value
+            const cleanPIN = actualPinValue.replace(/^\s+/, '');
+            message = '.' + cleanPIN;
+        }
+        // Handle direct login pin entry (not in PIN mode but starts with login)
+        else if (!isPinMode && input.value.trim().startsWith('login ') && actualPinValue) {
+            // Remove any leading space from actual PIN value
+            const cleanPIN = actualPinValue.replace(/^\s+/, '');
+            message = 'login ' + cleanPIN;
+        }
 
         if (!message) return;
 
@@ -224,21 +317,40 @@
         const welcome = messagesContainer.querySelector('.welcome-message');
         if (welcome) welcome.remove();
 
-        // Add user message
+        // Add user message (show masked version if in PIN mode or direct .pin entry)
         const userMsg = document.createElement('div');
         userMsg.className = 'message user';
+        let displayText = message;
+        if (isPinMode && actualPinValue) {
+            const maskedPIN = '*'.repeat(actualPinValue.replace(/^\s+/, '').length);
+            if (pinModeCommand === 'login') {
+                displayText = 'login ' + maskedPIN;
+            } else {
+                displayText = '.' + maskedPIN;
+            }
+        } else if (input.value.trim().startsWith('.') && actualPinValue) {
+            displayText = '.' + '*'.repeat(actualPinValue.replace(/^\s+/, '').length);
+        } else if (input.value.trim().startsWith('login ') && actualPinValue) {
+            displayText = 'login ' + '*'.repeat(actualPinValue.replace(/^\s+/, '').length);
+        }
         userMsg.innerHTML = `
             <div class="message-header">You</div>
-            <div class="message-content">${escapeHtml(message)}</div>
+            <div class="message-content">${escapeHtml(displayText)}</div>
         `;
         messagesContainer.appendChild(userMsg);
 
-        // Clear input and reset height
+        // Clear input and reset state
         input.value = '';
         input.style.height = 'auto';
+        actualPinValue = '';
+        isPinMode = false;
+        pinModeCommand = '';
 
         // Scroll to bottom
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // Get token from sessionStorage
+        const token = sessionStorage.getItem('ops_token') || '';
 
         // Send to backend for processing
         fetch('/chat/message', {
@@ -246,7 +358,7 @@
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: 'message=' + encodeURIComponent(message)
+            body: 'message=' + encodeURIComponent(message) + '&token=' + encodeURIComponent(token)
         })
         .then(response => response.json())
         .then(data => {
@@ -258,6 +370,9 @@
             `;
             messagesContainer.appendChild(assistantMsg);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Execute any scripts in the response (for sessionStorage updates)
+            executeScriptsInElement(assistantMsg);
         })
         .catch(error => {
             console.error('Error:', error);
@@ -272,6 +387,18 @@
             messagesContainer.appendChild(errorMsg);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         });
+    }
+
+    function executeScriptsInElement(element) {
+        const scripts = element.getElementsByTagName('script');
+        for (let i = 0; i < scripts.length; i++) {
+            const script = scripts[i];
+            try {
+                eval(script.textContent);
+            } catch (e) {
+                console.error('Error executing script:', e);
+            }
+        }
     }
 
     function escapeHtml(text) {
@@ -289,6 +416,69 @@
     }
 
     textarea.addEventListener('input', autoResize);
+
+    // Handle PIN masking
+    textarea.addEventListener('input', function handlePinMasking(e) {
+        const value = textarea.value;
+
+        // If in PIN mode, mask everything
+        if (isPinMode && value.length > 0) {
+            actualPinValue = value;
+
+            // Create masked display
+            const masked = '*'.repeat(value.length);
+
+            // Update display without triggering input event again
+            const cursorPos = textarea.selectionStart;
+            textarea.removeEventListener('input', handlePinMasking);
+            textarea.value = masked;
+            textarea.setSelectionRange(cursorPos, cursorPos);
+            textarea.addEventListener('input', handlePinMasking);
+        }
+        // If input starts with 'login ', also mask (for direct login pin entry)
+        else if (!isPinMode && value.startsWith('login ')) {
+            // Extract everything after 'login '
+            let afterLogin = value.substring(6);
+
+            // Store actual value
+            actualPinValue = afterLogin;
+
+            // Create masked display
+            if (afterLogin.length > 0) {
+                const masked = 'login ' + '*'.repeat(afterLogin.length);
+
+                // Update display without triggering input event again
+                const cursorPos = textarea.selectionStart;
+                textarea.removeEventListener('input', handlePinMasking);
+                textarea.value = masked;
+                textarea.setSelectionRange(cursorPos, cursorPos);
+                textarea.addEventListener('input', handlePinMasking);
+            }
+        }
+        // If input starts with '.', also mask (for direct .pin entry)
+        else if (!isPinMode && value.startsWith('.')) {
+            // Extract everything after the dot
+            let afterDot = value.substring(1);
+
+            // Store actual value
+            actualPinValue = afterDot;
+
+            // Create masked display
+            if (afterDot.length > 0) {
+                const masked = '.' + '*'.repeat(afterDot.length);
+
+                // Update display without triggering input event again
+                const cursorPos = textarea.selectionStart;
+                textarea.removeEventListener('input', handlePinMasking);
+                textarea.value = masked;
+                textarea.setSelectionRange(cursorPos, cursorPos);
+                textarea.addEventListener('input', handlePinMasking);
+            }
+        } else if (!isPinMode) {
+            // Reset if not in PIN mode and not starting with '.' or 'login '
+            actualPinValue = '';
+        }
+    });
 
     // Send on Enter key (but allow Shift+Enter for new line)
     textarea.addEventListener('keydown', function(e) {

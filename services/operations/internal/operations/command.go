@@ -3,6 +3,8 @@ package operations
 import (
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // CommandProcessor defines the interface for processing user commands
@@ -21,6 +23,7 @@ type CommandResponse struct {
 type DeterministicParser struct {
 	tableClient *ServiceClientWrapper
 	orderClient *ServiceClientWrapper
+	handler     *Handler
 	registry    *CommandRegistry
 }
 
@@ -29,10 +32,11 @@ type ServiceClientWrapper struct {
 }
 
 // NewDeterministicParser creates a new deterministic command parser
-func NewDeterministicParser(tableClient, orderClient *ServiceClientWrapper) *DeterministicParser {
+func NewDeterministicParser(tableClient, orderClient *ServiceClientWrapper, handler *Handler) *DeterministicParser {
 	parser := &DeterministicParser{
 		tableClient: tableClient,
 		orderClient: orderClient,
+		handler:     handler,
 	}
 	parser.registry = NewCommandRegistry(parser)
 	return parser
@@ -60,7 +64,21 @@ func (p *DeterministicParser) Process(ctx context.Context, input string) (*Comma
 	}
 
 	// Execute command handler
-	return cmd.Handler(ctx, params)
+	response, err := cmd.Handler(ctx, params)
+
+	// Log command execution (for authenticated commands only)
+	userID := getUserIDFromContext(ctx)
+	if p.handler != nil && p.handler.auditLogger != nil && userID != uuid.Nil {
+		errorMsg := ""
+		if err != nil {
+			errorMsg = err.Error()
+		} else if !response.Success {
+			errorMsg = response.Message
+		}
+		p.handler.auditLogger.LogCommand(ctx, userID, cmd.Canonical, params, response.Success, errorMsg)
+	}
+
+	return response, err
 }
 
 func (p *DeterministicParser) formatUnknownCommand(input string) string {
