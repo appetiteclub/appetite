@@ -11,14 +11,16 @@ import (
 )
 
 type Handler struct {
-	tmplMgr         *aqmtemplate.Manager
-	authnClient     *aqm.ServiceClient
-	tableClient     *aqm.ServiceClient
-	orderClient     *aqm.ServiceClient
-	logger          aqm.Logger
-	config          *aqm.Config
-	http            *telemetry.HTTP
-	sessionStore    *SessionStore
+	tmplMgr          *aqmtemplate.Manager
+	authnClient      *aqm.ServiceClient
+	tableClient      *aqm.ServiceClient
+	orderClient      *aqm.ServiceClient
+	logger           aqm.Logger
+	config           *aqm.Config
+	http             *telemetry.HTTP
+	sessionStore     *SessionStore
+	tokenStore       *TokenStore
+	auditLogger      *AuditLogger
 	commandProcessor CommandProcessor
 }
 
@@ -50,29 +52,40 @@ func NewHandler(
 	}
 	sessionStore := NewSessionStore([]byte(sessionSecret), sessionTTL)
 
-	// Initialize command processor (deterministic parser for Phase 1)
+	// Initialize token store for transient chat authentication
+	tokenTTL := 30 * time.Minute
+	tokenStore := NewTokenStore(tokenTTL)
+
+	// Initialize audit logger
+	auditLogger := NewAuditLogger(logger)
+
+	handler := &Handler{
+		tmplMgr:      tmplMgr,
+		authnClient:  authnClient,
+		tableClient:  tableClient,
+		orderClient:  orderClient,
+		logger:       logger,
+		config:       config,
+		http:         telemetry.NewHTTP(),
+		sessionStore: sessionStore,
+		tokenStore:   tokenStore,
+		auditLogger:  auditLogger,
+	}
+
+	// Initialize command processor with handler reference for auth commands
 	commandProcessor := NewDeterministicParser(
 		&ServiceClientWrapper{baseURL: tableURL},
 		&ServiceClientWrapper{baseURL: orderURL},
+		handler,
 	)
 
-	return &Handler{
-		tmplMgr:          tmplMgr,
-		authnClient:      authnClient,
-		tableClient:      tableClient,
-		orderClient:      orderClient,
-		logger:           logger,
-		config:           config,
-		http:             telemetry.NewHTTP(),
-		sessionStore:     sessionStore,
-		commandProcessor: commandProcessor,
-	}
+	handler.commandProcessor = commandProcessor
+
+	return handler
 }
 
 // RegisterRoutes registers all operations routes using Command/Query pattern
 func (h *Handler) RegisterRoutes(r chi.Router) {
-	h.log().Info("Registering operations routes...")
-
 	// Public routes
 	r.Get("/signin", h.ShowSignIn)
 	r.Post("/signin", h.HandleSignIn)
@@ -82,15 +95,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(h.SessionMiddleware)
 
-		h.log().Info("Registering operational routes...")
 		r.Get("/", h.Home)
 		r.Get("/chat", h.Chat)
 		r.Post("/chat/message", h.HandleChatMessage)
 		r.Get("/tables", h.Tables)
 		r.Get("/orders", h.Orders)
 	})
-
-	h.log().Info("Operations routes registered successfully")
 }
 
 func (h *Handler) log() aqm.Logger {

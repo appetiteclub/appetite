@@ -39,6 +39,23 @@ func NewCommandRegistry(parser *DeterministicParser) *CommandRegistry {
 
 // FindCommand finds a command by matching input against variations
 func (r *CommandRegistry) FindCommand(input string) (*CommandDefinition, []string, bool) {
+	// Handle special dot notation for authentication
+	trimmed := strings.TrimSpace(input)
+	if strings.HasPrefix(trimmed, ".") {
+		dotContent := strings.TrimPrefix(trimmed, ".")
+		if dotContent == "" {
+			// Just "." means logout (or prompt for PIN if not logged in)
+			if cmd, ok := r.commands["exit"]; ok {
+				return cmd, []string{}, true
+			}
+		} else {
+			// ".[pin]" means login with PIN
+			if cmd, ok := r.commands["login"]; ok {
+				return cmd, []string{dotContent}, true
+			}
+		}
+	}
+
 	normalized := normalizeInput(input)
 	tokens := tokenize(normalized)
 
@@ -82,6 +99,27 @@ func (r *CommandRegistry) FindCommand(input string) (*CommandDefinition, []strin
 }
 
 func (r *CommandRegistry) registerAllCommands() {
+	// AUTHENTICATION COMMANDS
+	r.register("login", &CommandDefinition{
+		Canonical:   "login",
+		Variations:  []string{"login", "signin"},
+		ShortForms:  []string{},
+		Handler:     r.parser.handleLogin,
+		Description: "Authenticate with PIN",
+		MinParams:   0,
+		MaxParams:   1,
+	})
+
+	r.register("exit", &CommandDefinition{
+		Canonical:   "exit",
+		Variations:  []string{"exit", "logout", "signout"},
+		ShortForms:  []string{},
+		Handler:     r.parser.handleLogout,
+		Description: "Logout from current session",
+		MinParams:   0,
+		MaxParams:   0,
+	})
+
 	// Help command
 	r.register("help", &CommandDefinition{
 		Canonical:   "help",

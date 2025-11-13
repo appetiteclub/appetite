@@ -64,8 +64,7 @@ func main() {
 	}
 
 	ms := aqm.NewMicro(options...)
-	port, _ := config.GetString("web.port")
-	logger.Infof("Starting %s(%s) on port %s", appName, appVersion, port)
+	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {
 		log.Fatalf("%s(%s) stopped with error: %v", appName, appVersion, err)
