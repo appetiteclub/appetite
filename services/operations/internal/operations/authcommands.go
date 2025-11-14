@@ -55,7 +55,7 @@ func (p *DeterministicParser) handleLogin(ctx context.Context, params []string) 
 		}, nil
 	}
 
-	// Extract user_id from response data
+	// Extract user info from response data
 	dataMap, ok := resp.Data.(map[string]interface{})
 	if !ok {
 		return &CommandResponse{
@@ -73,6 +73,10 @@ func (p *DeterministicParser) handleLogin(ctx context.Context, params []string) 
 			Message: "Invalid response",
 		}, nil
 	}
+
+	username, _ := dataMap["username"].(string)
+	name, _ := dataMap["name"].(string)
+	email, _ := dataMap["email"].(string)
 	userID, err := parseUUID(userIDStr)
 	if err != nil {
 		return &CommandResponse{
@@ -96,6 +100,15 @@ func (p *DeterministicParser) handleLogin(ctx context.Context, params []string) 
 		p.handler.auditLogger.LogLogin(ctx, userID)
 	}
 
+	// Build display name (prefer username, fallback to name or email)
+	displayName := username
+	if displayName == "" {
+		displayName = name
+	}
+	if displayName == "" {
+		displayName = email
+	}
+
 	return &CommandResponse{
 		HTML: fmt.Sprintf(`
 			<div style="padding: 1rem; background: #f0fdf4; border-radius: 0.5rem; border-left: 4px solid #10b981;">
@@ -105,8 +118,12 @@ func (p *DeterministicParser) handleLogin(ctx context.Context, params []string) 
 			<script>
 				sessionStorage.setItem('ops_token', '%s');
 				sessionStorage.setItem('ops_user_id', '%s');
+				sessionStorage.setItem('ops_username', '%s');
+				sessionStorage.setItem('ops_display_name', '%s');
+				// Trigger custom event to update UI
+				window.dispatchEvent(new Event('ops_login'));
 			</script>
-		`, token, userIDStr),
+		`, token, userIDStr, username, displayName),
 		Success: true,
 		Message: "Login successful",
 	}, nil
@@ -148,6 +165,10 @@ func (p *DeterministicParser) handleLogout(ctx context.Context, params []string)
 			<script>
 				sessionStorage.removeItem('ops_token');
 				sessionStorage.removeItem('ops_user_id');
+				sessionStorage.removeItem('ops_username');
+				sessionStorage.removeItem('ops_display_name');
+				// Trigger custom event to update UI
+				window.dispatchEvent(new Event('ops_logout'));
 			</script>
 		`,
 		Success: true,

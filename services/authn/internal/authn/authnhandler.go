@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/aquamarinepk/aqm"
+	authpkg "github.com/aquamarinepk/aqm/auth"
 	"github.com/aquamarinepk/aqm/telemetry"
 	"github.com/go-chi/chi/v5"
 )
@@ -35,7 +36,10 @@ type PINLoginRequest struct {
 
 // PINLoginResponse represents PIN authentication response
 type PINLoginResponse struct {
-	UserID string `json:"user_id"`
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
 }
 
 // AuthResponse represents successful authentication response
@@ -242,7 +246,7 @@ func (h *AuthHandler) PINLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := SignInByPIN(ctx, h.repo, h.config, req.PIN)
+	user, err := SignInByPIN(ctx, h.repo, h.config, req.PIN)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidCredentials):
@@ -258,7 +262,29 @@ func (h *AuthHandler) PINLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aqm.RespondSuccess(w, PINLoginResponse{UserID: userID.String()})
+	// Decrypt email if available
+	email := ""
+	if len(user.EmailCT) > 0 && len(user.EmailIV) > 0 && len(user.EmailTag) > 0 {
+		encryptionKey, _ := h.config.GetString("auth.encryption.key")
+		encrypted := &authpkg.EncryptedData{
+			Ciphertext: user.EmailCT,
+			IV:         user.EmailIV,
+			Tag:        user.EmailTag,
+		}
+		decrypted, err := authpkg.DecryptEmail(encrypted, []byte(encryptionKey))
+		if err != nil {
+			log.Error("failed to decrypt email", "error", err, "user_id", user.ID)
+		} else {
+			email = decrypted
+		}
+	}
+
+	aqm.RespondSuccess(w, PINLoginResponse{
+		UserID:   user.ID.String(),
+		Username: user.Username,
+		Name:     user.Name,
+		Email:    email,
+	})
 }
 
 func (h *AuthHandler) decodePINLoginPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (PINLoginRequest, bool) {

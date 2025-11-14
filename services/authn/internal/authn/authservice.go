@@ -125,19 +125,19 @@ func SignInUser(ctx context.Context, repo UserRepo, config *aqm.Config, email, p
 	return user, token, nil
 }
 
-// SignInByPIN authenticates a user using their PIN and returns a transient session token.
+// SignInByPIN authenticates a user using their PIN and returns the user.
 // This is designed for lightweight authentication in the conversational interface.
-func SignInByPIN(ctx context.Context, repo UserRepo, config *aqm.Config, pin string) (uuid.UUID, error) {
+func SignInByPIN(ctx context.Context, repo UserRepo, config *aqm.Config, pin string) (*User, error) {
 	if repo == nil {
-		return uuid.Nil, errors.New("user repository is required")
+		return nil, errors.New("user repository is required")
 	}
 	if config == nil {
-		return uuid.Nil, errors.New("configuration is required")
+		return nil, errors.New("configuration is required")
 	}
 
 	normalizedPIN := authpkg.NormalizePIN(pin)
 	if normalizedPIN == "" {
-		return uuid.Nil, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
 	signingKeyStr, _ := config.GetString("auth.signing.key")
@@ -146,17 +146,17 @@ func SignInByPIN(ctx context.Context, repo UserRepo, config *aqm.Config, pin str
 
 	user, err := repo.GetByPINLookup(ctx, pinLookup)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("lookup user by PIN: %w", err)
+		return nil, fmt.Errorf("lookup user by PIN: %w", err)
 	}
 	if user == nil {
-		return uuid.Nil, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
 	if user.Status != authpkg.UserStatusActive {
-		return uuid.Nil, ErrInactiveAccount
+		return nil, ErrInactiveAccount
 	}
 
-	return user.ID, nil
+	return user, nil
 }
 
 func GenerateBootstrapStatus(ctx context.Context, repo UserRepo, config *aqm.Config) (*User, error) {
@@ -262,7 +262,6 @@ func GeneratePINForUser(ctx context.Context, repo UserRepo, config *aqm.Config, 
 			return "", fmt.Errorf("check PIN collision: %w", err)
 		}
 		if existing != nil {
-			// Collision detected, try again
 			continue
 		}
 
