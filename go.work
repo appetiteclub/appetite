@@ -5,6 +5,7 @@ use (
 	./services/authn
 	./services/authz
 	./services/dictionary
+	./services/menu
 	./services/order
 	./services/operations
 	./services/table
