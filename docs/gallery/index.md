@@ -45,3 +45,8 @@ Internal administration interface for managing users and system configuration.
 
 ### Admin - Generate PIN
 ![Admin Generate PIN](../img/gallery/admin-generate-pin.png)
+
+## Development
+
+### Running Services
+![Running Services Console](../img/gallery/run-services.png)

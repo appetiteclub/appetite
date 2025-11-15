@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aquamarinepk/aqm"
 	"github.com/google/uuid"
 )
 
@@ -21,21 +22,19 @@ type CommandResponse struct {
 
 // DeterministicParser implements CommandProcessor using pattern matching
 type DeterministicParser struct {
-	tableClient *ServiceClientWrapper
-	orderClient *ServiceClientWrapper
+	tableClient *aqm.ServiceClient
+	orderClient *aqm.ServiceClient
+	menuClient  *aqm.ServiceClient
 	handler     *Handler
 	registry    *CommandRegistry
 }
 
-type ServiceClientWrapper struct {
-	baseURL string
-}
-
 // NewDeterministicParser creates a new deterministic command parser
-func NewDeterministicParser(tableClient, orderClient *ServiceClientWrapper, handler *Handler) *DeterministicParser {
+func NewDeterministicParser(tableClient, orderClient, menuClient *aqm.ServiceClient, handler *Handler) *DeterministicParser {
 	parser := &DeterministicParser{
 		tableClient: tableClient,
 		orderClient: orderClient,
+		menuClient:  menuClient,
 		handler:     handler,
 	}
 	parser.registry = NewCommandRegistry(parser)

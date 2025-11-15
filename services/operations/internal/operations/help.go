@@ -254,6 +254,64 @@ func (p *DeterministicParser) handleHelp(ctx context.Context, params []string) (
 				</tbody>
 			</table>
 
+			<h4>🍽️ Menu Management</h4>
+			<table style="width: 100%; font-size: 0.85em; margin-bottom: 1.5rem;">
+				<thead>
+					<tr>
+						<th style="text-align: left; width: 30%;">Command</th>
+						<th style="text-align: left; width: 15%;">Short</th>
+						<th style="text-align: left;">Example</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><strong>Queries</strong></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td><code>list menu</code></td>
+						<td><code>lm</code></td>
+						<td>lm | list menu | listar menú</td>
+					</tr>
+					<tr style="background: #f9fafb;">
+						<td><strong>Interactive Workflows</strong></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td><code>new menu item</code></td>
+						<td><code>nmi</code></td>
+						<td>nmi | new menu item | nuevo item</td>
+					</tr>
+					<tr>
+						<td><code>edit menu item</code></td>
+						<td><code>emi</code></td>
+						<td>emi | edit menu item | editar item</td>
+					</tr>
+					<tr>
+						<td><code>set price</code></td>
+						<td><code>sp</code></td>
+						<td>sp | set price | fijar precio</td>
+					</tr>
+					<tr>
+						<td><code>cancel</code></td>
+						<td><code>c</code>, <code>x</code></td>
+						<td>cancel | abort | cancelar</td>
+					</tr>
+				</tbody>
+			</table>
+			<div style="background: #f0f9ff; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #0ea5e9; margin-bottom: 1.5rem;">
+				<p style="margin: 0 0 0.5rem 0;"><strong>📝 Interactive Workflows:</strong></p>
+				<p style="margin: 0; font-size: 0.9em;">
+					Commands like <code>new menu item</code>, <code>edit menu item</code>, and <code>set price</code> start multi-step processes.
+					The system will guide you through each step. Use <code>cancel</code> anytime to abort.
+				</p>
+				<p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">
+					<strong>Example:</strong> <code>new menu item</code> → enter short code → enter name → enter description → enter price → enter currency
+				</p>
+			</div>
+
 			<h4>🔧 Utility Commands</h4>
 			<table style="width: 100%; font-size: 0.85em; margin-bottom: 1.5rem;">
 				<thead>
@@ -305,6 +363,11 @@ func (p *DeterministicParser) handleHelp(ctx context.Context, params []string) (
 						<td><code>lista stolików</code></td>
 					</tr>
 					<tr>
+						<td><code>list menu</code></td>
+						<td><code>listar menú</code></td>
+						<td><code>lista menu</code></td>
+					</tr>
+					<tr>
 						<td><code>open order 5</code></td>
 						<td><code>abrir orden 5</code></td>
 						<td><code>otwórz zamówienie 5</code></td>
@@ -318,6 +381,11 @@ func (p *DeterministicParser) handleHelp(ctx context.Context, params []string) (
 						<td><code>add item 47 BURGER 2</code></td>
 						<td><code>agregar item 47 BURGER 2</code></td>
 						<td><code>dodaj pozycję 47 BURGER 2</code></td>
+					</tr>
+					<tr>
+						<td><code>new menu item</code></td>
+						<td><code>nuevo item</code></td>
+						<td><code>nowa pozycja</code></td>
 					</tr>
 					<tr>
 						<td><code>send to kitchen 47</code></td>

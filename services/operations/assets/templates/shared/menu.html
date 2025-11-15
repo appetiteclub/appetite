@@ -1,0 +1,31 @@
+{{template "base.html" .}}
+
+{{define "menu"}}
+<div style="text-align: center; padding: 4rem 2rem;">
+    <div style="font-size: 5rem; margin-bottom: 2rem;">🍽️</div>
+    <h1 style="color: #667eea; margin-bottom: 1rem;">Menu Management</h1>
+    <p style="color: #666; font-size: 1.1rem; margin-bottom: 2rem;">
+        Use the <strong>Chat</strong> interface to manage your menu
+    </p>
+
+    <div style="max-width: 600px; margin: 0 auto; text-align: left; background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+        <h3 style="color: #333; margin-bottom: 1rem;">🎯 Quick Commands</h3>
+        <ul style="line-height: 2; color: #555;">
+            <li><code style="background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px;">list-menu</code> - List all menu items</li>
+            <li><code style="background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px;">new-item</code> - Create new menu item</li>
+            <li><code style="background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px;">update-item</code> - Update existing item</li>
+            <li><code style="background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px;">set-price</code> - Set item pricing</li>
+            <li><code style="background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px;">add-allergen</code> - Add allergen info</li>
+            <li><code style="background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px;">cancel</code> - Abort current operation</li>
+        </ul>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+            <p style="color: #666; margin-bottom: 1rem;">💡 <strong>Tip:</strong> Type <code style="background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px;">help menu</code> in the chat for detailed menu management instructions.</p>
+        </div>
+    </div>
+
+    <a href="/chat" style="display: inline-block; margin-top: 2rem; padding: 1rem 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: transform 0.2s;">
+        Go to Chat →
+    </a>
+</div>
+{{end}}

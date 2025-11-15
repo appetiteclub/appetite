@@ -15,6 +15,7 @@ type Handler struct {
 	authnClient      *aqm.ServiceClient
 	tableClient      *aqm.ServiceClient
 	orderClient      *aqm.ServiceClient
+	menuClient       *aqm.ServiceClient
 	roleRepo         RoleRepo
 	grantRepo        GrantRepo
 	logger           aqm.Logger
@@ -47,6 +48,12 @@ func NewHandler(
 	orderURL, _ := config.GetString("services.order.url")
 	orderClient := aqm.NewServiceClient(orderURL)
 
+	menuURL, _ := config.GetString("services.menu.url")
+	if menuURL == "" {
+		menuURL = "http://localhost:8088"
+	}
+	menuClient := aqm.NewServiceClient(menuURL)
+
 	// Initialize session store
 	sessionSecret, _ := config.GetString("auth.session.secret")
 	sessionTTLStr, _ := config.GetString("auth.session.ttl")
@@ -68,6 +75,7 @@ func NewHandler(
 		authnClient:  authnClient,
 		tableClient:  tableClient,
 		orderClient:  orderClient,
+		menuClient:   menuClient,
 		roleRepo:     roleRepo,
 		grantRepo:    grantRepo,
 		logger:       logger,
@@ -80,8 +88,9 @@ func NewHandler(
 
 	// Initialize command processor with handler reference for auth commands
 	commandProcessor := NewDeterministicParser(
-		&ServiceClientWrapper{baseURL: tableURL},
-		&ServiceClientWrapper{baseURL: orderURL},
+		tableClient,
+		orderClient,
+		menuClient,
 		handler,
 	)
 
@@ -106,6 +115,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/chat/message", h.HandleChatMessage)
 		r.Get("/tables", h.Tables)
 		r.Get("/orders", h.Orders)
+		r.Get("/menu", h.Menu)
 	})
 }
 
@@ -181,6 +191,20 @@ func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderTemplate(w, "orders.html", "base.html", data)
+}
+
+// Menu displays menu management interface
+func (h *Handler) Menu(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.http.Start(w, r, "Handler.Menu")
+	defer finish()
+
+	data := map[string]interface{}{
+		"Title":    "Menu Management",
+		"User":     h.getUserFromSession(r),
+		"Template": "menu",
+	}
+
+	h.renderTemplate(w, "menu.html", "base.html", data)
 }
 
 func (h *Handler) getUserFromSession(r *http.Request) map[string]interface{} {

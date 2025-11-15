@@ -27,6 +27,11 @@ services:
   order:
     url: "http://localhost:8086"
 
+  # Menu service URL
+  # Env: OPERATIONS_SERVICES_MENU_URL
+  menu:
+    url: "http://localhost:8088"
+
 auth:
   session:
     # Session cookie name
