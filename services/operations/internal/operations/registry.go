@@ -710,6 +710,48 @@ func (r *CommandRegistry) registerAllCommands() {
 		MaxParams:   2,
 	})
 
+	// MENU MANAGEMENT COMMANDS
+
+	r.register("list-menu", &CommandDefinition{
+		Canonical:   "list-menu",
+		Variations:  []string{"list menu", "menu", "listar menú", "lista menu"},
+		ShortForms:  []string{"lm"},
+		Handler:     r.parser.handleListMenu,
+		Description: "List all menu items",
+		MinParams:   0,
+		MaxParams:   0,
+	})
+
+	r.register("new-menu-item", &CommandDefinition{
+		Canonical:   "new-menu-item",
+		Variations:  []string{"new menu item", "create menu item", "nuevo item de menú", "crear item de menú"},
+		ShortForms:  []string{"nmi"},
+		Handler:     r.parser.handleNewMenuItem,
+		Description: "Create new menu item (interactive)",
+		MinParams:   0,
+		MaxParams:   0,
+	})
+
+	r.register("edit-menu-item", &CommandDefinition{
+		Canonical:   "edit-menu-item",
+		Variations:  []string{"edit menu item", "modify menu item", "editar item de menú", "modificar item de menú"},
+		ShortForms:  []string{"emi"},
+		Handler:     r.parser.handleEditMenuItem,
+		Description: "Edit existing menu item (interactive)",
+		MinParams:   0,
+		MaxParams:   0,
+	})
+
+	r.register("set-price", &CommandDefinition{
+		Canonical:   "set-price",
+		Variations:  []string{"set price", "update price", "fijar precio", "actualizar precio"},
+		ShortForms:  []string{"sp"},
+		Handler:     r.parser.handleSetPrice,
+		Description: "Set item price (interactive)",
+		MinParams:   0,
+		MaxParams:   0,
+	})
+
 	// UTILITY COMMANDS
 
 	r.register("undo", &CommandDefinition{
@@ -718,6 +760,16 @@ func (r *CommandRegistry) registerAllCommands() {
 		ShortForms:  []string{"u", "un"},
 		Handler:     r.parser.handleUndo,
 		Description: "Undo the last command",
+		MinParams:   0,
+		MaxParams:   0,
+	})
+
+	r.register("cancel", &CommandDefinition{
+		Canonical:   "cancel",
+		Variations:  []string{"cancel", "abort", "cancelar", "abortar"},
+		ShortForms:  []string{"c", "x"},
+		Handler:     nil, // Handled specially in HandleChatMessage
+		Description: "Cancel current operation",
 		MinParams:   0,
 		MaxParams:   0,
 	})

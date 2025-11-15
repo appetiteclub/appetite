@@ -1,0 +1,29 @@
+# Default configuration for the menu service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: MENU_WEB_PORT
+  port: ":8088"
+
+db:
+  mongo:
+    # MongoDB connection string.
+    # Env: MENU_DB_MONGO_URL
+    url: "mongodb://localhost:27017"
+
+    # MongoDB database name.
+    # Env: MENU_DB_MONGO_NAME
+    name: "appetite_menu"
+
+services:
+  # Dictionary service URL for validation
+  # Env: MENU_SERVICES_DICTIONARY_URL
+  dictionary:
+    url: "http://localhost:8085"
+
+log:
+  level: info
+
+debug:
+  routes: true

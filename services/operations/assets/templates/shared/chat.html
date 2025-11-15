@@ -407,8 +407,9 @@
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    // Get token from sessionStorage
+    // Get token and workflow data from sessionStorage
     const token = sessionStorage.getItem("ops_token") || "";
+    const workflow = sessionStorage.getItem("ops_workflow") || "";
 
     // Send to backend for processing
     fetch("/chat/message", {
@@ -420,7 +421,9 @@
         "message=" +
         encodeURIComponent(message) +
         "&token=" +
-        encodeURIComponent(token),
+        encodeURIComponent(token) +
+        "&workflow=" +
+        encodeURIComponent(workflow),
     })
       .then((response) => response.json())
       .then((data) => {

@@ -40,6 +40,7 @@ func (h *Handler) HandleChatMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := r.FormValue("token")
+	workflowData := r.FormValue("workflow")
 
 	// Add token to context for commands that need it
 	ctx := r.Context()
@@ -50,6 +51,46 @@ func (h *Handler) HandleChatMessage(w http.ResponseWriter, r *http.Request) {
 		userID, err := h.tokenStore.Validate(token)
 		if err == nil {
 			ctx = context.WithValue(ctx, contextKeyUserID, userID)
+		}
+	}
+
+	// Handle cancel command - abort any active workflow
+	if strings.ToLower(strings.TrimSpace(message)) == "cancel" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(ChatMessageResponse{
+			HTML: `
+				<div style="padding: 1rem; background: #fef2f2; border-left: 4px solid #f97316;">
+					<p><strong>🚫 Operation Cancelled</strong></p>
+					<p>Any in-progress workflow has been aborted.</p>
+				</div>
+				<script>
+					sessionStorage.removeItem('ops_workflow');
+				</script>
+			`,
+			Success: true,
+			Message: "Workflow cancelled",
+		})
+		return
+	}
+
+	// Check if there's an active workflow
+	if workflowData != "" {
+		var workflow map[string]interface{}
+		if err := json.Unmarshal([]byte(workflowData), &workflow); err == nil {
+			// Process workflow input
+			parser, ok := h.commandProcessor.(*DeterministicParser)
+			if ok {
+				response, err := parser.handleWorkflowInput(ctx, message, workflow)
+				if err == nil {
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(ChatMessageResponse{
+						HTML:    response.HTML,
+						Success: response.Success,
+						Message: response.Message,
+					})
+					return
+				}
+			}
 		}
 	}
 
