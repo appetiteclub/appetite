@@ -78,11 +78,45 @@
             padding: 0.5rem 1rem;
             border-radius: 5px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.3s, box-shadow 0.3s;
+            position: relative;
+            min-width: 120px;
+            text-align: center;
+            white-space: nowrap;
         }
 
         .signout-btn:hover {
             background: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+        }
+
+        .signout-btn .username,
+        .signout-btn .signout-text {
+            transition: opacity 0.2s ease-in-out;
+            display: inline-block;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .signout-btn .username {
+            opacity: 1;
+        }
+
+        .signout-btn .signout-text {
+            opacity: 0;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .signout-btn:hover .username {
+            opacity: 0;
+        }
+
+        .signout-btn:hover .signout-text {
+            opacity: 1;
         }
 
         main {
@@ -216,7 +250,10 @@
                         <li><a href="/orders">Orders</a></li>
                         <li>
                             <form method="post" action="/signout" hx-post="/signout" hx-boost="true" style="margin:0;">
-                                <button type="submit" class="signout-btn">Sign Out</button>
+                                <button type="submit" class="signout-btn">
+                                    <span class="username">{{if .User}}{{.User.Username}}{{else}}User{{end}}</span>
+                                    <span class="signout-text">Sign Out</span>
+                                </button>
                             </form>
                         </li>
                     </ul>
