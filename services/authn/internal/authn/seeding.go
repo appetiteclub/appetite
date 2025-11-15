@@ -224,10 +224,10 @@ func (s userSeed) ensureUser(ctx context.Context, repo UserRepo, config *aqm.Con
 
 	// Generate password if <auto> for reference users
 	password := s.Password
+	generatedPassword := ""
 	if strings.Contains(password, "<auto>") {
 		password = authpkg.GenerateSecurePassword(32)
-		// TODO: SECURITY - Remove password logging in production! This is only for development.
-		logger.Info("⚠️  DEVELOPMENT ONLY - Generated password for seed user (REMOVE THIS LOG IN PRODUCTION!)", "email", s.Email, "password", password)
+		generatedPassword = password
 	}
 
 	user, err := SignUpUser(ctx, repo, config, s.Email, password, username, name)
@@ -291,6 +291,31 @@ func (s userSeed) ensureUser(ctx context.Context, repo UserRepo, config *aqm.Con
 		if err := repo.Save(ctx, user); err != nil {
 			return fmt.Errorf("update seed user %s: %w", s.Email, err)
 		}
+	}
+
+	// Display banner for agent user with auto-generated password
+	if generatedPassword != "" && authpkg.NormalizeEmail(s.Email) == authpkg.NormalizeEmail("agent@system") {
+		bannerLines := []string{
+			"═══════════════════════════════════════════════════════════",
+			"  AGENT USER BOOTSTRAP CREDENTIALS",
+			"═══════════════════════════════════════════════════════════",
+			fmt.Sprintf("  Email:    %s", s.Email),
+			fmt.Sprintf("  Password: %s", generatedPassword),
+			fmt.Sprintf("  UserID:   %s", user.ID.String()),
+			"═══════════════════════════════════════════════════════════",
+			"  IMPORTANT: Save these credentials securely!",
+			"  Agent can sign in and delegate to other users via PIN",
+			"═══════════════════════════════════════════════════════════",
+		}
+
+		for _, line := range bannerLines {
+			logger.Info(line)
+		}
+
+		logger.Info("agent bootstrap credentials",
+			"email", s.Email,
+			"user_id", user.ID,
+		)
 	}
 
 	logger.Info("Seed user created", "email", s.Email)

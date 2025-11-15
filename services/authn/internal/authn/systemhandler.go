@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/aquamarinepk/aqm"
+	authpkg "github.com/aquamarinepk/aqm/auth"
 	"github.com/aquamarinepk/aqm/telemetry"
 	"github.com/go-chi/chi/v5"
 )
@@ -52,6 +53,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router) {
 
 	r.Get("/system/bootstrap-status", h.GetBootstrapStatus)
 	r.Post("/system/bootstrap", h.Bootstrap)
+	r.Get("/system/users/by-email/{email}", h.GetUserIDByEmail)
 
 	h.log().Info("System routes registered successfully")
 }
@@ -134,6 +136,50 @@ func (h *SystemHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 		SuperadminID: user.ID.String(),
 		Email:        SuperadminEmail,
 		Password:     password,
+	})
+}
+
+// GetUserIDByEmail retrieves user ID by email (system endpoint for bootstrap)
+func (h *SystemHandler) GetUserIDByEmail(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "SystemHandler.GetUserIDByEmail")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	email := chi.URLParam(r, "email")
+	if email == "" {
+		aqm.RespondError(w, http.StatusBadRequest, "Email parameter is required")
+		return
+	}
+
+	// Normalize email and compute lookup hash (same as SignInUser)
+	normalizedEmail := authpkg.NormalizeEmail(email)
+	signingKeyStr, _ := h.config.GetString("auth.signing.key")
+	signingKey := []byte(signingKeyStr)
+	emailLookup := authpkg.ComputeLookupHash(normalizedEmail, signingKey)
+
+	// Look up user by email
+	user, err := h.userRepo.GetByEmailLookup(ctx, emailLookup)
+	if err != nil {
+		log.Error("failed to lookup user by email", "email", email, "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Failed to lookup user")
+		return
+	}
+
+	if user == nil {
+		aqm.RespondError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	type userIDResponse struct {
+		UserID string `json:"user_id"`
+		Email  string `json:"email"`
+	}
+
+	aqm.RespondSuccess(w, userIDResponse{
+		UserID: user.ID.String(),
+		Email:  email,
 	})
 }
 
