@@ -45,8 +45,19 @@ func main() {
 	// Initialize template manager
 	tmplMgr := aqmtemplate.NewManager(assetsFS, aqmtemplate.WithLogger(logger))
 
+	// Initialize AuthZ repos
+	roleRepo, err := operations.NewAPIRoleRepo(config, logger)
+	if err != nil {
+		log.Fatalf("cannot initialize role repo: %v", err)
+	}
+
+	grantRepo, err := operations.NewAPIGrantRepo(config, logger)
+	if err != nil {
+		log.Fatalf("cannot initialize grant repo: %v", err)
+	}
+
 	// Initialize handler
-	handler := operations.NewHandler(tmplMgr, config, logger)
+	handler := operations.NewHandler(tmplMgr, roleRepo, grantRepo, config, logger)
 
 	// Configure middleware stack (no InternalOnly - this is public-facing)
 	stack := middleware.DefaultStack(middleware.StackOptions{

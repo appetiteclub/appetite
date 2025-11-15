@@ -30,6 +30,15 @@
       "permissions": ["*:*"]
     },
     {
+      "name": "conversational-interface-manager",
+      "permissions": [
+        "chat:access",
+        "chat:delegate",
+        "operations:read",
+        "system:health"
+      ]
+    },
+    {
       "name": "admin",
       "permissions": [
         "users:create",
@@ -45,7 +54,13 @@
         "grants:create",
         "grants:read",
         "grants:delete",
-        "grants:list"
+        "grants:list",
+        "tables:read",
+        "tables:write",
+        "tables:manage",
+        "orders:read",
+        "orders:write",
+        "orders:manage"
       ]
     },
     {

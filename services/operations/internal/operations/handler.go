@@ -15,6 +15,8 @@ type Handler struct {
 	authnClient      *aqm.ServiceClient
 	tableClient      *aqm.ServiceClient
 	orderClient      *aqm.ServiceClient
+	roleRepo         RoleRepo
+	grantRepo        GrantRepo
 	logger           aqm.Logger
 	config           *aqm.Config
 	http             *telemetry.HTTP
@@ -26,6 +28,8 @@ type Handler struct {
 
 func NewHandler(
 	tmplMgr *aqmtemplate.Manager,
+	roleRepo RoleRepo,
+	grantRepo GrantRepo,
 	config *aqm.Config,
 	logger aqm.Logger,
 ) *Handler {
@@ -64,6 +68,8 @@ func NewHandler(
 		authnClient:  authnClient,
 		tableClient:  tableClient,
 		orderClient:  orderClient,
+		roleRepo:     roleRepo,
+		grantRepo:    grantRepo,
 		logger:       logger,
 		config:       config,
 		http:         telemetry.NewHTTP(),

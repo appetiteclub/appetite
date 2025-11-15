@@ -158,7 +158,7 @@ func (s *BootstrapService) triggerBootstrap(ctx context.Context) (*BootstrapResp
 	return &response, nil
 }
 
-// bootstrapRolesAndGrants seeds roles and creates superadmin grant
+// bootstrapRolesAndGrants seeds roles and creates system user grants
 func (s *BootstrapService) bootstrapRolesAndGrants(ctx context.Context, superadminID string) error {
 	if err := s.applyRoleSeeds(ctx); err != nil {
 		return fmt.Errorf("failed to seed roles: %w", err)
@@ -167,6 +167,12 @@ func (s *BootstrapService) bootstrapRolesAndGrants(ctx context.Context, superadm
 	// Step 2: Ensure superadmin grant exists (idempotent)
 	if err := s.ensureSuperadminGrant(ctx, superadminID); err != nil {
 		return fmt.Errorf("failed to ensure superadmin grant: %w", err)
+	}
+
+	// Step 3: Ensure system user grants exist (idempotent)
+	if err := s.ensureSystemUserGrants(ctx); err != nil {
+		s.log().Info("⚠️  failed to ensure system user grants (non-fatal)", "error", err)
+		// Don't fail bootstrap if system user grants fail - they can be created manually
 	}
 
 	return nil
@@ -229,6 +235,153 @@ func (s *BootstrapService) ensureSuperadminGrant(ctx context.Context, superadmin
 		"grant_id", grant.ID,
 		"user_id", userID,
 		"role_id", role.ID)
+
+	return nil
+}
+
+// ensureSystemUserGrants creates grants for system users (agent, demo users)
+func (s *BootstrapService) ensureSystemUserGrants(ctx context.Context) error {
+	// Define system users and their roles
+	systemUsers := []struct {
+		email    string
+		roleName string
+	}{
+		{"agent@system", "conversational-interface-manager"},
+		{"admin@example.com", "admin"},
+		{"user@example.com", "user"},
+	}
+
+	for _, u := range systemUsers {
+		userID, err := s.getUserIDByEmail(ctx, u.email)
+		if err != nil {
+			s.log().Info("⚠️  failed to get user ID", "email", u.email, "error", err)
+			continue
+		}
+
+		if err := s.ensureUserGrant(ctx, userID, u.roleName); err != nil {
+			s.log().Info("⚠️  failed to ensure grant", "email", u.email, "role", u.roleName, "error", err)
+			continue
+		}
+
+		// Special banner for agent user
+		if u.email == "agent@system" {
+			bannerLines := []string{
+				"═══════════════════════════════════════════════════════════",
+				"  AGENT USER GRANT ASSIGNED",
+				"═══════════════════════════════════════════════════════════",
+				fmt.Sprintf("  Email:    %s", u.email),
+				fmt.Sprintf("  UserID:   %s", userID.String()),
+				fmt.Sprintf("  Role:     %s", u.roleName),
+				"═══════════════════════════════════════════════════════════",
+				"  IMPORTANT: Agent credentials are in AuthN service logs",
+				"  Agent can delegate to other users via .login PIN command",
+				"═══════════════════════════════════════════════════════════",
+			}
+
+			for _, line := range bannerLines {
+				s.log().Info(line)
+			}
+		}
+
+		s.log().Info("System user grant ensured", "email", u.email, "role", u.roleName)
+	}
+
+	return nil
+}
+
+// getUserIDByEmail queries AuthN to get user ID by email
+func (s *BootstrapService) getUserIDByEmail(ctx context.Context, email string) (uuid.UUID, error) {
+	authNURL, _ := s.config.GetString("auth.authn.url")
+	url := fmt.Sprintf("%s/system/users/by-email/%s", authNURL, email)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return uuid.Nil, fmt.Errorf("user not found: %s", email)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return uuid.Nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	var wrapper struct {
+		Data struct {
+			UserID string `json:"user_id"`
+			Email  string `json:"email"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+		return uuid.Nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	userID, err := uuid.Parse(wrapper.Data.UserID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	return userID, nil
+}
+
+// ensureUserGrant creates a grant for a user with a specific role
+func (s *BootstrapService) ensureUserGrant(ctx context.Context, userID uuid.UUID, roleName string) error {
+	if userID == uuid.Nil {
+		return fmt.Errorf("invalid user ID")
+	}
+
+	// Get role by name
+	role, err := s.roleRepo.GetByName(ctx, roleName)
+	if err != nil {
+		return fmt.Errorf("role %s not found: %w", roleName, err)
+	}
+	if role == nil {
+		return fmt.Errorf("role %s not found", roleName)
+	}
+
+	// Check if grant already exists (idempotent)
+	grants, err := s.grantRepo.ListByUserID(ctx, userID)
+	if err != nil {
+		s.log().Error("Failed to check existing grants", "error", err)
+	} else {
+		for _, g := range grants {
+			if g.GrantType == GrantTypeRole && g.Value == role.ID.String() {
+				s.log().Debug("Grant already exists", "user_id", userID, "role", roleName)
+				return nil
+			}
+		}
+	}
+
+	// Create grant
+	grant := &Grant{
+		ID:        uuid.New(),
+		UserID:    userID,
+		GrantType: GrantTypeRole,
+		Value:     role.ID.String(),
+		Scope:     Scope{Type: "global", ID: ""},
+		ExpiresAt: nil,
+		Status:    authpkg.UserStatusActive,
+		CreatedAt: time.Now(),
+		CreatedBy: "system",
+		UpdatedAt: time.Now(),
+		UpdatedBy: "system",
+	}
+
+	if err := s.grantRepo.Create(ctx, grant); err != nil {
+		return fmt.Errorf("failed to create grant: %w", err)
+	}
+
+	s.log().Info("Grant created successfully",
+		"grant_id", grant.ID,
+		"user_id", userID,
+		"role", roleName)
 
 	return nil
 }
