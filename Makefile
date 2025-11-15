@@ -497,14 +497,14 @@ dev-deps:
 # Reset MongoDB collections for local/Nomad development (host network)
 db-reset-dev:
 	@command -v mongosh >/dev/null 2>&1 || { echo "❌ mongosh not found. Install MongoDB Shell."; exit 1; }
-	@echo "🧹 FULL RESET - Dropping ALL development databases to square one..."
-	@echo "🧹 Dropping AuthN database ($(AUTHN_DB)) - includes users, seeds, everything..."
+	@echo "🧹 FULL RESET - Dropping ALL development databases..."
+	@echo "🧹 Dropping AuthN database ($(AUTHN_DB))..."
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHN_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(AUTHN_DB)" });'
 	@if [ "$(AUTHN_DB)" != "auth" ]; then \
 		echo "🧹 Also dropping legacy AuthN database (auth)..."; \
 		mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("auth"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "auth" });'; \
 	fi
-	@echo "🧹 Dropping AuthZ database ($(AUTHZ_DB)) - includes roles, grants, seeds..."
+	@echo "🧹 Dropping AuthZ database ($(AUTHZ_DB))..."
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHZ_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(AUTHZ_DB)" });'
 	@echo "🧹 Dropping Dictionary database ($(DICTIONARY_DB))..."
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(DICTIONARY_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(DICTIONARY_DB)" });'
@@ -514,7 +514,7 @@ db-reset-dev:
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(ORDER_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(ORDER_DB)" });'
 	@echo "🧹 Dropping Table database ($(TABLE_DB))..."
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(TABLE_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(TABLE_DB)" });'
-	@echo "✅ All development databases dropped - back to square one!"
+	@echo "✅ All development databases dropped!"
 
 # Reset MongoDB collections for Docker Compose (container network)
 db-reset-compose:
