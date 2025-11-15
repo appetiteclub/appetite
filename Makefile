@@ -2,8 +2,8 @@
 
 # Variables
 PROJECT_NAME=appetite
-SERVICES=authn authz dictionary order table operations admin media
-BASE_PORTS=8080 8081 8082 8083 8084 8085 8086 8087 8090
+SERVICES=authn authz dictionary menu order table operations admin media
+BASE_PORTS=8080 8081 8082 8083 8084 8085 8086 8087 8088 8090
 PKG_LIBS=auth core fake telemetry
 COMPOSE_FILE?=deployments/docker/compose/docker-compose.yml
 COMPOSE_LOG_FILTER?=appetite-mongodb
@@ -24,6 +24,7 @@ MONGO_URL?=mongodb://admin:password@localhost:27017/admin?authSource=admin
 AUTHN_DB?=appetite_authn
 AUTHZ_DB?=appetite_authz
 DICTIONARY_DB?=appetite_dictionary
+MENU_DB?=appetite_menu
 ORDER_DB?=appetite_order
 TABLE_DB?=appetite_table
 TAIL_LINES?=0
@@ -73,7 +74,7 @@ help:
 	@echo "  nomad-stop   - Stop and purge Nomad jobs"
 	@echo "  nomad-status - Show current job status in Nomad"
 	@echo ""
-	@echo "Individual service targets (replace <service> with authn/authz/dictionary/order/table/operations/admin/media):"
+	@echo "Individual service targets (replace <service> with authn/authz/dictionary/menu/order/table/operations/admin/media):"
 	@echo "  build-<service>  - Build specific service"
 	@echo "  test-<service>   - Test specific service"
 	@echo "  lint-<service>   - Lint specific service"
@@ -146,8 +147,8 @@ reset-compose-data:
 		echo "❌ compose MongoDB service is not running. Start it first (make run-compose)."; \
 		exit 1; \
 	fi
-	@echo "🧹 Clearing MongoDB databases inside compose (AuthN=$(AUTHN_DB), AuthZ=$(AUTHZ_DB), Dictionary=$(DICTIONARY_DB), Order=$(ORDER_DB), Table=$(TABLE_DB))..."
-	@docker compose -f $(COMPOSE_FILE) exec mongodb mongosh --quiet --username $(COMPOSE_MONGO_USER) --password $(COMPOSE_MONGO_PASS) --authenticationDatabase admin --eval 'const dbs = ["$(AUTHN_DB)", "$(AUTHZ_DB)", "$(DICTIONARY_DB)", "$(ORDER_DB)", "$(TABLE_DB)"]; dbs.forEach(name => { const res = db.getSiblingDB(name).dropDatabase(); printjson({db: name, dropped: res.ok === 1}); });'
+	@echo "🧹 Clearing MongoDB databases inside compose (AuthN=$(AUTHN_DB), AuthZ=$(AUTHZ_DB), Dictionary=$(DICTIONARY_DB), Menu=$(MENU_DB), Order=$(ORDER_DB), Table=$(TABLE_DB))..."
+	@docker compose -f $(COMPOSE_FILE) exec mongodb mongosh --quiet --username $(COMPOSE_MONGO_USER) --password $(COMPOSE_MONGO_PASS) --authenticationDatabase admin --eval 'const dbs = ["$(AUTHN_DB)", "$(AUTHZ_DB)", "$(DICTIONARY_DB)", "$(MENU_DB)", "$(ORDER_DB)", "$(TABLE_DB)"]; dbs.forEach(name => { const res = db.getSiblingDB(name).dropDatabase(); printjson({db: name, dropped: res.ok === 1}); });'
 	@echo "✅ Compose MongoDB databases cleared."
 
 # Build all services
@@ -192,6 +193,10 @@ build-admin:
 build-media:
 	@echo "📦 Building media service..."
 	@cd services/media && go build -o media .
+
+build-menu:
+	@echo "📦 Building menu service..."
+	@cd services/menu && go build -o menu .
 
 log-stream:
 	@echo "📜 Streaming raw logs from all services..."
@@ -270,6 +275,9 @@ test-operations:
 
 test-admin:
 	@cd services/admin && go test ./...
+
+test-menu:
+	@cd services/menu && go test ./...
 
 # Coverage targets
 coverage:
@@ -363,6 +371,9 @@ lint-operations:
 lint-admin:
 	@cd services/admin && golangci-lint run
 
+lint-menu:
+	@cd services/menu && golangci-lint run
+
 # Quality checks
 check: fmt vet test coverage-check lint
 	@echo "✅ All quality checks passed!"
@@ -386,6 +397,8 @@ run-all:
 	@cd services/dictionary && nohup ./dictionary > dictionary.log 2>&1 & echo $$! > dictionary.pid; sleep 2
 	@echo "   📦 Starting Order on :8086..."
 	@cd services/order && nohup ./order > order.log 2>&1 & echo $$! > order.pid; sleep 2
+	@echo "   📦 Starting Menu on :8088..."
+	@cd services/menu && nohup ./menu > menu.log 2>&1 & echo $$! > menu.pid; sleep 2
 	@echo "   📦 Starting Table on :8087..."
 	@cd services/table && nohup ./table > table.log 2>&1 & echo $$! > table.pid; sleep 2
 	@echo "   📦 Starting Operations on :8080..."
@@ -402,6 +415,7 @@ run-all:
 	@echo "   • Dictionary: http://localhost:8085 (dictionary)"
 	@echo "   • Order:      http://localhost:8086 (order management)"
 	@echo "   • Table:      http://localhost:8087 (restaurant tables)"
+	@echo "   • Menu:       http://localhost:8088 (menu management)"
 	@echo "   • Media:      http://localhost:8090 (media assets)"
 	@echo ""
 	@echo "🛑 To stop all services: make stop-all"
@@ -430,6 +444,9 @@ run-admin: build-admin
 
 run-media: build-media
 	@cd services/media && ./media
+
+run-menu: build-menu
+	@cd services/menu && ./menu
 
 stop-all:
 	@echo "🛑 Stopping all Appetite services..."
@@ -491,6 +508,8 @@ db-reset-dev:
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(AUTHZ_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(AUTHZ_DB)" });'
 	@echo "🧹 Dropping Dictionary database ($(DICTIONARY_DB))..."
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(DICTIONARY_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(DICTIONARY_DB)" });'
+	@echo "🧹 Dropping Menu database ($(MENU_DB))..."
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(MENU_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(MENU_DB)" });'
 	@echo "🧹 Dropping Order database ($(ORDER_DB))..."
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(ORDER_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(ORDER_DB)" });'
 	@echo "🧹 Dropping Table database ($(TABLE_DB))..."
