@@ -13,6 +13,7 @@ services/*/operations
 services/*/order
 services/*/dictionary
 services/*/menu
+services/*/kitchen
 services/*/.gocache/
 
 # Root level runtime files
