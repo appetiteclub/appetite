@@ -1,0 +1,28 @@
+# Default configuration for the kitchen service.
+# Values can be overridden by environment variables or command-line flags.
+
+web:
+  # The port the server will listen on.
+  # Env: KITCHEN_WEB_PORT
+  port: ":8089"
+
+db:
+  mongo:
+    # MongoDB connection string.
+    # Env: KITCHEN_DB_MONGO_URL
+    url: "mongodb://localhost:27017"
+
+    # MongoDB database name.
+    # Env: KITCHEN_DB_MONGO_NAME
+    name: "appetite_kitchen"
+
+nats:
+  # NATS server URL for pub/sub
+  # Env: KITCHEN_NATS_URL
+  url: "nats://localhost:4222"
+
+log:
+  level: info
+
+debug:
+  routes: true

@@ -2,8 +2,8 @@
 
 # Variables
 PROJECT_NAME=appetite
-SERVICES=authn authz dictionary menu order table operations admin media
-BASE_PORTS=8080 8081 8082 8083 8084 8085 8086 8087 8088 8090
+SERVICES=authn authz dictionary menu order table operations admin media kitchen
+BASE_PORTS=8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 8090
 PKG_LIBS=auth core fake telemetry
 COMPOSE_FILE?=deployments/docker/compose/docker-compose.yml
 COMPOSE_LOG_FILTER?=appetite-mongodb
@@ -24,6 +24,7 @@ MONGO_URL?=mongodb://admin:password@localhost:27017/admin?authSource=admin
 AUTHN_DB?=appetite_authn
 AUTHZ_DB?=appetite_authz
 DICTIONARY_DB?=appetite_dictionary
+KITCHEN_DB?=appetite_kitchen
 MENU_DB?=appetite_menu
 ORDER_DB?=appetite_order
 TABLE_DB?=appetite_table
@@ -147,8 +148,8 @@ reset-compose-data:
 		echo "❌ compose MongoDB service is not running. Start it first (make run-compose)."; \
 		exit 1; \
 	fi
-	@echo "🧹 Clearing MongoDB databases inside compose (AuthN=$(AUTHN_DB), AuthZ=$(AUTHZ_DB), Dictionary=$(DICTIONARY_DB), Menu=$(MENU_DB), Order=$(ORDER_DB), Table=$(TABLE_DB))..."
-	@docker compose -f $(COMPOSE_FILE) exec mongodb mongosh --quiet --username $(COMPOSE_MONGO_USER) --password $(COMPOSE_MONGO_PASS) --authenticationDatabase admin --eval 'const dbs = ["$(AUTHN_DB)", "$(AUTHZ_DB)", "$(DICTIONARY_DB)", "$(MENU_DB)", "$(ORDER_DB)", "$(TABLE_DB)"]; dbs.forEach(name => { const res = db.getSiblingDB(name).dropDatabase(); printjson({db: name, dropped: res.ok === 1}); });'
+	@echo "🧹 Clearing MongoDB databases inside compose (AuthN=$(AUTHN_DB), AuthZ=$(AUTHZ_DB), Dictionary=$(DICTIONARY_DB), Menu=$(MENU_DB), Order=$(ORDER_DB), Table=$(TABLE_DB), Kitchen=$(KITCHEN_DB))..."
+	@docker compose -f $(COMPOSE_FILE) exec mongodb mongosh --quiet --username $(COMPOSE_MONGO_USER) --password $(COMPOSE_MONGO_PASS) --authenticationDatabase admin --eval 'const dbs = ["$(AUTHN_DB)", "$(AUTHZ_DB)", "$(DICTIONARY_DB)", "$(MENU_DB)", "$(ORDER_DB)", "$(TABLE_DB)", "$(KITCHEN_DB)"]; dbs.forEach(name => { const res = db.getSiblingDB(name).dropDatabase(); printjson({db: name, dropped: res.ok === 1}); });'
 	@echo "✅ Compose MongoDB databases cleared."
 
 # Build all services
@@ -197,6 +198,10 @@ build-media:
 build-menu:
 	@echo "📦 Building menu service..."
 	@cd services/menu && go build -o menu .
+
+build-kitchen:
+	@echo "📦 Building kitchen service..."
+	@cd services/kitchen && go build -o kitchen .
 
 log-stream:
 	@echo "📜 Streaming raw logs from all services..."
@@ -278,6 +283,9 @@ test-admin:
 
 test-menu:
 	@cd services/menu && go test ./...
+
+test-kitchen:
+	@cd services/kitchen && go test ./...
 
 # Coverage targets
 coverage:
@@ -374,6 +382,9 @@ lint-admin:
 lint-menu:
 	@cd services/menu && golangci-lint run
 
+lint-kitchen:
+	@cd services/kitchen && golangci-lint run
+
 # Quality checks
 check: fmt vet test coverage-check lint
 	@echo "✅ All quality checks passed!"
@@ -386,6 +397,8 @@ run-all:
 	@echo "🚀 Starting full Appetite environment..."
 	@$(MAKE) stop-all
 	@$(MAKE) build-all
+	@echo "🚀 Starting NATS..."
+	@$(MAKE) run-nats
 	@echo "🚀 Starting services..."
 	@echo "   📦 Starting Admin on :8081..."
 	@cd services/admin && nohup ./admin > admin.log 2>&1 & echo $$! > admin.pid; sleep 2
@@ -405,6 +418,8 @@ run-all:
 	@cd services/operations && nohup ./operations > operations.log 2>&1 & echo $$! > operations.pid; sleep 2
 	@echo "   📦 Starting Media on :8090..."
 	@cd services/media && nohup ./media > media.log 2>&1 & echo $$! > media.pid; sleep 2
+	@echo "   📦 Starting Kitchen on :8089..."
+	@cd services/kitchen && nohup ./kitchen > kitchen.log 2>&1 & echo $$! > kitchen.pid; sleep 2
 	@echo ""
 	@echo "🎉 All Appetite services started!"
 	@echo "📡 Services running:"
@@ -416,6 +431,7 @@ run-all:
 	@echo "   • Order:      http://localhost:8086 (order management)"
 	@echo "   • Table:      http://localhost:8087 (restaurant tables)"
 	@echo "   • Menu:       http://localhost:8088 (menu management)"
+	@echo "   • Kitchen:    http://localhost:8089 (kitchen tickets)"
 	@echo "   • Media:      http://localhost:8090 (media assets)"
 	@echo ""
 	@echo "🛑 To stop all services: make stop-all"
@@ -448,6 +464,9 @@ run-media: build-media
 run-menu: build-menu
 	@cd services/menu && ./menu
 
+run-kitchen: build-kitchen
+	@cd services/kitchen && ./kitchen
+
 stop-all:
 	@echo "🛑 Stopping all Appetite services..."
 	@for port in $(BASE_PORTS); do \
@@ -467,7 +486,20 @@ stop-all:
 			rm -f "$$pid_file"; \
 		fi; \
 	done
+	@$(MAKE) stop-nats
 	@echo "✅ All Appetite services stopped"
+
+# NATS targets
+run-nats:
+	@./scripts/util/nats-start.sh
+
+stop-nats:
+	@./scripts/util/nats-stop.sh
+
+install-nats-docker:
+	@echo "📦 Pulling NATS Docker image..."
+	@docker pull nats:2.10-alpine
+	@echo "✅ NATS Docker image ready"
 
 # Clean targets
 clean:
@@ -514,6 +546,8 @@ db-reset-dev:
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(ORDER_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(ORDER_DB)" });'
 	@echo "🧹 Dropping Table database ($(TABLE_DB))..."
 	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(TABLE_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(TABLE_DB)" });'
+	@echo "🧹 Dropping Kitchen database ($(KITCHEN_DB))..."
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db = db.getSiblingDB("$(KITCHEN_DB)"); result = db.dropDatabase(); printjson({ acknowledged: result.ok === 1, dropped: "$(KITCHEN_DB)" });'
 	@echo "✅ All development databases dropped!"
 
 # Reset MongoDB collections for Docker Compose (container network)
