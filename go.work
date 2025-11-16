@@ -5,11 +5,13 @@ use (
 	./services/authn
 	./services/authz
 	./services/dictionary
+	./services/kitchen
 	./services/menu
 	./services/order
 	./services/operations
 	./services/table
 	./services/media
+	.
 	../aqm
 )
 
