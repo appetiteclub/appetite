@@ -10,6 +10,9 @@ Views from the public-facing operational interfaces used by staff.
 ### Operations Dashboard
 ![Operations Dashboard](../img/gallery/operations-dashboard.png)
 
+### List Tables
+![List Tables](../img/gallery/list-tables.png)
+
 ### Operations Chat
 ![Operations Chat](../img/gallery/operations-chat.png)
 

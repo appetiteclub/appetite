@@ -1,0 +1,90 @@
+{{define "tables_form.html"}}
+<div class="modal modal-modern">
+    <div class="modal-backdrop" onclick="this.closest('.modal').remove()"></div>
+    <div class="modal-dialog modal-dialog-modern">
+        <div class="modal-header modal-header-modern">
+            <h2 class="modal-title">{{.Title}}</h2>
+            <button type="button" class="modal-close modal-close-modern" onclick="this.closest('.modal').remove()">
+                <span>&times;</span>
+            </button>
+        </div>
+
+        {{if .Error}}
+        <div class="modal-error">
+            <span class="error-icon">⚠️</span>
+            <span>{{.Error}}</span>
+        </div>
+        {{end}}
+
+        <form method="post" action="{{.Action}}" hx-post="{{.Action}}" hx-target="closest .modal" hx-swap="outerHTML" class="modal-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="modal-number" class="form-label">
+                        <span class="label-text">Table Number</span>
+                        <span class="label-required">*</span>
+                    </label>
+                    <input id="modal-number"
+                           type="text"
+                           name="number"
+                           value="{{.Number}}"
+                           placeholder="e.g. T-01, A-5, Window-3"
+                           class="form-input"
+                           required>
+                    <span class="form-hint">Unique identifier for this table</span>
+                </div>
+            </div>
+
+            <div class="form-row form-row-split">
+                <div class="form-group">
+                    <label for="modal-guests" class="form-label">
+                        <span class="label-text">Guest Capacity</span>
+                    </label>
+                    <input id="modal-guests"
+                           type="number"
+                           name="guest_count"
+                           min="0"
+                           max="50"
+                           value="{{.GuestCount}}"
+                           placeholder="4"
+                           class="form-input">
+                    <span class="form-hint">Default number of seats</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="modal-status" class="form-label">
+                        <span class="label-text">Status</span>
+                    </label>
+                    <select id="modal-status" name="status" class="form-select">
+                        {{if eq .Mode "create"}}
+                        <option value="available" {{if or (eq .Status "available") (eq .Status "")}}selected{{end}}>✓ Available</option>
+                        <option value="reserved" {{if eq .Status "reserved"}}selected{{end}}>📅 Reserved</option>
+                        <option value="out_of_service" {{if eq .Status "out_of_service"}}selected{{end}}>⚠️ Out of Service</option>
+                        {{else}}
+                        <option value="">Keep current</option>
+                        <option value="available" {{if eq .Status "available"}}selected{{end}}>✓ Available</option>
+                        <option value="open" {{if eq .Status "open"}}selected{{end}}>● Open</option>
+                        <option value="reserved" {{if eq .Status "reserved"}}selected{{end}}>📅 Reserved</option>
+                        <option value="cleaning" {{if eq .Status "cleaning"}}selected{{end}}>🧹 Cleaning</option>
+                        <option value="out_of_service" {{if eq .Status "out_of_service"}}selected{{end}}>⚠️ Out of Service</option>
+                        {{end}}
+                    </select>
+                    <span class="form-hint">{{if eq .Mode "create"}}Initial status{{else}}Change table status{{end}}</span>
+                </div>
+            </div>
+
+            <div class="modal-actions modal-actions-modern">
+                <button type="button" class="btn-modal btn-modal-cancel" onclick="this.closest('.modal').remove()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-modal btn-modal-primary">
+                    {{if eq .Mode "edit"}}
+                        <span class="btn-icon">✓</span> Save Changes
+                    {{else}}
+                        <span class="btn-icon">+</span> Create Table
+                    {{end}}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

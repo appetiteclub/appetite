@@ -46,6 +46,11 @@ auth:
     # Env: OPERATIONS_AUTH_SESSION_TTL
     ttl: "8h"
 
+authz:
+  # Cache duration for permission checks
+  # Env: OPERATIONS_AUTHZ_CACHE_TTL
+  cache_ttl: "5m"
+
 log:
   level: info
 
