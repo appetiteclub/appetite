@@ -1,0 +1,29 @@
+{
+  "tables": [
+    {
+      "number": "Window-1",
+      "status": "available",
+      "guest_count": 4
+    },
+    {
+      "number": "Center-2",
+      "status": "available",
+      "guest_count": 2
+    },
+    {
+      "number": "Patio-3",
+      "status": "available",
+      "guest_count": 6
+    },
+    {
+      "number": "Bar-4",
+      "status": "cleaning",
+      "guest_count": 2
+    },
+    {
+      "number": "Corner-5",
+      "status": "out_of_service",
+      "guest_count": 8
+    }
+  ]
+}

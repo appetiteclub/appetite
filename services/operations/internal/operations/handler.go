@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/aquamarinepk/aqm"
+	authpkg "github.com/aquamarinepk/aqm/auth"
 	"github.com/aquamarinepk/aqm/telemetry"
 	aqmtemplate "github.com/aquamarinepk/aqm/template"
 	"github.com/go-chi/chi/v5"
@@ -18,6 +19,7 @@ type Handler struct {
 	menuClient       *aqm.ServiceClient
 	roleRepo         RoleRepo
 	grantRepo        GrantRepo
+	authzHelper      *authpkg.AuthzHelper
 	logger           aqm.Logger
 	config           *aqm.Config
 	http             *telemetry.HTTP
@@ -54,6 +56,8 @@ func NewHandler(
 	}
 	menuClient := aqm.NewServiceClient(menuURL)
 
+	authzHelper := newAuthzHelper(config, logger)
+
 	// Initialize session store
 	sessionSecret, _ := config.GetString("auth.session.secret")
 	sessionTTLStr, _ := config.GetString("auth.session.ttl")
@@ -78,6 +82,7 @@ func NewHandler(
 		menuClient:   menuClient,
 		roleRepo:     roleRepo,
 		grantRepo:    grantRepo,
+		authzHelper:  authzHelper,
 		logger:       logger,
 		config:       config,
 		http:         telemetry.NewHTTP(),
@@ -99,6 +104,28 @@ func NewHandler(
 	return handler
 }
 
+func newAuthzHelper(config *aqm.Config, logger aqm.Logger) *authpkg.AuthzHelper {
+	authzURL, _ := config.GetString("services.authz.url")
+	if authzURL == "" {
+		if logger != nil {
+			logger.Info("services.authz.url not configured; authorization checks will fail")
+		}
+		return nil
+	}
+
+	cacheTTL := 5 * time.Minute
+	if ttlStr, ok := config.GetString("authz.cache_ttl"); ok && ttlStr != "" {
+		if parsed, err := time.ParseDuration(ttlStr); err == nil {
+			cacheTTL = parsed
+		} else if logger != nil {
+			logger.Info("invalid authz.cache_ttl value", "value", ttlStr, "error", err)
+		}
+	}
+
+	authzClient := aqm.NewAuthzClient(authzURL)
+	return aqm.NewAuthzHelper(authzClient, cacheTTL)
+}
+
 // RegisterRoutes registers all operations routes using Command/Query pattern
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	// Public routes
@@ -113,7 +140,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/", h.Home)
 		r.Get("/chat", h.Chat)
 		r.Post("/chat/message", h.HandleChatMessage)
-		r.Get("/tables", h.Tables)
+			r.Get("/list-tables", h.Tables)
+			r.Get("/add-table", h.NewTableForm)
+			r.Get("/edit-table/{id}", h.EditTableForm)
+			r.Post("/add-table", h.CreateTable)
+			r.Post("/update-table/{id}", h.UpdateTable)
+			r.Post("/delete-table/{id}", h.DeleteTable)
 		r.Get("/orders", h.Orders)
 		r.Get("/menu", h.Menu)
 	})
@@ -166,19 +198,6 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 }
 
 // Tables displays table management interface
-func (h *Handler) Tables(w http.ResponseWriter, r *http.Request) {
-	w, r, finish := h.http.Start(w, r, "Handler.Tables")
-	defer finish()
-
-	data := map[string]interface{}{
-		"Title":    "Tables",
-		"User":     h.getUserFromSession(r),
-		"Template": "tables",
-	}
-
-	h.renderTemplate(w, "tables.html", "base.html", data)
-}
-
 // Orders displays order management interface
 func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
 	w, r, finish := h.http.Start(w, r, "Handler.Orders")

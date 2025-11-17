@@ -1,15 +1,87 @@
-{{template "base.html" .}}
-
 {{define "tables"}}
-<h1 class="page-title">🪑 Tables</h1>
-<p style="color: #666; margin-bottom: 2rem;">Manage restaurant tables and seating</p>
+<div class="tables-modern-page">
+    <div class="tables-header">
+        <div class="tables-header-content">
+            <div>
+                <h1 class="tables-title">🪑 Tables</h1>
+                <p class="tables-subtitle">Live status and quick actions for every table on the floor</p>
+            </div>
+            <button type="button" class="btn-add-table" hx-get="/add-table" hx-target="#modal-root" hx-swap="innerHTML">
+                <span class="btn-icon">+</span> Add Table
+            </button>
+        </div>
 
-<div class="card" style="padding: 4rem 2rem; text-align: center;">
-    <div style="font-size: 4rem; margin-bottom: 1rem;">🚧</div>
-    <h2 style="font-size: 1.5rem; color: #333; margin-bottom: 0.5rem;">Coming Soon</h2>
-    <p style="color: #666; line-height: 1.6;">
-        Table management interface will be available here.<br>
-        For now, use the Chat interface to interact with tables.
-    </p>
+        {{if .Error}}
+        <div class="flash-notification flash-error">
+            <span class="flash-icon">⚠️</span>
+            <span class="flash-message">{{.Error}}</span>
+        </div>
+        {{end}}
+        {{if .Success}}
+        <div class="flash-notification flash-success">
+            <span class="flash-icon">✓</span>
+            <span class="flash-message">{{.Success}}</span>
+        </div>
+        {{end}}
+    </div>
+
+    {{if .Tables}}
+    <div class="tables-grid">
+        {{range .Tables}}
+        <div class="table-card">
+            <div class="table-card-header">
+                <div class="table-number-badge">{{.Number}}</div>
+                <div class="status-badge status-{{.Status}}">{{.StatusLabel}}</div>
+            </div>
+
+            <div class="table-card-body">
+                <div class="table-info-row">
+                    <span class="table-info-label">Guests</span>
+                    <span class="table-info-value">{{if .GuestCount}}{{.GuestCount}}{{else}}-{{end}}</span>
+                </div>
+                <div class="table-info-row">
+                    <span class="table-info-label">Assigned</span>
+                    <span class="table-info-value">{{.AssignedTo}}</span>
+                </div>
+                <div class="table-info-row">
+                    <span class="table-info-label">Bill</span>
+                    <span class="table-info-value table-bill">{{.Bill}}</span>
+                </div>
+                <div class="table-info-row">
+                    <span class="table-info-label">Updated</span>
+                    <span class="table-info-value table-time">{{.UpdatedAt}}</span>
+                </div>
+            </div>
+
+            <div class="table-card-actions">
+                <button type="button"
+                        class="table-action-btn table-action-edit"
+                        hx-get="/edit-table/{{.ID}}"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML"
+                        hx-vals='{"number":"{{.Number}}","guest_count":"{{.GuestCount}}","status":"{{.Status}}"}'>
+                    Edit
+                </button>
+                <button type="button"
+                        class="table-action-btn table-action-delete"
+                        hx-post="/delete-table/{{.ID}}"
+                        hx-confirm="Delete table {{.Number}}?"
+                        hx-target="body">
+                    Delete
+                </button>
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state-modern">
+        <div class="empty-state-icon">🪑</div>
+        <h3>No tables yet</h3>
+        <p>Get started by creating your first table</p>
+        <button type="button" class="btn-add-table" hx-get="/add-table" hx-target="#modal-root" hx-swap="innerHTML">
+            <span class="btn-icon">+</span> Add Your First Table
+        </button>
+    </div>
+    {{end}}
 </div>
 {{end}}

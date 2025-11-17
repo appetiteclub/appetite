@@ -27,9 +27,19 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 	w, r, finish := h.http.Start(w, r, "Handler.HandleSignIn")
 	defer finish()
 
+	renderError := func(message string) {
+		data := map[string]interface{}{
+			"Title":    "Sign In - Operations",
+			"Template": "signin",
+			"HideNav":  true,
+			"Error":    message,
+		}
+		h.renderTemplate(w, "signin.html", "base.html", data)
+	}
+
 	if err := r.ParseForm(); err != nil {
 		h.log().Debug("failed to parse form", "error", err)
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		renderError("Failed to parse form. Please try again.")
 		return
 	}
 
@@ -38,7 +48,7 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 
 	if email == "" || password == "" {
 		h.log().Debug("missing email or password")
-		http.Error(w, "Email and password are required", http.StatusBadRequest)
+		renderError("Email and password are required.")
 		return
 	}
 
@@ -51,13 +61,13 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 	authResp, err := h.authnClient.Request(r.Context(), http.MethodPost, "/authn/signin", payload)
 	if err != nil {
 		h.log().Debug("authentication failed", "error", err)
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		renderError("Invalid email or password. Please try again.")
 		return
 	}
 
 	if authResp == nil || authResp.Data == nil {
 		h.log().Error("authn signin returned empty response")
-		http.Error(w, "Authentication error", http.StatusInternalServerError)
+		renderError("Authentication service unavailable. Please try again later.")
 		return
 	}
 
@@ -65,21 +75,21 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 	responsePayload, ok := authResp.Data.(map[string]interface{})
 	if !ok {
 		h.log().Error("unexpected signin response type")
-		http.Error(w, "Authentication error", http.StatusInternalServerError)
+		renderError("Authentication error. Please try again.")
 		return
 	}
 
 	userRaw, ok := responsePayload["user"]
 	if !ok {
 		h.log().Error("signin response missing user field")
-		http.Error(w, "Authentication error", http.StatusInternalServerError)
+		renderError("Authentication error. Please try again.")
 		return
 	}
 
 	userData, ok := userRaw.(map[string]interface{})
 	if !ok {
 		h.log().Error("unexpected user data type")
-		http.Error(w, "Authentication error", http.StatusInternalServerError)
+		renderError("Authentication error. Please try again.")
 		return
 	}
 
@@ -101,7 +111,7 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.sessionStore.Save(session); err != nil {
 		h.log().Error("failed to save session", "error", err)
-		http.Error(w, "Session error", http.StatusInternalServerError)
+		renderError("Session error. Please try again.")
 		return
 	}
 
