@@ -22,6 +22,21 @@ type TableRepo struct {
 	config     *aqm.Config
 }
 
+// tableDocument represents the MongoDB document structure.
+type tableDocument struct {
+	ID          string     `bson:"_id"`
+	Number      string     `bson:"number"`
+	Status      string     `bson:"status"`
+	GuestCount  int        `bson:"guest_count"`
+	AssignedTo  *string    `bson:"assigned_to,omitempty"`
+	Notes       []bson.M   `bson:"notes,omitempty"`
+	CurrentBill *bson.M    `bson:"current_bill,omitempty"`
+	CreatedAt   time.Time  `bson:"created_at"`
+	CreatedBy   string     `bson:"created_by"`
+	UpdatedAt   time.Time  `bson:"updated_at"`
+	UpdatedBy   string     `bson:"updated_by"`
+}
+
 func NewTableRepo(config *aqm.Config, logger aqm.Logger) *TableRepo {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
@@ -87,12 +102,125 @@ func (r *TableRepo) GetDatabase() *mongo.Database {
 	return r.db
 }
 
+// toDocument converts a Table entity to MongoDB document.
+func (r *TableRepo) toDocument(table *tables.Table) *tableDocument {
+	doc := &tableDocument{
+		ID:         table.ID.String(),
+		Number:     table.Number,
+		Status:     table.Status,
+		GuestCount: table.GuestCount,
+		CreatedAt:  table.CreatedAt,
+		CreatedBy:  table.CreatedBy,
+		UpdatedAt:  table.UpdatedAt,
+		UpdatedBy:  table.UpdatedBy,
+	}
+
+	if table.AssignedTo != nil {
+		assignedToStr := table.AssignedTo.String()
+		doc.AssignedTo = &assignedToStr
+	}
+
+	if table.Notes != nil && len(table.Notes) > 0 {
+		doc.Notes = make([]bson.M, len(table.Notes))
+		for i, note := range table.Notes {
+			doc.Notes[i] = bson.M{
+				"id":         note.ID.String(),
+				"content":    note.Content,
+				"created_at": note.CreatedAt,
+				"created_by": note.CreatedBy,
+			}
+		}
+	}
+
+	if table.CurrentBill != nil {
+		billDoc := bson.M{
+			"subtotal": table.CurrentBill.Subtotal,
+			"tax":      table.CurrentBill.Tax,
+			"tip":      table.CurrentBill.Tip,
+			"total":    table.CurrentBill.Total,
+		}
+		doc.CurrentBill = &billDoc
+	}
+
+	return doc
+}
+
+// fromDocument converts a MongoDB document to Table entity.
+func (r *TableRepo) fromDocument(doc *tableDocument) (*tables.Table, error) {
+	id, err := uuid.Parse(doc.ID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid table ID format: %w", err)
+	}
+
+	table := &tables.Table{
+		ID:         id,
+		Number:     doc.Number,
+		Status:     doc.Status,
+		GuestCount: doc.GuestCount,
+		CreatedAt:  doc.CreatedAt,
+		CreatedBy:  doc.CreatedBy,
+		UpdatedAt:  doc.UpdatedAt,
+		UpdatedBy:  doc.UpdatedBy,
+	}
+
+	if doc.AssignedTo != nil && *doc.AssignedTo != "" {
+		assignedTo, err := uuid.Parse(*doc.AssignedTo)
+		if err == nil {
+			table.AssignedTo = &assignedTo
+		}
+	}
+
+	if doc.Notes != nil && len(doc.Notes) > 0 {
+		table.Notes = make([]tables.Note, 0, len(doc.Notes))
+		for _, noteDoc := range doc.Notes {
+			note := tables.Note{}
+			if noteIDStr, ok := noteDoc["id"].(string); ok {
+				noteID, _ := uuid.Parse(noteIDStr)
+				note.ID = noteID
+			}
+			if content, ok := noteDoc["content"].(string); ok {
+				note.Content = content
+			}
+			if createdAt, ok := noteDoc["created_at"].(time.Time); ok {
+				note.CreatedAt = createdAt
+			}
+			if createdBy, ok := noteDoc["created_by"].(string); ok {
+				note.CreatedBy = createdBy
+			}
+			table.Notes = append(table.Notes, note)
+		}
+	} else {
+		table.Notes = []tables.Note{}
+	}
+
+	if doc.CurrentBill != nil {
+		billDoc := *doc.CurrentBill
+		bill := &tables.Bill{}
+		if subtotal, ok := billDoc["subtotal"].(float64); ok {
+			bill.Subtotal = subtotal
+		}
+		if tax, ok := billDoc["tax"].(float64); ok {
+			bill.Tax = tax
+		}
+		if tip, ok := billDoc["tip"].(float64); ok {
+			bill.Tip = tip
+		}
+		if total, ok := billDoc["total"].(float64); ok {
+			bill.Total = total
+		}
+		table.CurrentBill = bill
+	}
+
+	return table, nil
+}
+
 func (r *TableRepo) Create(ctx context.Context, table *tables.Table) error {
 	if table == nil {
 		return fmt.Errorf("table is nil")
 	}
 
-	if _, err := r.collection.InsertOne(ctx, table); err != nil {
+	doc := r.toDocument(table)
+	if _, err := r.collection.InsertOne(ctx, doc); err != nil {
 		return fmt.Errorf("cannot create table: %w", err)
 	}
 
@@ -100,27 +228,27 @@ func (r *TableRepo) Create(ctx context.Context, table *tables.Table) error {
 }
 
 func (r *TableRepo) Get(ctx context.Context, id uuid.UUID) (*tables.Table, error) {
-	var table tables.Table
-	err := r.collection.FindOne(ctx, bson.M{"_id": id.String()}).Decode(&table)
+	var doc tableDocument
+	err := r.collection.FindOne(ctx, bson.M{"_id": id.String()}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("cannot get table: %w", err)
 	}
-	return &table, nil
+	return r.fromDocument(&doc)
 }
 
 func (r *TableRepo) GetByNumber(ctx context.Context, number string) (*tables.Table, error) {
-	var table tables.Table
-	err := r.collection.FindOne(ctx, bson.M{"number": number}).Decode(&table)
+	var doc tableDocument
+	err := r.collection.FindOne(ctx, bson.M{"number": number}).Decode(&doc)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("cannot get table by number: %w", err)
 	}
-	return &table, nil
+	return r.fromDocument(&doc)
 }
 
 func (r *TableRepo) List(ctx context.Context) ([]*tables.Table, error) {
@@ -130,9 +258,18 @@ func (r *TableRepo) List(ctx context.Context) ([]*tables.Table, error) {
 	}
 	defer cursor.Close(ctx)
 
-	var result []*tables.Table
-	if err := cursor.All(ctx, &result); err != nil {
+	var docs []tableDocument
+	if err := cursor.All(ctx, &docs); err != nil {
 		return nil, fmt.Errorf("cannot decode tables: %w", err)
+	}
+
+	result := make([]*tables.Table, 0, len(docs))
+	for _, doc := range docs {
+		table, err := r.fromDocument(&doc)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, table)
 	}
 
 	return result, nil
@@ -145,9 +282,18 @@ func (r *TableRepo) ListByStatus(ctx context.Context, status string) ([]*tables.
 	}
 	defer cursor.Close(ctx)
 
-	var result []*tables.Table
-	if err := cursor.All(ctx, &result); err != nil {
+	var docs []tableDocument
+	if err := cursor.All(ctx, &docs); err != nil {
 		return nil, fmt.Errorf("cannot decode tables: %w", err)
+	}
+
+	result := make([]*tables.Table, 0, len(docs))
+	for _, doc := range docs {
+		table, err := r.fromDocument(&doc)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, table)
 	}
 
 	return result, nil
@@ -158,8 +304,9 @@ func (r *TableRepo) Save(ctx context.Context, table *tables.Table) error {
 		return fmt.Errorf("table is nil")
 	}
 
+	doc := r.toDocument(table)
 	filter := bson.M{"_id": table.ID.String()}
-	update := bson.M{"$set": table}
+	update := bson.M{"$set": doc}
 
 	result, err := r.collection.UpdateOne(ctx, filter, update)
 	if err != nil {

@@ -54,7 +54,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/", h.CreateTable)
 		r.Get("/", h.ListTables)
 		r.Get("/{id}", h.GetTable)
-		r.Put("/{id}", h.UpdateTable)
+		r.Patch("/{id}", h.UpdateTable)
 		r.Delete("/{id}", h.DeleteTable)
 
 		r.Post("/{id}/open", h.OpenTable)
@@ -83,7 +83,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 	r.Route("/order-items", func(r chi.Router) {
 		r.Get("/{id}", h.GetOrderItem)
-		r.Put("/{id}", h.UpdateOrderItem)
+		r.Patch("/{id}", h.UpdateOrderItem)
 		r.Delete("/{id}", h.DeleteOrderItem)
 	})
 
@@ -95,7 +95,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/", h.CreateReservation)
 		r.Get("/", h.ListReservations)
 		r.Get("/{id}", h.GetReservation)
-		r.Put("/{id}", h.UpdateReservation)
+		r.Patch("/{id}", h.UpdateReservation)
 		r.Delete("/{id}", h.DeleteReservation)
 	})
 }
