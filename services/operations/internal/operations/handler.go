@@ -140,13 +140,20 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/", h.Home)
 		r.Get("/chat", h.Chat)
 		r.Post("/chat/message", h.HandleChatMessage)
-			r.Get("/list-tables", h.Tables)
-			r.Get("/add-table", h.NewTableForm)
-			r.Get("/edit-table/{id}", h.EditTableForm)
-			r.Post("/add-table", h.CreateTable)
-			r.Post("/update-table/{id}", h.UpdateTable)
-			r.Post("/delete-table/{id}", h.DeleteTable)
+		r.Get("/list-tables", h.Tables)
+		r.Get("/add-table", h.NewTableForm)
+		r.Get("/edit-table/{id}", h.EditTableForm)
+		r.Post("/add-table", h.CreateTable)
+		r.Post("/update-table/{id}", h.UpdateTable)
+		r.Post("/delete-table/{id}", h.DeleteTable)
 		r.Get("/orders", h.Orders)
+		r.Get("/add-order", h.NewOrderForm)
+		r.Post("/add-order", h.CreateOrder)
+		r.Get("/orders/{id}/items/new", h.NewOrderItemForm)
+		r.Post("/orders/{id}/items", h.CreateOrderItem)
+		r.Get("/orders/{id}/groups/new", h.NewOrderGroupForm)
+		r.Post("/orders/{id}/groups", h.CreateOrderGroup)
+		r.Get("/orders/{id}/modal", h.OrderModal)
 		r.Get("/menu", h.Menu)
 	})
 }
@@ -198,20 +205,6 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 }
 
 // Tables displays table management interface
-// Orders displays order management interface
-func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
-	w, r, finish := h.http.Start(w, r, "Handler.Orders")
-	defer finish()
-
-	data := map[string]interface{}{
-		"Title":    "Orders",
-		"User":     h.getUserFromSession(r),
-		"Template": "orders",
-	}
-
-	h.renderTemplate(w, "orders.html", "base.html", data)
-}
-
 // Menu displays menu management interface
 func (h *Handler) Menu(w http.ResponseWriter, r *http.Request) {
 	w, r, finish := h.http.Start(w, r, "Handler.Menu")

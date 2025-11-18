@@ -1,0 +1,80 @@
+{{define "order_items_form.html"}}
+<div class="modal modal-modern">
+    <div class="modal-backdrop" onclick="this.closest('.modal').remove()"></div>
+    <div class="modal-dialog modal-dialog-modern">
+        <div class="modal-header modal-header-modern">
+            <h2 class="modal-title">{{.Title}}</h2>
+            <button type="button" class="modal-close modal-close-modern" onclick="this.closest('.modal').remove()">
+                <span>&times;</span>
+            </button>
+        </div>
+
+        {{if .Error}}
+        <div class="modal-error">
+            <span class="error-icon">⚠️</span>
+            <span>{{.Error}}</span>
+        </div>
+        {{end}}
+
+        <form method="post" action="{{.Action}}" hx-post="{{.Action}}" hx-target="closest .modal" hx-swap="outerHTML" class="modal-form">
+            <div class="form-group">
+                <label for="modal-menu" class="form-label">
+                    <span class="label-text">Menu item</span>
+                    <span class="label-required">*</span>
+                </label>
+                <select id="modal-menu" name="menu_item_id" class="form-select" required>
+                    <option value="" disabled {{if eq .SelectedMenu ""}}selected{{end}}>Choose an item</option>
+                    {{range .MenuItems}}
+                    <option value="{{.ID}}" {{if eq $.SelectedMenu .ID}}selected{{end}}>{{.Label}}</option>
+                    {{end}}
+                </select>
+                <span class="form-hint">Items and pricing come directly from the menu service.</span>
+            </div>
+
+            <div class="form-row form-row-split">
+                <div class="form-group">
+                    <label for="modal-quantity" class="form-label">Quantity</label>
+                    <input id="modal-quantity" type="number" name="quantity" min="1" value="{{if .Quantity}}{{.Quantity}}{{else}}1{{end}}" class="form-input" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Item details</label>
+                <div class="form-info-row">
+                    <span class="form-info-label">Price</span>
+                    <span class="form-info-value">{{if .DisplayPrice}}{{.DisplayPrice}}{{else}}-{{end}}</span>
+                </div>
+                <div class="form-info-row">
+                    <span class="form-info-label">Routing</span>
+                    <span class="form-info-value">{{if .DisplayRouting}}{{.DisplayRouting}}{{else}}Kitchen{{end}}</span>
+                </div>
+                <span class="form-hint">Values are derived from the menu definition.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="modal-group" class="form-label">Bill group</label>
+                <select id="modal-group" name="group_id" class="form-select">
+                    <option value="" {{if eq .GroupID ""}}selected{{end}}>No group</option>
+                    {{range .Groups}}
+                    <option value="{{.ID}}" {{if eq $.GroupID .ID}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="modal-notes" class="form-label">Notes</label>
+                <textarea id="modal-notes" name="notes" rows="3" class="form-input" placeholder="Allergies, cooking preferences, etc.">{{.Notes}}</textarea>
+            </div>
+
+            <div class="modal-actions modal-actions-modern">
+                <button type="button" class="btn-modal btn-modal-cancel" onclick="this.closest('.modal').remove()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-modal btn-modal-primary">
+                    <span class="btn-icon">+</span> Add Item
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

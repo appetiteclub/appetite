@@ -1,15 +1,102 @@
 {{template "base.html" .}}
 
 {{define "orders"}}
-<h1 class="page-title">📋 Orders</h1>
-<p style="color: #666; margin-bottom: 2rem;">Track and manage restaurant orders</p>
+<div class="orders-modern-page">
+    <div class="orders-header">
+        <div class="orders-header-content">
+            <div>
+                <h1 class="orders-title">📋 Orders</h1>
+                <p class="orders-subtitle">Tap a table to open or manage its order</p>
+            </div>
+            <button type="button" class="btn-add-order" hx-get="/add-order" hx-target="#modal-root" hx-swap="innerHTML">
+                <span class="btn-icon">+</span> Open Order
+            </button>
+        </div>
 
-<div class="card" style="padding: 4rem 2rem; text-align: center;">
-    <div style="font-size: 4rem; margin-bottom: 1rem;">🚧</div>
-    <h2 style="font-size: 1.5rem; color: #333; margin-bottom: 0.5rem;">Coming Soon</h2>
-    <p style="color: #666; line-height: 1.6;">
-        Order management interface will be available here.<br>
-        For now, use the Chat interface to interact with orders.
-    </p>
+        {{if .Error}}
+        <div class="flash-notification flash-error">
+            <span class="flash-icon">⚠️</span>
+            <span class="flash-message">{{.Error}}</span>
+        </div>
+        {{end}}
+        {{if .Success}}
+        <div class="flash-notification flash-success">
+            <span class="flash-icon">✓</span>
+            <span class="flash-message">{{.Success}}</span>
+        </div>
+        {{end}}
+    </div>
+
+    {{if .Tables}}
+    <div class="tables-grid orders-tables-grid">
+        {{range .Tables}}
+        <div class="table-card {{if .Disabled}}table-card-disabled{{end}}">
+            <div class="table-card-header">
+                <div class="table-number-badge">{{.Number}}</div>
+                <div class="status-badge status-{{.Status}}">{{.StatusLabel}}</div>
+            </div>
+
+            <div class="table-card-body">
+                <div class="table-info-row">
+                    <span class="table-info-label">Last event</span>
+                    <span class="table-info-value">{{.LastEvent}}</span>
+                </div>
+                <div class="table-info-row">
+                    <span class="table-info-label">When</span>
+                    <span class="table-info-value table-time">{{.LastWhen}}</span>
+                </div>
+            </div>
+
+            <div class="table-card-actions">
+                {{if .HasOrder}}
+                <div class="table-order-summary">
+                    <div class="table-order-line">
+                        <span class="status-badge {{.Order.StatusClass}}">{{.Order.StatusLabel}}</span>
+                        <span class="table-order-total">{{.Order.Total}}</span>
+                    </div>
+                    <div class="table-order-meta">{{.Order.ItemsCount}} items · {{.Order.PrepSummary}}</div>
+                </div>
+                <button type="button"
+                        class="table-action-btn"
+                        hx-get="/orders/{{.Order.ID}}/modal"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML">
+                    Manage order
+                </button>
+                {{else if not .Disabled}}
+                <button type="button"
+                        class="table-action-btn table-action-edit"
+                        hx-post="/add-order"
+                        hx-vals='{"table_id":"{{.ID}}"}'
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML">
+                    Open order
+                </button>
+                {{else}}
+                <div class="table-order-summary">
+                    <div class="table-order-line">
+                        <span class="status-badge status-{{.Status}}">{{.StatusLabel}}</span>
+                        <span class="table-order-total">{{.Bill}}</span>
+                    </div>
+                    <div class="table-order-meta">Not accepting orders right now</div>
+                </div>
+                <button type="button" class="table-action-btn table-action-edit" disabled>
+                    Not available
+                </button>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state-modern">
+        <div class="empty-state-icon">📋</div>
+        <h3>No tables available</h3>
+        <p>Tables will appear here as soon as they are created.</p>
+        <button type="button" class="btn-add-order" hx-get="/add-order" hx-target="#modal-root" hx-swap="innerHTML">
+            <span class="btn-icon">+</span> Open Order
+        </button>
+    </div>
+    {{end}}
 </div>
 {{end}}

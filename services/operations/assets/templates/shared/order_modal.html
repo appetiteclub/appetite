@@ -1,0 +1,150 @@
+{{define "order_modal.html"}}
+<div class="modal modal-modern order-modal">
+    <div class="modal-backdrop" onclick="this.closest('.modal').remove()"></div>
+    <div class="modal-dialog modal-dialog-modern order-modal-dialog">
+        <div class="modal-header modal-header-modern">
+            <div>
+                <h2 class="modal-title">Order {{.Order.ShortID}}</h2>
+                <p class="order-modal-subtitle">Table {{.Order.TableNumber}} · {{.Order.ItemsCount}} items</p>
+            </div>
+            <button type="button" class="modal-close modal-close-modern" onclick="this.closest('.modal').remove()">
+                <span>&times;</span>
+            </button>
+        </div>
+
+        <div class="order-modal-summary">
+            <div class="order-card-header">
+                <div>
+                    <div class="order-id">Table {{.Order.TableNumber}}</div>
+                    <div class="order-table">Last update {{.Order.UpdatedAt}}</div>
+                </div>
+                <div class="order-card-metrics">
+                    <span class="status-badge {{.Order.StatusClass}}">{{.Order.StatusLabel}}</span>
+                    <span class="order-total">{{.Order.Total}}</span>
+                </div>
+            </div>
+            <div class="order-card-stats">
+                <div class="order-stat">
+                    <span class="order-stat-label">Items</span>
+                    <span class="order-stat-value">{{.Order.ItemsCount}}</span>
+                </div>
+                <div class="order-stat">
+                    <span class="order-stat-label">Kitchen flow</span>
+                    <span class="order-stat-value">{{.Order.PrepSummary}}</span>
+                </div>
+                {{if .Order.NonPrepSummary}}
+                <div class="order-stat">
+                    <span class="order-stat-label">Add-ons</span>
+                    <span class="order-stat-value">{{.Order.NonPrepSummary}}</span>
+                </div>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="order-card-details">
+            <div class="order-detail-actions">
+                <button type="button"
+                        class="order-action-btn"
+                        hx-get="/orders/{{.Order.ID}}/items/new"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML">
+                    ➕ Add Item
+                </button>
+                <button type="button"
+                        class="order-action-btn order-action-secondary"
+                        hx-get="/orders/{{.Order.ID}}/groups/new"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML">
+                    🧾 New Group
+                </button>
+            </div>
+
+            {{if .Order.Groups}}
+            {{range .Order.Groups}}
+            {{if .ItemCount}}
+            <div class="order-group">
+                <div class="order-group-header">
+                    <div>
+                        <span class="order-group-name">Group {{.Name}}</span>
+                        <span class="order-group-meta">{{.ItemCount}} items · {{.Total}}</span>
+                    </div>
+                </div>
+                <div class="order-items">
+                    {{range .Items}}
+                    <div class="order-item-row">
+                        <div class="order-item-info">
+                            <div class="order-item-name">{{.DishName}}</div>
+                            <div class="order-item-meta">
+                                <span class="order-item-status {{.StatusClass}}">{{.StatusLabel}}</span>
+                                {{if .RequiresProduction}}
+                                <span class="order-item-tag">Kitchen</span>
+                                {{else}}
+                                <span class="order-item-tag order-item-tag-soft">Add-on</span>
+                                {{end}}
+                                {{if .Notes}}
+                                <span class="order-item-notes">📝 {{.Notes}}</span>
+                                {{end}}
+                            </div>
+                        </div>
+                        <div class="order-item-qty">×{{.Quantity}}</div>
+                        <div class="order-item-price">{{.Total}}</div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+            {{end}}
+            {{end}}
+
+            {{if .Order.HasUngrouped}}
+            <div class="order-group order-group-ungrouped">
+                <div class="order-group-header">
+                    <div>
+                        <span class="order-group-name">Ungrouped</span>
+                        <span class="order-group-meta">{{.Order.Ungrouped.ItemCount}} items · {{.Order.Ungrouped.Total}}</span>
+                    </div>
+                </div>
+                <div class="order-items">
+                    {{range .Order.Ungrouped.Items}}
+                    <div class="order-item-row">
+                        <div class="order-item-info">
+                            <div class="order-item-name">{{.DishName}}</div>
+                            <div class="order-item-meta">
+                                <span class="order-item-status {{.StatusClass}}">{{.StatusLabel}}</span>
+                                {{if .RequiresProduction}}
+                                <span class="order-item-tag">Kitchen</span>
+                                {{else}}
+                                <span class="order-item-tag order-item-tag-soft">Add-on</span>
+                                {{end}}
+                                {{if .Notes}}
+                                <span class="order-item-notes">📝 {{.Notes}}</span>
+                                {{end}}
+                            </div>
+                        </div>
+                        <div class="order-item-qty">×{{.Quantity}}</div>
+                        <div class="order-item-price">{{.Total}}</div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+
+            <div class="order-activity">
+                <h3>Recent Events</h3>
+                {{if .Order.Events}}
+                <ul class="order-activity-list">
+                    {{range .Order.Events}}
+                    <li>
+                        <div class="order-activity-message">{{.Message}}</div>
+                        <div class="order-activity-time">{{.Occurred}}</div>
+                    </li>
+                    {{end}}
+                </ul>
+                {{else}}
+                <p class="order-activity-empty">No events recorded yet.</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
