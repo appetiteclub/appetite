@@ -23,6 +23,13 @@ func Seeds(db *mongo.Database) []seed.Seed {
 				return seedMenuDictionary(ctx, db)
 			},
 		},
+		{
+			ID:          "2025-11-18_menu_sample_items",
+			Description: "Seed representative menu items for kitchen, bar, and direct service",
+			Run: func(ctx context.Context) error {
+				return seedSampleMenuItems(ctx, db)
+			},
+		},
 	}
 }
 
@@ -287,6 +294,78 @@ func seedMenuDictionary(ctx context.Context, db *mongo.Database) error {
 				"updated_by": "system",
 			}},
 			options.Update().SetUpsert(true))
+	}
+
+	return nil
+}
+
+func seedSampleMenuItems(ctx context.Context, db *mongo.Database) error {
+	collection := db.Collection("menu_items")
+	now := time.Now()
+	items := []struct {
+		ShortCode   string
+		Name        string
+		Description string
+		Price       float64
+		Station     string
+		Class       string
+	}{
+		{"BURG-001", "Smash Burger", "Double smash patties with cheddar and pickles", 14.50, "kitchen", "entree"},
+		{"PAST-001", "Truffle Pasta", "Handmade tagliatelle with truffle cream", 18.00, "kitchen", "entree"},
+		{"FISH-001", "Seared Salmon", "Atlantic salmon with citrus glaze", 21.00, "kitchen", "entree"},
+		{"STEAK-001", "Bistro Steak", "Sirloin with herb butter and fries", 24.00, "kitchen", "entree"},
+		{"TACO-001", "Baja Fish Tacos", "Beer-battered cod with chipotle slaw", 16.00, "kitchen", "shareable"},
+		{"VEG-001", "Harvest Bowl", "Roasted vegetables, quinoa, tahini", 15.00, "kitchen", "entree"},
+		{"BBQ-001", "Smokehouse Ribs", "Slow cooked pork ribs with house sauce", 22.00, "kitchen", "entree"},
+		{"PIZ-001", "Margherita Pizza", "San Marzano tomatoes, mozzarella, basil", 17.00, "kitchen", "entree"},
+		{"SAL-001", "Citrus Kale Salad", "Baby kale, grapefruit, toasted seeds", 13.00, "kitchen", "starter"},
+		{"DESS-001", "Chocolate Lava Cake", "Warm cake with vanilla gelato", 10.00, "kitchen", "dessert"},
+		{"DESS-002", "Classic Cheesecake", "NY style cheesecake, berry compote", 9.00, "kitchen", "dessert"},
+		{"DRK-OLD", "Smoked Old Fashioned", "Rye whiskey, bitters, orange peel", 13.00, "bar", "cocktail"},
+		{"DRK-MARG", "Spicy Margarita", "Reposado tequila, jalapeño cordial", 12.00, "bar", "cocktail"},
+		{"DRK-ESP", "Espresso Martini", "Vodka, espresso, coffee liqueur", 12.50, "bar", "cocktail"},
+		{"DRK-SPRZ", "Aperol Spritz", "Aperol, prosecco, soda", 11.00, "bar", "cocktail"},
+		{"DRK-GTON", "Garden Gin & Tonic", "Botanical gin, tonic, herbs", 11.50, "bar", "cocktail"},
+		{"BEV-SPRK", "Sparkling Water", "Chilled bottled sparkling water", 4.50, "direct", "beverage"},
+		{"BEV-COLA", "Bottled Cola", "12oz glass bottle cola", 4.00, "direct", "beverage"},
+		{"BEV-BEER", "West Coast IPA", "16oz draft craft IPA", 8.50, "direct", "beverage"},
+		{"BEV-ICED", "House Iced Tea", "Fresh brewed black tea, lemon", 5.00, "direct", "beverage"},
+		{"BEV-LEMO", "Cucumber Lemonade", "Pressed lemons, cucumber syrup", 6.00, "direct", "beverage"},
+	}
+
+	for idx, item := range items {
+		doc := bson.M{
+			"_id":             uuid.New().String(),
+			"short_code":      item.ShortCode,
+			"name":            bson.M{"en": item.Name},
+			"description":     bson.M{"en": item.Description},
+			"prices":          []bson.M{{"amount": item.Price, "currency_code": "USD"}},
+			"active":          true,
+			"portions":        []bson.M{},
+			"allergens":       []string{},
+			"dietary_options": []string{},
+			"cuisine_types":   []string{},
+			"categories":      []string{},
+			"tags": []string{
+				fmt.Sprintf("station:%s", item.Station),
+				fmt.Sprintf("class:%s", item.Class),
+			},
+			"ingredients":      []bson.M{},
+			"images":           []bson.M{},
+			"visibility_rules": bson.M{},
+			"display_order":    idx + 1,
+			"schema_version":   CurrentMenuItemSchemaVersion,
+			"created_at":       now,
+			"created_by":       "seed",
+			"updated_at":       now,
+			"updated_by":       "seed",
+		}
+
+		filter := bson.M{"short_code": item.ShortCode}
+		update := bson.M{"$setOnInsert": doc}
+		if _, err := collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true)); err != nil {
+			return fmt.Errorf("seed menu item %s: %w", item.ShortCode, err)
+		}
 	}
 
 	return nil

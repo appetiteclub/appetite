@@ -24,6 +24,21 @@
       "number": "Corner-5",
       "status": "out_of_service",
       "guest_count": 8
+    },
+    {
+      "number": "Garden-6",
+      "status": "reserved",
+      "guest_count": 4
+    },
+    {
+      "number": "Booth-7",
+      "status": "available",
+      "guest_count": 4
+    },
+    {
+      "number": "Terrace-8",
+      "status": "available",
+      "guest_count": 6
     }
   ]
 }

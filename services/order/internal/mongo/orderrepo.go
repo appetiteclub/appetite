@@ -35,7 +35,7 @@ func (r *OrderRepo) Create(ctx context.Context, o *order.Order) error {
 
 func (r *OrderRepo) Get(ctx context.Context, id uuid.UUID) (*order.Order, error) {
 	var o order.Order
-	err := r.collection.FindOne(ctx, bson.M{"_id": id.String()}).Decode(&o)
+	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&o)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -46,7 +46,7 @@ func (r *OrderRepo) Get(ctx context.Context, id uuid.UUID) (*order.Order, error)
 }
 
 func (r *OrderRepo) ListByTable(ctx context.Context, tableID uuid.UUID) ([]*order.Order, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{"table_id": tableID.String()})
+	cursor, err := r.collection.Find(ctx, bson.M{"table_id": tableID})
 	if err != nil {
 		return nil, fmt.Errorf("cannot list orders by table: %w", err)
 	}
@@ -95,7 +95,7 @@ func (r *OrderRepo) Save(ctx context.Context, o *order.Order) error {
 		return fmt.Errorf("order is nil")
 	}
 
-	filter := bson.M{"_id": o.ID.String()}
+	filter := bson.M{"_id": o.ID}
 	update := bson.M{"$set": o}
 
 	result, err := r.collection.UpdateOne(ctx, filter, update)
@@ -111,7 +111,7 @@ func (r *OrderRepo) Save(ctx context.Context, o *order.Order) error {
 }
 
 func (r *OrderRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": id.String()})
+	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		return fmt.Errorf("cannot delete order: %w", err)
 	}
