@@ -1,11 +1,16 @@
 package order
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/appetiteclub/appetite/pkg"
 	"github.com/aquamarinepk/aqm"
+	"github.com/aquamarinepk/aqm/events"
 	"github.com/aquamarinepk/aqm/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -20,6 +25,8 @@ type Handler struct {
 	config        *aqm.Config
 	tlm           *telemetry.HTTP
 	tableClient   *aqm.ServiceClient
+	tableStates   *TableStateCache
+	publisher     events.Publisher
 }
 
 func NewHandler(
@@ -27,6 +34,8 @@ func NewHandler(
 	orderItemRepo OrderItemRepo,
 	logger aqm.Logger,
 	config *aqm.Config,
+	tableStates *TableStateCache,
+	publisher events.Publisher,
 ) *Handler {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
@@ -43,6 +52,8 @@ func NewHandler(
 		config:        config,
 		tlm:           telemetry.NewHTTP(),
 		tableClient:   tableClient,
+		tableStates:   tableStates,
+		publisher:     publisher,
 	}
 }
 
@@ -78,6 +89,20 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	req, ok := h.decodeOrderCreatePayload(w, r, log)
 	if !ok {
+		return
+	}
+
+	if req.TableID == uuid.Nil {
+		log.Debug("missing table id in create order request")
+		aqm.RespondError(w, http.StatusBadRequest, "table_id is required")
+		return
+	}
+
+	status, err := h.ensureTableAllowsOrdering(r.Context(), req.TableID)
+	if err != nil {
+		log.Info("table cannot accept orders", "table_id", req.TableID.String(), "status", status, "error", err)
+		h.publishOrderTableRejection(r.Context(), req.TableID, nil, "create_order", err.Error(), status)
+		aqm.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -252,6 +277,21 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 
 	req, ok := h.decodeOrderItemCreatePayload(w, r, log)
 	if !ok {
+		return
+	}
+
+	parentOrder, err := h.orderRepo.Get(ctx, orderID)
+	if err != nil || parentOrder == nil {
+		log.Error("order not found for item create", "error", err, "order_id", orderID.String())
+		aqm.RespondError(w, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	status, guardErr := h.ensureTableAllowsOrdering(ctx, parentOrder.TableID)
+	if guardErr != nil {
+		log.Info("table cannot accept order items", "table_id", parentOrder.TableID.String(), "status", status, "error", guardErr)
+		h.publishOrderTableRejection(ctx, parentOrder.TableID, &parentOrder.ID, "add_item", guardErr.Error(), status)
+		aqm.RespondError(w, http.StatusBadRequest, guardErr.Error())
 		return
 	}
 
@@ -541,4 +581,51 @@ func (h *Handler) decodeOrderItemUpdatePayload(w http.ResponseWriter, r *http.Re
 	}
 
 	return req, true
+}
+
+func (h *Handler) ensureTableAllowsOrdering(ctx context.Context, tableID uuid.UUID) (string, error) {
+	if tableID == uuid.Nil {
+		return "", fmt.Errorf("table_id is required")
+	}
+	if h.tableStates == nil {
+		return "", nil
+	}
+	status, err := h.tableStates.Ensure(ctx, tableID)
+	if err != nil {
+		return status, err
+	}
+	if status == "" {
+		return status, fmt.Errorf("table status unavailable")
+	}
+	switch status {
+	case "available", "open", "reserved":
+		return status, nil
+	default:
+		return status, fmt.Errorf("table is %s", status)
+	}
+}
+
+func (h *Handler) publishOrderTableRejection(ctx context.Context, tableID uuid.UUID, orderID *uuid.UUID, action, reason, status string) {
+	if h.publisher == nil {
+		return
+	}
+	event := pkg.OrderTableRejectionEvent{
+		EventType:  pkg.EventOrderTableRejected,
+		TableID:    tableID.String(),
+		Action:     action,
+		Reason:     reason,
+		Status:     status,
+		OccurredAt: time.Now().UTC(),
+	}
+	if orderID != nil {
+		event.OrderID = orderID.String()
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		h.logger.Error("cannot marshal order table rejection", "error", err, "table_id", tableID.String())
+		return
+	}
+	if err := h.publisher.Publish(ctx, pkg.OrderTableTopic, payload); err != nil {
+		h.logger.Error("cannot publish order table rejection", "error", err, "table_id", tableID.String())
+	}
 }

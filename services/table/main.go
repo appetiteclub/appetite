@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/appetiteclub/appetite/pkg"
 	"github.com/aquamarinepk/aqm"
 	"github.com/aquamarinepk/aqm/middleware"
 
@@ -60,6 +61,22 @@ func main() {
 	orderItemRepo := mongo.NewOrderItemRepo(db)
 	reservationRepo := mongo.NewReservationRepo(db)
 
+	natsURL, _ := config.GetString("nats.url")
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
+	}
+
+	publisher, err := pkg.NewNATSPublisher(natsURL)
+	if err != nil {
+		log.Fatalf("Cannot connect to NATS publisher: %v", err)
+	}
+
+	publisherLifecycle := aqm.LifecycleHooks{
+		OnStop: func(context.Context) error {
+			return publisher.Close()
+		},
+	}
+
 	handler := tables.NewHandler(
 		tableRepo,
 		groupRepo,
@@ -68,6 +85,7 @@ func main() {
 		reservationRepo,
 		logger,
 		config,
+		publisher,
 	)
 
 	seedHooks := aqm.LifecycleHooks{
@@ -88,7 +106,7 @@ func main() {
 		aqm.WithLogger(logger),
 		aqm.WithHTTPMiddleware(stack...),
 		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(tableRepo, seedHooks),
+		aqm.WithLifecycle(tableRepo, seedHooks, publisherLifecycle),
 		aqm.WithHealthChecks(appName),
 	}
 
