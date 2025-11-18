@@ -1,6 +1,6 @@
 # Appetite
 
-![Appetite Operations Command](docs/img/gallery/list-tables.png)
+![Appetite Operations Command](docs/img/gallery/list-orders.png)
 <p align="right"><small><a href="docs/gallery/index.md">See more in the gallery</a></small></p>
 
 I wanted to explore an alternative way to build a restaurant venue manager while also starting a new iteration of [Aquamarine](https://github.com/aquamarinepk), this time based on [aqm](https://github.com/aquamarinepk/aqm) lib. And here we are.

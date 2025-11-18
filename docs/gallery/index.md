@@ -13,6 +13,12 @@ Views from the public-facing operational interfaces used by staff.
 ### List Tables
 ![List Tables](../img/gallery/list-tables.png)
 
+### List Orders
+![List Orders](../img/gallery/list-orders.png)
+
+### Add Order Item
+![Add Order Item](../img/gallery/add-order-item.png)
+
 ### Operations Chat
 ![Operations Chat](../img/gallery/operations-chat.png)
 
