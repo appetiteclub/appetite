@@ -1,0 +1,13 @@
+{{define "order_item_preview.html"}}
+<div class="form-group">
+    <label class="form-label">Item details</label>
+    <div class="form-info-row">
+        <span class="form-info-label">Price</span>
+        <span class="form-info-value">{{if .DisplayPrice}}{{.DisplayPrice}}{{else}}-{{end}}</span>
+    </div>
+    <div class="form-info-row">
+        <span class="form-info-label">Routing</span>
+        <span class="form-info-value">{{if .DisplayRouting}}{{.DisplayRouting}}{{else}}Kitchen{{end}}</span>
+    </div>
+</div>
+{{end}}

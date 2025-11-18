@@ -1,0 +1,47 @@
+{{define "orders_form.html"}}
+<div class="modal modal-modern">
+    <div class="modal-backdrop" onclick="this.closest('.modal').remove()"></div>
+    <div class="modal-dialog modal-dialog-modern">
+        <div class="modal-header modal-header-modern">
+            <h2 class="modal-title">{{.Title}}</h2>
+            <button type="button" class="modal-close modal-close-modern" onclick="this.closest('.modal').remove()">
+                <span>&times;</span>
+            </button>
+        </div>
+
+        {{if .Error}}
+        <div class="modal-error">
+            <span class="error-icon">⚠️</span>
+            <span>{{.Error}}</span>
+        </div>
+        {{end}}
+
+        <form method="post" action="{{.Action}}" hx-post="{{.Action}}" hx-target="closest .modal" hx-swap="outerHTML" class="modal-form">
+            <div class="form-group">
+                <label for="modal-table" class="form-label">
+                    <span class="label-text">Select table</span>
+                    <span class="label-required">*</span>
+                </label>
+                <select id="modal-table" name="table_id" class="form-select" required>
+                    <option value="" disabled {{if eq .SelectedTable ""}}selected{{end}}>Choose a table</option>
+                    {{range .Tables}}
+                    <option value="{{.ID}}" {{if eq $.SelectedTable .ID}}selected{{end}} {{if .Disabled}}disabled{{end}}>
+                        {{.Label}}{{if .Disabled}} · unavailable{{end}}
+                    </option>
+                    {{end}}
+                </select>
+                <span class="form-hint">Only tables that are available, reserved or already open can accept orders.</span>
+            </div>
+
+            <div class="modal-actions modal-actions-modern">
+                <button type="button" class="btn-modal btn-modal-cancel" onclick="this.closest('.modal').remove()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-modal btn-modal-primary">
+                    <span class="btn-icon">+</span> Open Order
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

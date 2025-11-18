@@ -176,6 +176,7 @@ type orderItemFormModal struct {
 	Error          string
 	DisplayPrice   string
 	DisplayRouting string
+	MenuQuery      string
 }
 
 type menuItemOption struct {
@@ -184,6 +185,7 @@ type menuItemOption struct {
 	Price    float64
 	Currency string
 	Routing  string
+	ShortCode string
 }
 
 // Order group creation modal payload.
@@ -903,6 +905,7 @@ func (h *Handler) NewOrderItemForm(w http.ResponseWriter, r *http.Request) {
 		MenuItems:  menuItems,
 		Groups:     groups,
 		Quantity:   "1",
+		MenuQuery:  "",
 	}
 
 	form.SelectedMenu = defaultMenuSelection(menuItems)
@@ -933,6 +936,7 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	quantityStr := strings.TrimSpace(r.FormValue("quantity"))
 	notes := strings.TrimSpace(r.FormValue("notes"))
 	groupIDStr := strings.TrimSpace(r.FormValue("group_id"))
+	menuQuery := strings.TrimSpace(r.FormValue("menu_item_query"))
 
 	form := orderItemFormModal{
 		Title:        fmt.Sprintf("Add Item to %s", truncateID(orderID)),
@@ -943,6 +947,7 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 		Notes:        notes,
 		GroupID:      groupIDStr,
 		SelectedMenu: menuItemID,
+		MenuQuery:    menuQuery,
 	}
 
 	if menuItemID == "" {
@@ -990,6 +995,16 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.orderClient.Request(r.Context(), "POST", path, payload); err != nil {
 		h.log().Error("order item creation failed", "order_id", orderID, "error", err)
 		h.handleOrderItemFormError(w, form, "Could not add the item right now.")
+		return
+	}
+
+	if aqm.IsHTMX(r) {
+		order, _ := h.fetchOrder(r.Context(), orderID)
+		items, _ := h.fetchOrderItems(r.Context(), orderID)
+		table, _ := h.fetchTable(r.Context(), order.TableID)
+		groups, _ := h.fetchGroupsForTable(r.Context(), order.TableID, map[string][]orderGroupResource{})
+		card := h.buildOrderCard(*order, table, items, groups)
+		h.renderOrderModal(w, card)
 		return
 	}
 
@@ -1044,8 +1059,20 @@ func (h *Handler) fetchMenuOptions(ctx context.Context) ([]menuItemOption, error
 				currency = item.Prices[0].CurrencyCode
 			}
 		}
-		label := fmt.Sprintf("%s (%s)", pickMenuName(&item), formatMoney(price))
-		options = append(options, menuItemOption{ID: item.ID, Label: label, Price: price, Currency: currency})
+		name := pickMenuName(&item)
+		label := fmt.Sprintf("%s (%s)", name, formatMoney(price))
+		if item.ShortCode != "" {
+			label = fmt.Sprintf("%s — %s (%s)", item.ShortCode, name, formatMoney(price))
+		}
+		routing := deriveStation(&item)
+		options = append(options, menuItemOption{
+			ID:        item.ID,
+			Label:     label,
+			Price:     price,
+			Currency:  currency,
+			Routing:   routing,
+			ShortCode: item.ShortCode,
+		})
 	}
 
 	sort.Slice(options, func(i, j int) bool {
@@ -1130,6 +1157,27 @@ func defaultMenuSelection(options []menuItemOption) string {
 	return options[0].ID
 }
 
+func matchMenuOption(query string, options []menuItemOption) menuItemOption {
+	trimmed := strings.ToLower(strings.TrimSpace(query))
+	if trimmed == "" {
+		if len(options) > 0 {
+			return options[0]
+		}
+		return menuItemOption{}
+	}
+	for _, opt := range options {
+		if strings.EqualFold(opt.ShortCode, trimmed) {
+			return opt
+		}
+	}
+	for _, opt := range options {
+		if strings.Contains(strings.ToLower(opt.Label), trimmed) {
+			return opt
+		}
+	}
+	return menuItemOption{}
+}
+
 func (h *Handler) enrichOrderItemForm(ctx context.Context, form *orderItemFormModal) {
 	if len(form.MenuItems) == 0 {
 		menuItems, _ := h.fetchMenuOptions(ctx)
@@ -1138,6 +1186,7 @@ func (h *Handler) enrichOrderItemForm(ctx context.Context, form *orderItemFormMo
 	if form.Groups == nil && form.OrderID != "" {
 		order, _ := h.fetchOrder(ctx, form.OrderID)
 		if order != nil {
+			// TODO: replace table-scoped groups with order-scoped billing groups when the order API supports them.
 			groups, _ := h.fetchGroupsForTable(ctx, order.TableID, map[string][]orderGroupResource{})
 			form.Groups = groups
 		}
@@ -1146,6 +1195,15 @@ func (h *Handler) enrichOrderItemForm(ctx context.Context, form *orderItemFormMo
 		form.Quantity = "1"
 	}
 	form.populateOrderItemPreview()
+	if form.MenuQuery == "" && form.SelectedMenu != "" {
+		if opt, ok := form.findOption(form.SelectedMenu); ok {
+			if opt.ShortCode != "" {
+				form.MenuQuery = opt.ShortCode
+			} else {
+				form.MenuQuery = pickMenuNameOption(opt.Label)
+			}
+		}
+	}
 }
 
 func (form *orderItemFormModal) populateOrderItemPreview() {
@@ -1163,6 +1221,23 @@ func (form *orderItemFormModal) populateOrderItemPreview() {
 		form.DisplayPrice = formatMoney(form.MenuItems[0].Price)
 		form.DisplayRouting = routingLabel(form.MenuItems[0].Routing)
 	}
+}
+
+func (form *orderItemFormModal) findOption(id string) (menuItemOption, bool) {
+	for _, opt := range form.MenuItems {
+		if opt.ID == id {
+			return opt, true
+		}
+	}
+	return menuItemOption{}, false
+}
+
+func pickMenuNameOption(label string) string {
+	parts := strings.SplitN(label, "—", 2)
+	if len(parts) == 2 {
+		return strings.TrimSpace(parts[0])
+	}
+	return label
 }
 
 func (h *Handler) fetchOrder(ctx context.Context, id string) (*orderResource, error) {
@@ -1271,6 +1346,58 @@ func (h *Handler) renderOrderGroupForm(w http.ResponseWriter, data orderGroupFor
 func (h *Handler) handleOrderGroupFormError(w http.ResponseWriter, data orderGroupFormModal, message string) {
 	data.Error = message
 	h.renderOrderGroupForm(w, data)
+}
+
+// Menu helpers for HTMX search/preview
+
+func (h *Handler) OrderMenuMatch(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.http.Start(w, r, "Handler.OrderMenuMatch")
+	defer finish()
+
+	if !h.requirePermission(w, r, "orders:write") {
+		return
+	}
+
+	query := strings.TrimSpace(r.URL.Query().Get("menu_item_query"))
+	options, err := h.fetchMenuOptions(r.Context())
+	if err != nil {
+		http.Error(w, "Unable to load menu", http.StatusInternalServerError)
+		return
+	}
+
+	match := matchMenuOption(query, options)
+	form := orderItemFormModal{
+		MenuItems:    options,
+		SelectedMenu: match.ID,
+		MenuQuery:    query,
+	}
+	if match.ID != "" {
+		form.DisplayPrice = formatMoney(match.Price)
+		form.DisplayRouting = routingLabel(match.Routing)
+		if match.ShortCode != "" {
+			form.MenuQuery = match.ShortCode
+		}
+	}
+	form.populateOrderItemPreview()
+	h.renderOrderItemPreview(w, form)
+	if match.ID != "" {
+		fmt.Fprintf(w, "<div id=\"menu-item-hidden\" hx-swap-oob=\"true\"><input type=\"hidden\" name=\"menu_item_id\" value=\"%s\"></div>", match.ID)
+	} else {
+		fmt.Fprintf(w, "<div id=\"menu-item-hidden\" hx-swap-oob=\"true\"><input type=\"hidden\" name=\"menu_item_id\" value=\"\"></div>")
+	}
+}
+
+func (h *Handler) renderOrderItemPreview(w http.ResponseWriter, data orderItemFormModal) {
+	tmpl, err := h.tmplMgr.Get("order_item_preview.html")
+	if err != nil {
+		h.log().Error("error loading preview template", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if err := tmpl.ExecuteTemplate(w, "order_item_preview.html", data); err != nil {
+		h.log().Error("error rendering preview", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handler) renderOrderModal(w http.ResponseWriter, order orderCardView) {

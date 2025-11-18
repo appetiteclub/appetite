@@ -17,18 +17,33 @@
         {{end}}
 
         <form method="post" action="{{.Action}}" hx-post="{{.Action}}" hx-target="closest .modal" hx-swap="outerHTML" class="modal-form">
+            <div id="menu-item-hidden">
+                <input type="hidden" name="menu_item_id" value="{{.SelectedMenu}}">
+            </div>
+
             <div class="form-group">
-                <label for="modal-menu" class="form-label">
+                <label for="modal-menu-query" class="form-label">
                     <span class="label-text">Menu item</span>
                     <span class="label-required">*</span>
                 </label>
-                <select id="modal-menu" name="menu_item_id" class="form-select" required>
-                    <option value="" disabled {{if eq .SelectedMenu ""}}selected{{end}}>Choose an item</option>
+                <input id="modal-menu-query"
+                       type="search"
+                       name="menu_item_query"
+                       value="{{.MenuQuery}}"
+                       list="menu-item-options"
+                       class="form-input"
+                       placeholder="Type a shortcode or name"
+                       hx-get="/orders/menu/match"
+                       hx-trigger="keyup changed delay:250ms"
+                       hx-target="#order-item-preview"
+                       hx-include="[name=menu_item_query]"
+                       autocomplete="off" />
+                <datalist id="menu-item-options">
                     {{range .MenuItems}}
-                    <option value="{{.ID}}" {{if eq $.SelectedMenu .ID}}selected{{end}}>{{.Label}}</option>
+                    <option value="{{if .ShortCode}}{{.ShortCode}}{{else}}{{.Label}}{{end}}" label="{{.Label}}"></option>
                     {{end}}
-                </select>
-                <span class="form-hint">Items and pricing come directly from the menu service.</span>
+                </datalist>
+                <span class="form-hint">Suggestions appear as you type; press Enter to accept.</span>
             </div>
 
             <div class="form-row form-row-split">
@@ -38,17 +53,8 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Item details</label>
-                <div class="form-info-row">
-                    <span class="form-info-label">Price</span>
-                    <span class="form-info-value">{{if .DisplayPrice}}{{.DisplayPrice}}{{else}}-{{end}}</span>
-                </div>
-                <div class="form-info-row">
-                    <span class="form-info-label">Routing</span>
-                    <span class="form-info-value">{{if .DisplayRouting}}{{.DisplayRouting}}{{else}}Kitchen{{end}}</span>
-                </div>
-                <span class="form-hint">Values are derived from the menu definition.</span>
+            <div id="order-item-preview">
+                {{template "order_item_preview.html" .}}
             </div>
 
             <div class="form-group">
@@ -59,11 +65,14 @@
                     <option value="{{.ID}}" {{if eq $.GroupID .ID}}selected{{end}}>{{.Name}}</option>
                     {{end}}
                 </select>
+                <span class="form-hint">Need a split?
+                    <button type="button" class="btn-inline" hx-get="/orders/{{.OrderID}}/groups/new" hx-target="#modal-root" hx-swap="innerHTML">Create a group</button>
+                </span>
             </div>
 
             <div class="form-group">
                 <label for="modal-notes" class="form-label">Notes</label>
-                <textarea id="modal-notes" name="notes" rows="3" class="form-input" placeholder="Allergies, cooking preferences, etc.">{{.Notes}}</textarea>
+                <textarea id="modal-notes" name="notes" rows="3" class="form-input" placeholder="Add notes or special instructions.">{{.Notes}}</textarea>
             </div>
 
             <div class="modal-actions modal-actions-modern">
