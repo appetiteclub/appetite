@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/appetiteclub/appetite/pkg"
 	"github.com/aquamarinepk/aqm"
 	"github.com/aquamarinepk/aqm/middleware"
 
@@ -51,11 +52,36 @@ func main() {
 	orderRepo := mongo.NewOrderRepo(db)
 	orderItemRepo := mongo.NewOrderItemRepo(db)
 
+	natsURL, _ := config.GetString("nats.url")
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
+	}
+
+	publisher, err := pkg.NewNATSPublisher(natsURL)
+	if err != nil {
+		log.Fatalf("Cannot connect to NATS publisher: %v", err)
+	}
+
+	subscriber, err := pkg.NewNATSSubscriber(natsURL)
+	if err != nil {
+		log.Fatalf("Cannot connect to NATS subscriber: %v", err)
+	}
+
+	tableURL, _ := config.GetString("services.table.url")
+	tableClient := aqm.NewServiceClient(tableURL)
+	tableStateCache := order.NewTableStateCache(tableClient, logger)
+	tableStatusSubscriber := order.NewTableStatusSubscriber(subscriber, tableStateCache, logger)
+
+	publisherLifecycle := aqm.LifecycleHooks{OnStop: func(context.Context) error { return publisher.Close() }}
+	subscriberLifecycle := aqm.LifecycleHooks{OnStop: func(context.Context) error { return subscriber.Close() }}
+
 	handler := order.NewHandler(
 		orderRepo,
 		orderItemRepo,
 		logger,
 		config,
+		tableStateCache,
+		publisher,
 	)
 
 	stack := middleware.DefaultStack(middleware.StackOptions{
@@ -71,7 +97,7 @@ func main() {
 		aqm.WithLogger(logger),
 		aqm.WithHTTPMiddleware(stack...),
 		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(aqm.LifecycleHooks{OnStop: baseRepo.Stop}),
+		aqm.WithLifecycle(aqm.LifecycleHooks{OnStop: baseRepo.Stop}, tableStatusSubscriber, publisherLifecycle, subscriberLifecycle),
 		aqm.WithHealthChecks(appName),
 	}
 

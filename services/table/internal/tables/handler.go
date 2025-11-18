@@ -1,12 +1,16 @@
 package tables
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/appetiteclub/appetite/pkg"
 	"github.com/aquamarinepk/aqm"
+	"github.com/aquamarinepk/aqm/events"
 	"github.com/aquamarinepk/aqm/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -21,9 +25,12 @@ type Handler struct {
 	orderItemRepo   OrderItemRepo
 	reservationRepo ReservationRepo
 	logger          aqm.Logger
-	config           *aqm.Config
+	config          *aqm.Config
 	tlm             *telemetry.HTTP
+	publisher       events.Publisher
 }
+
+const tableEventSource = "table-service"
 
 func NewHandler(
 	tableRepo TableRepo,
@@ -33,6 +40,7 @@ func NewHandler(
 	reservationRepo ReservationRepo,
 	logger aqm.Logger,
 	config *aqm.Config,
+	publisher events.Publisher,
 ) *Handler {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
@@ -44,8 +52,9 @@ func NewHandler(
 		orderItemRepo:   orderItemRepo,
 		reservationRepo: reservationRepo,
 		logger:          logger,
-		config:           config,
+		config:          config,
 		tlm:             telemetry.NewHTTP(),
+		publisher:       publisher,
 	}
 }
 
@@ -132,6 +141,8 @@ func (h *Handler) CreateTable(w http.ResponseWriter, r *http.Request) {
 		aqm.RespondError(w, http.StatusInternalServerError, "Could not create table")
 		return
 	}
+
+	h.publishTableStatusChanged(ctx, table, "", "table.created")
 
 	links := aqm.RESTfulLinksFor(table)
 	w.WriteHeader(http.StatusCreated)
@@ -224,10 +235,16 @@ func (h *Handler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	previousStatus := table.Status
+	statusChanged := false
+
 	if req.Number != "" {
 		table.Number = req.Number
 	}
 	if req.Status != "" {
+		if table.Status != req.Status {
+			statusChanged = true
+		}
 		table.Status = req.Status
 	}
 	if req.GuestCount > 0 {
@@ -243,6 +260,10 @@ func (h *Handler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 		log.Error("cannot update table", "error", err)
 		aqm.RespondError(w, http.StatusInternalServerError, "Could not update table")
 		return
+	}
+
+	if statusChanged {
+		h.publishTableStatusChanged(ctx, table, previousStatus, "table.updated")
 	}
 
 	links := aqm.RESTfulLinksFor(table)
@@ -294,6 +315,7 @@ func (h *Handler) OpenTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	previousStatus := table.Status
 	table.Open(req.GuestCount, req.AssignedTo)
 
 	if err := h.tableRepo.Save(ctx, table); err != nil {
@@ -301,6 +323,8 @@ func (h *Handler) OpenTable(w http.ResponseWriter, r *http.Request) {
 		aqm.RespondError(w, http.StatusInternalServerError, "Could not open table")
 		return
 	}
+
+	h.publishTableStatusChanged(ctx, table, previousStatus, "table.opened")
 
 	links := aqm.RESTfulLinksFor(table)
 	aqm.RespondSuccess(w, table, links...)
@@ -325,6 +349,7 @@ func (h *Handler) CloseTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	previousStatus := table.Status
 	table.Close()
 
 	if err := h.tableRepo.Save(ctx, table); err != nil {
@@ -333,8 +358,36 @@ func (h *Handler) CloseTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.publishTableStatusChanged(ctx, table, previousStatus, "table.closed")
+
 	links := aqm.RESTfulLinksFor(table)
 	aqm.RespondSuccess(w, table, links...)
+}
+
+func (h *Handler) publishTableStatusChanged(ctx context.Context, table *Table, previousStatus, reason string) {
+	if h.publisher == nil || table == nil {
+		return
+	}
+
+	event := pkg.TableStatusEvent{
+		EventType:      pkg.EventTableStatusChanged,
+		TableID:        table.ID.String(),
+		Status:         table.Status,
+		PreviousStatus: previousStatus,
+		Reason:         reason,
+		Source:         tableEventSource,
+		OccurredAt:     time.Now().UTC(),
+	}
+
+	payload, err := json.Marshal(event)
+	if err != nil {
+		h.logger.Error("cannot marshal table status event", "error", err, "table_id", table.ID.String())
+		return
+	}
+
+	if err := h.publisher.Publish(ctx, pkg.TableStatusTopic, payload); err != nil {
+		h.logger.Error("cannot publish table status event", "error", err, "table_id", table.ID.String())
+	}
 }
 
 // Group Handlers

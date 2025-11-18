@@ -14,6 +14,9 @@ type Table struct {
 	GuestCount  int        `json:"guest_count" bson:"guest_count"`
 	AssignedTo  *uuid.UUID `json:"assigned_to,omitempty" bson:"assigned_to,omitempty"`
 	Notes       []Note     `json:"notes,omitempty" bson:"notes,omitempty"`
+	// NOTE: CurrentBill denotes a denormalized view of charges for the table, but
+	// no code populates it today. We should evaluate whether the field is worth
+	// keeping or if billing should live exclusively in the order service.
 	CurrentBill *Bill      `json:"current_bill,omitempty" bson:"current_bill,omitempty"`
 	CreatedAt   time.Time  `json:"created_at" bson:"created_at"`
 	CreatedBy   string     `json:"created_by" bson:"created_by"`
