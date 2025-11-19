@@ -83,6 +83,24 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		filter.StatusID = &statusID
 	}
 
+	if orderIDStr := r.URL.Query().Get("order_id"); orderIDStr != "" {
+		orderID, err := uuid.Parse(orderIDStr)
+		if err != nil {
+			aqm.RespondError(w, http.StatusBadRequest, "Invalid order ID")
+			return
+		}
+		filter.OrderID = &orderID
+	}
+
+	if orderItemIDStr := r.URL.Query().Get("order_item_id"); orderItemIDStr != "" {
+		orderItemID, err := uuid.Parse(orderItemIDStr)
+		if err != nil {
+			aqm.RespondError(w, http.StatusBadRequest, "Invalid order item ID")
+			return
+		}
+		filter.OrderItemID = &orderItemID
+	}
+
 	tickets, err := h.repo.List(ctx, filter)
 	if err != nil {
 		log.Errorf("cannot list tickets: %v", err)

@@ -129,6 +129,29 @@
             </div>
             {{end}}
 
+            {{if .Order.GroupTotals}}
+            <div class="order-billing-summary">
+                <div class="order-billing-header">
+                    <h3>Billing Summary</h3>
+                    <span class="order-billing-updated">Updated {{.Order.UpdatedAt}}</span>
+                </div>
+                <div class="order-billing-table">
+                    {{range .Order.GroupTotals}}
+                    <div class="order-billing-row">
+                        <div class="order-billing-name">Group {{.Name}}</div>
+                        <div class="order-billing-count">{{.ItemCount}} items</div>
+                        <div class="order-billing-total">{{.Total}}</div>
+                    </div>
+                    {{end}}
+                    <div class="order-billing-row order-billing-row-total">
+                        <div class="order-billing-name">Order Total</div>
+                        <div class="order-billing-count">{{.Order.ItemsCount}} items</div>
+                        <div class="order-billing-total">{{.Order.Total}}</div>
+                    </div>
+                </div>
+            </div>
+            {{end}}
+
             <div class="order-activity">
                 <h3>Recent Events</h3>
                 {{if .Order.Events}}

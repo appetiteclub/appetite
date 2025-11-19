@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aquamarinepk/aqm"
 	"github.com/go-chi/chi/v5"
@@ -42,6 +43,7 @@ type orderCardView struct {
 	Ungrouped        orderGroupView
 	HasUngrouped     bool
 	Items            []orderItemView
+	GroupTotals      []orderGroupTotalView
 	Events           []orderEventView
 }
 
@@ -52,6 +54,12 @@ type orderGroupView struct {
 	ItemCount int
 	Total     string
 	Items     []orderItemView
+}
+
+type orderGroupTotalView struct {
+	Name      string
+	ItemCount int
+	Total     string
 }
 
 // orderItemView contains the item detail displayed inside the card.
@@ -98,8 +106,9 @@ type tableOrderView struct {
 }
 
 type orderEventView struct {
-	Message  string
-	Occurred string
+	Message    string
+	Occurred   string
+	OccurredAt time.Time
 }
 
 // Lightweight DTOs for decoding service responses.
@@ -254,9 +263,10 @@ func (h *Handler) OrderModal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	table, _ := h.fetchTable(r.Context(), order.TableID)
-	groups, _ := h.fetchGroupsForTable(r.Context(), order.TableID, map[string][]orderGroupResource{})
+	groups, _ := h.fetchOrderGroups(r.Context(), order.ID, map[string][]orderGroupResource{})
+	tickets, _ := h.fetchOrderTickets(r.Context(), order.ID)
 
-	card := h.buildOrderCard(*order, table, items, groups)
+	card := h.buildOrderCard(*order, table, items, groups, tickets)
 	h.renderOrderModal(w, card)
 }
 
@@ -328,12 +338,12 @@ func (h *Handler) fetchOrderCards(ctx context.Context) ([]orderCardView, error) 
 			h.log().Error("cannot load order items", "order_id", order.ID, "error", itemErr)
 		}
 
-		groups, groupErr := h.fetchGroupsForTable(ctx, order.TableID, groupCache)
+		groups, groupErr := h.fetchOrderGroups(ctx, order.ID, groupCache)
 		if groupErr != nil {
 			h.log().Error("cannot load groups for table", "table_id", order.TableID, "error", groupErr)
 		}
 
-		card := h.buildOrderCard(order, tableMap[order.TableID], items, groups)
+		card := h.buildOrderCard(order, tableMap[order.TableID], items, groups, nil)
 		cards = append(cards, card)
 	}
 
@@ -376,24 +386,36 @@ func (h *Handler) fetchOrderItems(ctx context.Context, orderID string) ([]orderI
 	return h.orderData.ListOrderItems(ctx, orderID)
 }
 
-func (h *Handler) fetchGroupsForTable(ctx context.Context, tableID string, cache map[string][]orderGroupResource) ([]orderGroupResource, error) {
-	if tableID == "" {
+func (h *Handler) fetchOrderGroups(ctx context.Context, orderID string, cache map[string][]orderGroupResource) ([]orderGroupResource, error) {
+	if orderID == "" {
 		return nil, nil
 	}
-	if groups, ok := cache[tableID]; ok {
+	if groups, ok := cache[orderID]; ok {
 		return groups, nil
 	}
 
-	groups, err := h.tableData.ListTableGroups(ctx, tableID)
+	groups, err := h.orderData.ListOrderGroups(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	cache[tableID] = groups
+	cache[orderID] = groups
 	return groups, nil
 }
 
-func (h *Handler) buildOrderCard(order orderResource, table *tableResource, items []orderItemResource, groups []orderGroupResource) orderCardView {
+func (h *Handler) fetchOrderTickets(ctx context.Context, orderID string) ([]kitchenTicketResource, error) {
+	if orderID == "" || h.kitchenData == nil {
+		return nil, nil
+	}
+
+	tickets, err := h.kitchenData.ListTicketsByOrder(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	return tickets, nil
+}
+
+func (h *Handler) buildOrderCard(order orderResource, table *tableResource, items []orderItemResource, groups []orderGroupResource, tickets []kitchenTicketResource) orderCardView {
 	tableNumber := "Unassigned"
 	tableStatus := ""
 	tableStatusLabel := ""
@@ -403,7 +425,7 @@ func (h *Handler) buildOrderCard(order orderResource, table *tableResource, item
 		tableStatusLabel = humanizeStatus(table.Status)
 	}
 
-	shortID := truncateID(order.ID)
+	shortID := shortOrderID(order.ID)
 	statusKey := strings.ToLower(order.Status)
 	statusLabel := orderStatusLabels[statusKey]
 	if statusLabel == "" {
@@ -522,15 +544,126 @@ func (h *Handler) buildOrderCard(order orderResource, table *tableResource, item
 		Items:            itemViews,
 	}
 
-	events := []orderEventView{
-		{Message: fmt.Sprintf("Status %s", statusLabel), Occurred: relativeTimeSince(order.UpdatedAt)},
+	if len(groupSections) > 0 || ungrouped.ItemCount > 0 {
+		groupTotals := make([]orderGroupTotalView, 0, len(groupSections)+1)
+		for _, section := range groupSections {
+			if section.ItemCount == 0 {
+				continue
+			}
+			groupTotals = append(groupTotals, orderGroupTotalView{
+				Name:      section.Name,
+				ItemCount: section.ItemCount,
+				Total:     section.Total,
+			})
+		}
+		if ungrouped.ItemCount > 0 {
+			groupTotals = append(groupTotals, orderGroupTotalView{
+				Name:      ungrouped.Name,
+				ItemCount: ungrouped.ItemCount,
+				Total:     ungrouped.Total,
+			})
+		}
+		card.GroupTotals = groupTotals
 	}
-	if table != nil {
-		events = append(events, orderEventView{Message: fmt.Sprintf("Table %s", humanizeStatus(table.Status)), Occurred: relativeTimeSince(table.UpdatedAt)})
-	}
-	card.Events = events
+
+	card.Events = h.buildOrderEvents(order, table, items, tickets, statusLabel)
 
 	return card
+}
+
+func (h *Handler) buildOrderEvents(order orderResource, table *tableResource, items []orderItemResource, tickets []kitchenTicketResource, statusLabel string) []orderEventView {
+	type timelineEvent struct {
+		message  string
+		occurred time.Time
+	}
+
+	events := make([]timelineEvent, 0, len(items)*2+4)
+	addEvent := func(message string, ts time.Time) {
+		if ts.IsZero() {
+			return
+		}
+		trimmed := strings.TrimSpace(message)
+		if trimmed == "" {
+			return
+		}
+		events = append(events, timelineEvent{message: trimmed, occurred: ts})
+	}
+
+	if statusLabel == "" {
+		statusLabel = titleCase(order.Status)
+	}
+	addEvent(fmt.Sprintf("Order %s", statusLabel), order.UpdatedAt)
+	addEvent("Order created", order.CreatedAt)
+
+	if table != nil {
+		addEvent(fmt.Sprintf("Table %s", humanizeStatus(table.Status)), table.UpdatedAt)
+	}
+
+	itemLookup := make(map[string]orderItemResource, len(items))
+	for _, item := range items {
+		itemLookup[item.ID] = item
+		dish := item.DishName
+		if dish == "" {
+			dish = "Menu item"
+		}
+		addEvent(fmt.Sprintf("Added %s ×%d", dish, item.Quantity), item.CreatedAt)
+
+		itemStatusLabel := orderStatusLabels[strings.ToLower(item.Status)]
+		if itemStatusLabel == "" {
+			itemStatusLabel = titleCase(item.Status)
+		}
+		statusKey := strings.ToLower(item.Status)
+		if statusKey != "pending" || !item.UpdatedAt.Equal(item.CreatedAt) {
+			addEvent(fmt.Sprintf("%s marked %s", dish, itemStatusLabel), item.UpdatedAt)
+		}
+	}
+
+	if len(tickets) > 0 {
+		for _, ticket := range tickets {
+			item, ok := itemLookup[ticket.OrderItemID]
+			dish := item.DishName
+			if !ok || dish == "" {
+				dish = fmt.Sprintf("Item %s", truncateID(ticket.OrderItemID))
+			}
+			quantity := ticket.Quantity
+			if quantity == 0 && ok {
+				quantity = item.Quantity
+			}
+			prepLabel := routingLabel(item.Category)
+			if prepLabel == "" {
+				prepLabel = "Kitchen"
+			}
+			lineItem := fmt.Sprintf("%s ×%d", dish, quantity)
+			addEvent(fmt.Sprintf("%s ticket queued · %s", prepLabel, lineItem), ticket.CreatedAt)
+			if ticket.StartedAt != nil {
+				addEvent(fmt.Sprintf("Prep started · %s", lineItem), *ticket.StartedAt)
+			}
+			if ticket.FinishedAt != nil {
+				addEvent(fmt.Sprintf("Ready for pickup · %s", lineItem), *ticket.FinishedAt)
+			}
+			if ticket.DeliveredAt != nil {
+				addEvent(fmt.Sprintf("Delivered · %s", lineItem), *ticket.DeliveredAt)
+			}
+		}
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		if events[i].occurred.Equal(events[j].occurred) {
+			return events[i].message < events[j].message
+		}
+		return events[i].occurred.After(events[j].occurred)
+	})
+
+	views := make([]orderEventView, 0, len(events))
+	for _, event := range events {
+		views = append(views, orderEventView{
+			Message:    event.message,
+			Occurred:   relativeTimeSince(event.occurred),
+			OccurredAt: event.occurred,
+		})
+	}
+
+	return views
 }
 
 func (h *Handler) buildTableOrderView(table tableResource, order *orderCardView) tableOrderView {
@@ -562,8 +695,13 @@ func (h *Handler) buildTableOrderView(table tableResource, order *orderCardView)
 			ItemsCount:  order.ItemsCount,
 			PrepSummary: order.PrepSummary,
 		}
-		view.LastEvent = fmt.Sprintf("%s · %s", order.StatusLabel, order.PrepSummary)
-		view.LastWhen = order.UpdatedAt
+		if len(order.Events) > 0 {
+			view.LastEvent = order.Events[0].Message
+			view.LastWhen = order.Events[0].Occurred
+		} else {
+			view.LastEvent = fmt.Sprintf("%s · %s", order.StatusLabel, order.PrepSummary)
+			view.LastWhen = order.UpdatedAt
+		}
 	}
 
 	if view.LastEvent == "" {
@@ -707,8 +845,8 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	if isHTMX {
 		items := []orderItemResource{}
 		table, _ := h.fetchTable(r.Context(), order.TableID)
-		groups, _ := h.fetchGroupsForTable(r.Context(), order.TableID, map[string][]orderGroupResource{})
-		card := h.buildOrderCard(*order, table, items, groups)
+		groups, _ := h.fetchOrderGroups(r.Context(), order.ID, map[string][]orderGroupResource{})
+		card := h.buildOrderCard(*order, table, items, groups, nil)
 		h.renderOrderModal(w, card)
 		return
 	}
@@ -792,18 +930,19 @@ func (h *Handler) NewOrderItemForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groups, _ := h.fetchGroupsForTable(r.Context(), order.TableID, map[string][]orderGroupResource{})
+	groups, _ := h.fetchOrderGroups(r.Context(), order.ID, map[string][]orderGroupResource{})
 
 	form := orderItemFormModal{
-		Title:      fmt.Sprintf("Add Item to %s", truncateID(order.ID)),
+		Title:      fmt.Sprintf("Add Item to %s", shortOrderID(order.ID)),
 		Action:     fmt.Sprintf("/orders/%s/items", order.ID),
 		OrderID:    order.ID,
-		OrderLabel: truncateID(order.ID),
+		OrderLabel: shortOrderID(order.ID),
 		MenuItems:  menuItems,
 		Groups:     groups,
 		Quantity:   "1",
 		MenuQuery:  "",
 	}
+	form.ensureGroupSelection()
 
 	form.SelectedMenu = defaultMenuSelection(menuItems)
 	form.populateOrderItemPreview()
@@ -836,7 +975,7 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	menuQuery := strings.TrimSpace(r.FormValue("menu_item_query"))
 
 	form := orderItemFormModal{
-		Title:        fmt.Sprintf("Add Item to %s", truncateID(orderID)),
+		Title:        fmt.Sprintf("Add Item to %s", shortOrderID(orderID)),
 		Action:       fmt.Sprintf("/orders/%s/items", orderID),
 		OrderID:      orderID,
 		MenuItems:    []menuItemOption{},
@@ -870,6 +1009,11 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	form.DisplayPrice = formatMoney(price)
 	form.DisplayRouting = routingLabel(routing)
 
+	defaultGroup := h.defaultOrderGroupID(r.Context(), orderID)
+	if groupIDStr == "" && defaultGroup != "" {
+		groupIDStr = defaultGroup
+	}
+
 	dishName := pickMenuName(menuItem)
 	payload := map[string]interface{}{
 		"dish_name": dishName,
@@ -896,12 +1040,7 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if aqm.IsHTMX(r) {
-		order, _ := h.fetchOrder(r.Context(), orderID)
-		items, _ := h.fetchOrderItems(r.Context(), orderID)
-		table, _ := h.fetchTable(r.Context(), order.TableID)
-		groups, _ := h.fetchGroupsForTable(r.Context(), order.TableID, map[string][]orderGroupResource{})
-		card := h.buildOrderCard(*order, table, items, groups)
-		h.renderOrderModal(w, card)
+		h.renderOrderModalFor(r.Context(), orderID, w, r)
 		return
 	}
 
@@ -1083,11 +1222,11 @@ func (h *Handler) enrichOrderItemForm(ctx context.Context, form *orderItemFormMo
 	if form.Groups == nil && form.OrderID != "" {
 		order, _ := h.fetchOrder(ctx, form.OrderID)
 		if order != nil {
-			// TODO: replace table-scoped groups with order-scoped billing groups when the order API supports them.
-			groups, _ := h.fetchGroupsForTable(ctx, order.TableID, map[string][]orderGroupResource{})
+			groups, _ := h.fetchOrderGroups(ctx, order.ID, map[string][]orderGroupResource{})
 			form.Groups = groups
 		}
 	}
+	form.ensureGroupSelection()
 	if form.Quantity == "" {
 		form.Quantity = "1"
 	}
@@ -1129,6 +1268,21 @@ func (form *orderItemFormModal) findOption(id string) (menuItemOption, bool) {
 	return menuItemOption{}, false
 }
 
+func (form *orderItemFormModal) ensureGroupSelection() {
+	if form.GroupID != "" {
+		return
+	}
+	for _, group := range form.Groups {
+		if group.IsDefault {
+			form.GroupID = group.ID
+			return
+		}
+	}
+	if len(form.Groups) > 0 {
+		form.GroupID = form.Groups[0].ID
+	}
+}
+
 func pickMenuNameOption(label string) string {
 	parts := strings.SplitN(label, "—", 2)
 	if len(parts) == 2 {
@@ -1156,7 +1310,7 @@ func (h *Handler) NewOrderGroupForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	form := orderGroupFormModal{
-		Title:   fmt.Sprintf("New Group for %s", truncateID(order.ID)),
+		Title:   fmt.Sprintf("New Group for %s", shortOrderID(order.ID)),
 		Action:  fmt.Sprintf("/orders/%s/groups", order.ID),
 		OrderID: order.ID,
 		TableID: order.TableID,
@@ -1187,7 +1341,7 @@ func (h *Handler) CreateOrderGroup(w http.ResponseWriter, r *http.Request) {
 
 	name := strings.TrimSpace(r.FormValue("name"))
 	form := orderGroupFormModal{
-		Title:     fmt.Sprintf("New Group for %s", truncateID(order.ID)),
+		Title:     fmt.Sprintf("New Group for %s", shortOrderID(order.ID)),
 		Action:    fmt.Sprintf("/orders/%s/groups", order.ID),
 		OrderID:   order.ID,
 		TableID:   order.TableID,
@@ -1200,14 +1354,18 @@ func (h *Handler) CreateOrderGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := map[string]interface{}{
-		"table_id": order.TableID,
-		"name":     name,
+		"name": name,
 	}
 
-	path := fmt.Sprintf("/tables/%s/groups", order.TableID)
-	if _, err := h.tableClient.Request(r.Context(), "POST", path, body); err != nil {
-		h.log().Error("table service group create failed", "table_id", order.TableID, "error", err)
+	path := fmt.Sprintf("/orders/%s/groups", order.ID)
+	if _, err := h.orderClient.Request(r.Context(), "POST", path, body); err != nil {
+		h.log().Error("order service group create failed", "order_id", order.ID, "error", err)
 		h.handleOrderGroupFormError(w, form, "Could not create the group right now.")
+		return
+	}
+
+	if aqm.IsHTMX(r) {
+		h.renderOrderModalFor(r.Context(), order.ID, w, r)
 		return
 	}
 
@@ -1286,6 +1444,9 @@ func (h *Handler) renderOrderItemPreview(w http.ResponseWriter, data orderItemFo
 }
 
 func (h *Handler) renderOrderModal(w http.ResponseWriter, order orderCardView) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	tmpl, err := h.tmplMgr.Get("order_modal.html")
 	if err != nil {
 		h.log().Error("error loading order modal template", "error", err)
@@ -1301,4 +1462,34 @@ func (h *Handler) renderOrderModal(w http.ResponseWriter, order orderCardView) {
 		h.log().Error("error rendering order modal", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
+}
+
+func (h *Handler) renderOrderModalFor(ctx context.Context, orderID string, w http.ResponseWriter, r *http.Request) {
+	order, err := h.orderData.GetOrder(ctx, orderID)
+	if err != nil || order == nil {
+		http.Error(w, "Order not found", http.StatusNotFound)
+		return
+	}
+	items, _ := h.fetchOrderItems(ctx, orderID)
+	table, _ := h.fetchTable(ctx, order.TableID)
+	groups, _ := h.fetchOrderGroups(ctx, order.ID, map[string][]orderGroupResource{})
+	tickets, _ := h.fetchOrderTickets(ctx, order.ID)
+	card := h.buildOrderCard(*order, table, items, groups, tickets)
+	h.renderOrderModal(w, card)
+}
+
+func (h *Handler) defaultOrderGroupID(ctx context.Context, orderID string) string {
+	groups, err := h.orderData.ListOrderGroups(ctx, orderID)
+	if err != nil {
+		return ""
+	}
+	for _, group := range groups {
+		if group.IsDefault {
+			return group.ID
+		}
+	}
+	if len(groups) > 0 {
+		return groups[0].ID
+	}
+	return ""
 }

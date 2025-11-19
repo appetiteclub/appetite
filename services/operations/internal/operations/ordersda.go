@@ -32,6 +32,13 @@ type orderItemResource struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type orderGroupResource struct {
+	ID        string `json:"id"`
+	OrderID   string `json:"order_id"`
+	Name      string `json:"name"`
+	IsDefault bool   `json:"is_default"`
+}
+
 // CreateOrderRequest defines the payload supported by the order service.
 type CreateOrderRequest struct {
 	TableID string `json:"table_id"`
@@ -120,4 +127,26 @@ func (da *OrderDataAccess) CreateOrder(ctx context.Context, payload CreateOrderR
 	}
 
 	return &order, nil
+}
+
+func (da *OrderDataAccess) ListOrderGroups(ctx context.Context, orderID string) ([]orderGroupResource, error) {
+	if da == nil || da.client == nil {
+		return nil, fmt.Errorf("order client not configured")
+	}
+	if orderID == "" {
+		return nil, fmt.Errorf("missing order id")
+	}
+
+	path := fmt.Sprintf("/orders/%s/groups", orderID)
+	resp, err := da.client.Request(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var groups []orderGroupResource
+	if err := decodeSuccessResponse(resp, &groups); err != nil {
+		return nil, err
+	}
+
+	return groups, nil
 }

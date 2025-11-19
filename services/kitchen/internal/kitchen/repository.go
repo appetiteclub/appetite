@@ -3,10 +3,12 @@ package kitchen
 import "context"
 
 type TicketFilter struct {
-	StationID *StationID
-	StatusID  *StatusID
-	Limit     int
-	Offset    int
+	StationID   *StationID
+	StatusID    *StatusID
+	OrderID     *OrderID
+	OrderItemID *OrderItemID
+	Limit       int
+	Offset      int
 }
 
 type TicketRepository interface {

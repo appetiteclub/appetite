@@ -51,6 +51,7 @@ func main() {
 
 	orderRepo := mongo.NewOrderRepo(db)
 	orderItemRepo := mongo.NewOrderItemRepo(db)
+	orderGroupRepo := mongo.NewOrderGroupRepo(db)
 
 	natsURL, _ := config.GetString("nats.url")
 	if natsURL == "" {
@@ -78,6 +79,7 @@ func main() {
 	handler := order.NewHandler(
 		orderRepo,
 		orderItemRepo,
+		orderGroupRepo,
 		logger,
 		config,
 		tableStateCache,

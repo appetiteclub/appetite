@@ -24,3 +24,9 @@ type OrderItemRepo interface {
 	Save(ctx context.Context, item *OrderItem) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
+
+type OrderGroupRepo interface {
+	Create(ctx context.Context, group *OrderGroup) error
+	ListByOrder(ctx context.Context, orderID uuid.UUID) ([]*OrderGroup, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}

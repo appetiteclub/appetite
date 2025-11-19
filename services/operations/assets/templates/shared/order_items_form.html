@@ -60,9 +60,14 @@
             <div class="form-group">
                 <label for="modal-group" class="form-label">Bill group</label>
                 <select id="modal-group" name="group_id" class="form-select">
-                    <option value="" {{if eq .GroupID ""}}selected{{end}}>No group</option>
-                    {{range .Groups}}
-                    <option value="{{.ID}}" {{if eq $.GroupID .ID}}selected{{end}}>{{.Name}}</option>
+                    {{if .Groups}}
+                        {{range .Groups}}
+                        <option value="{{.ID}}" {{if eq $.GroupID .ID}}selected{{end}}>
+                            {{.Name}}{{if .IsDefault}} (default){{end}}
+                        </option>
+                        {{end}}
+                    {{else}}
+                        <option value="" selected>No groups available</option>
                     {{end}}
                 </select>
                 <span class="form-hint">Need a split?

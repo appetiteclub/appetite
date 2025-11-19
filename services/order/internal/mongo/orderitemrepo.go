@@ -35,7 +35,7 @@ func (r *OrderItemRepo) Create(ctx context.Context, item *order.OrderItem) error
 
 func (r *OrderItemRepo) Get(ctx context.Context, id uuid.UUID) (*order.OrderItem, error) {
 	var item order.OrderItem
-	err := r.collection.FindOne(ctx, bson.M{"_id": id.String()}).Decode(&item)
+	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&item)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -46,7 +46,7 @@ func (r *OrderItemRepo) Get(ctx context.Context, id uuid.UUID) (*order.OrderItem
 }
 
 func (r *OrderItemRepo) ListByOrder(ctx context.Context, orderID uuid.UUID) ([]*order.OrderItem, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{"order_id": orderID.String()})
+	cursor, err := r.collection.Find(ctx, bson.M{"order_id": orderID})
 	if err != nil {
 		return nil, fmt.Errorf("cannot list order items by order: %w", err)
 	}
@@ -61,7 +61,7 @@ func (r *OrderItemRepo) ListByOrder(ctx context.Context, orderID uuid.UUID) ([]*
 }
 
 func (r *OrderItemRepo) ListByGroup(ctx context.Context, groupID uuid.UUID) ([]*order.OrderItem, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{"group_id": groupID.String()})
+	cursor, err := r.collection.Find(ctx, bson.M{"group_id": groupID})
 	if err != nil {
 		return nil, fmt.Errorf("cannot list order items by group: %w", err)
 	}
@@ -80,7 +80,7 @@ func (r *OrderItemRepo) Save(ctx context.Context, item *order.OrderItem) error {
 		return fmt.Errorf("order item is nil")
 	}
 
-	filter := bson.M{"_id": item.ID.String()}
+	filter := bson.M{"_id": item.ID}
 	update := bson.M{"$set": item}
 
 	result, err := r.collection.UpdateOne(ctx, filter, update)
@@ -96,7 +96,7 @@ func (r *OrderItemRepo) Save(ctx context.Context, item *order.OrderItem) error {
 }
 
 func (r *OrderItemRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": id.String()})
+	result, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		return fmt.Errorf("cannot delete order item: %w", err)
 	}

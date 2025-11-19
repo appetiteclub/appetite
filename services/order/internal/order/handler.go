@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/appetiteclub/appetite/pkg"
@@ -19,19 +20,21 @@ import (
 const MaxBodyBytes = 1 << 20
 
 type Handler struct {
-	orderRepo     OrderRepo
-	orderItemRepo OrderItemRepo
-	logger        aqm.Logger
-	config        *aqm.Config
-	tlm           *telemetry.HTTP
-	tableClient   *aqm.ServiceClient
-	tableStates   *TableStateCache
-	publisher     events.Publisher
+	orderRepo      OrderRepo
+	orderItemRepo  OrderItemRepo
+	orderGroupRepo OrderGroupRepo
+	logger         aqm.Logger
+	config         *aqm.Config
+	tlm            *telemetry.HTTP
+	tableClient    *aqm.ServiceClient
+	tableStates    *TableStateCache
+	publisher      events.Publisher
 }
 
 func NewHandler(
 	orderRepo OrderRepo,
 	orderItemRepo OrderItemRepo,
+	orderGroupRepo OrderGroupRepo,
 	logger aqm.Logger,
 	config *aqm.Config,
 	tableStates *TableStateCache,
@@ -46,14 +49,15 @@ func NewHandler(
 	tableClient := aqm.NewServiceClient(tableURL)
 
 	return &Handler{
-		orderRepo:     orderRepo,
-		orderItemRepo: orderItemRepo,
-		logger:        logger,
-		config:        config,
-		tlm:           telemetry.NewHTTP(),
-		tableClient:   tableClient,
-		tableStates:   tableStates,
-		publisher:     publisher,
+		orderRepo:      orderRepo,
+		orderItemRepo:  orderItemRepo,
+		orderGroupRepo: orderGroupRepo,
+		logger:         logger,
+		config:         config,
+		tlm:            telemetry.NewHTTP(),
+		tableClient:    tableClient,
+		tableStates:    tableStates,
+		publisher:      publisher,
 	}
 }
 
@@ -68,6 +72,11 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Route("/{orderID}/items", func(r chi.Router) {
 			r.Post("/", h.CreateOrderItem)
 			r.Get("/", h.ListOrderItems)
+		})
+
+		r.Route("/{orderID}/groups", func(r chi.Router) {
+			r.Post("/", h.CreateOrderGroup)
+			r.Get("/", h.ListOrderGroups)
 		})
 	})
 
@@ -115,6 +124,13 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		log.Error("cannot create order", "error", err)
 		aqm.RespondError(w, http.StatusInternalServerError, "Could not create order")
 		return
+	}
+
+	defaultGroup := NewOrderGroup(order.ID, "Main")
+	defaultGroup.MarkDefault()
+	if err := h.orderGroupRepo.Create(ctx, defaultGroup); err != nil {
+		log.Error("cannot create default order group", "error", err)
+		// best effort: do not fail the whole request
 	}
 
 	links := aqm.RESTfulLinksFor(order)
@@ -450,6 +466,75 @@ func (h *Handler) DeleteOrderItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) CreateOrderGroup(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.CreateOrderGroup")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	orderIDStr := chi.URLParam(r, "orderID")
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		log.Debug("invalid order ID", "order_id", orderIDStr)
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid order ID")
+		return
+	}
+
+	orderEntity, err := h.orderRepo.Get(ctx, orderID)
+	if err != nil || orderEntity == nil {
+		log.Debug("order not found for group create", "order_id", orderID.String())
+		aqm.RespondError(w, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	req, ok := h.decodeOrderGroupCreatePayload(w, r, log)
+	if !ok {
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		aqm.RespondError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+
+	group := NewOrderGroup(orderID, name)
+	if err := h.orderGroupRepo.Create(ctx, group); err != nil {
+		log.Error("cannot create order group", "error", err, "order_id", orderID.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not create order group")
+		return
+	}
+
+	links := aqm.RESTfulLinksFor(group)
+	w.WriteHeader(http.StatusCreated)
+	aqm.RespondSuccess(w, group, links...)
+}
+
+func (h *Handler) ListOrderGroups(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.ListOrderGroups")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	orderIDStr := chi.URLParam(r, "orderID")
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		log.Debug("invalid order ID", "order_id", orderIDStr)
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid order ID")
+		return
+	}
+
+	groups, err := h.orderGroupRepo.ListByOrder(ctx, orderID)
+	if err != nil {
+		log.Error("cannot list order groups", "error", err, "order_id", orderID.String())
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve order groups")
+		return
+	}
+
+	aqm.RespondCollection(w, groups, "order_group")
+}
+
 // Helper methods
 
 func (h *Handler) log(r *http.Request) aqm.Logger {
@@ -497,6 +582,10 @@ type OrderItemUpdateRequest struct {
 	Quantity *int    `json:"quantity,omitempty"`
 	Status   *string `json:"status,omitempty"`
 	Notes    *string `json:"notes,omitempty"`
+}
+
+type OrderGroupCreateRequest struct {
+	Name string `json:"name"`
 }
 
 func (h *Handler) decodeOrderCreatePayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (OrderCreateRequest, bool) {
@@ -578,6 +667,27 @@ func (h *Handler) decodeOrderItemUpdatePayload(w http.ResponseWriter, r *http.Re
 		log.Debug("failed to decode request body", "error", err)
 		aqm.RespondError(w, http.StatusBadRequest, "Invalid JSON in request body")
 		return OrderItemUpdateRequest{}, false
+	}
+
+	return req, true
+}
+
+func (h *Handler) decodeOrderGroupCreatePayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (OrderGroupCreateRequest, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Debug("failed to read request body", "error", err)
+		aqm.RespondError(w, http.StatusBadRequest, "Failed to read request body")
+		return OrderGroupCreateRequest{}, false
+	}
+
+	var req OrderGroupCreateRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		log.Debug("failed to decode request body", "error", err)
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid JSON in request body")
+		return OrderGroupCreateRequest{}, false
 	}
 
 	return req, true
