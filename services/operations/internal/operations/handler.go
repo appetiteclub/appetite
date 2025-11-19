@@ -17,6 +17,9 @@ type Handler struct {
 	tableClient      *aqm.ServiceClient
 	orderClient      *aqm.ServiceClient
 	menuClient       *aqm.ServiceClient
+	tableData        *TableDataAccess
+	orderData        *OrderDataAccess
+	kitchenData      *KitchenDataAccess
 	roleRepo         RoleRepo
 	grantRepo        GrantRepo
 	authzHelper      *authpkg.AuthzHelper
@@ -56,6 +59,12 @@ func NewHandler(
 	}
 	menuClient := aqm.NewServiceClient(menuURL)
 
+	kitchenURL, _ := config.GetString("services.kitchen.url")
+	var kitchenClient *aqm.ServiceClient
+	if kitchenURL != "" {
+		kitchenClient = aqm.NewServiceClient(kitchenURL)
+	}
+
 	authzHelper := newAuthzHelper(config, logger)
 
 	// Initialize session store
@@ -80,6 +89,9 @@ func NewHandler(
 		tableClient:  tableClient,
 		orderClient:  orderClient,
 		menuClient:   menuClient,
+		tableData:    NewTableDataAccess(tableClient),
+		orderData:    NewOrderDataAccess(orderClient),
+		kitchenData:  NewKitchenDataAccess(kitchenClient),
 		roleRepo:     roleRepo,
 		grantRepo:    grantRepo,
 		authzHelper:  authzHelper,
@@ -146,16 +158,16 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/add-table", h.CreateTable)
 		r.Post("/update-table/{id}", h.UpdateTable)
 		r.Post("/delete-table/{id}", h.DeleteTable)
-			r.Get("/orders", h.Orders)
-			r.Get("/add-order", h.NewOrderForm)
-			r.Post("/add-order", h.CreateOrder)
-			r.Get("/orders/{id}/items/new", h.NewOrderItemForm)
-			r.Post("/orders/{id}/items", h.CreateOrderItem)
-			r.Get("/orders/{id}/groups/new", h.NewOrderGroupForm)
-			r.Post("/orders/{id}/groups", h.CreateOrderGroup)
-			r.Get("/orders/{id}/modal", h.OrderModal)
-			r.Get("/orders/menu/match", h.OrderMenuMatch)
-			r.Get("/menu", h.Menu)
+		r.Get("/orders", h.Orders)
+		r.Get("/add-order", h.NewOrderForm)
+		r.Post("/add-order", h.CreateOrder)
+		r.Get("/orders/{id}/items/new", h.NewOrderItemForm)
+		r.Post("/orders/{id}/items", h.CreateOrderItem)
+		r.Get("/orders/{id}/groups/new", h.NewOrderGroupForm)
+		r.Post("/orders/{id}/groups", h.CreateOrderGroup)
+		r.Get("/orders/{id}/modal", h.OrderModal)
+		r.Get("/orders/menu/match", h.OrderMenuMatch)
+		r.Get("/menu", h.Menu)
 	})
 }
 

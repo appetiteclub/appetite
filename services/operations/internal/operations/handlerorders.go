@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/aquamarinepk/aqm"
 	"github.com/go-chi/chi/v5"
@@ -104,34 +103,6 @@ type orderEventView struct {
 }
 
 // Lightweight DTOs for decoding service responses.
-type orderResource struct {
-	ID        string    `json:"id"`
-	TableID   string    `json:"table_id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type orderItemResource struct {
-	ID        string    `json:"id"`
-	OrderID   string    `json:"order_id"`
-	GroupID   *string   `json:"group_id"`
-	DishName  string    `json:"dish_name"`
-	Category  string    `json:"category"`
-	Quantity  int       `json:"quantity"`
-	Price     float64   `json:"price"`
-	Status    string    `json:"status"`
-	Notes     string    `json:"notes"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type orderGroupResource struct {
-	ID      string `json:"id"`
-	TableID string `json:"table_id"`
-	Name    string `json:"name"`
-}
-
 type menuItemResource struct {
 	ID        string              `json:"id"`
 	ShortCode string              `json:"short_code"`
@@ -180,11 +151,11 @@ type orderItemFormModal struct {
 }
 
 type menuItemOption struct {
-	ID       string
-	Label    string
-	Price    float64
-	Currency string
-	Routing  string
+	ID        string
+	Label     string
+	Price     float64
+	Currency  string
+	Routing   string
 	ShortCode string
 }
 
@@ -338,18 +309,8 @@ func (h *Handler) renderOrdersPage(w http.ResponseWriter, r *http.Request, state
 }
 
 func (h *Handler) fetchOrderCards(ctx context.Context) ([]orderCardView, error) {
-	resp, err := h.orderClient.List(ctx, "orders")
+	orders, err := h.orderData.ListOrders(ctx)
 	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var resources []orderResource
-	if err := json.Unmarshal(raw, &resources); err != nil {
 		return nil, err
 	}
 
@@ -359,9 +320,9 @@ func (h *Handler) fetchOrderCards(ctx context.Context) ([]orderCardView, error) 
 	}
 
 	groupCache := map[string][]orderGroupResource{}
-	cards := make([]orderCardView, 0, len(resources))
+	cards := make([]orderCardView, 0, len(orders))
 
-	for _, order := range resources {
+	for _, order := range orders {
 		items, itemErr := h.fetchOrderItems(ctx, order.ID)
 		if itemErr != nil {
 			h.log().Error("cannot load order items", "order_id", order.ID, "error", itemErr)
@@ -384,18 +345,8 @@ func (h *Handler) fetchOrderCards(ctx context.Context) ([]orderCardView, error) 
 }
 
 func (h *Handler) fetchTableMap(ctx context.Context) (map[string]*tableResource, error) {
-	resp, err := h.tableClient.List(ctx, "tables")
+	tables, err := h.tableData.ListTables(ctx)
 	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var tables []tableResource
-	if err := json.Unmarshal(raw, &tables); err != nil {
 		return nil, err
 	}
 
@@ -409,18 +360,8 @@ func (h *Handler) fetchTableMap(ctx context.Context) (map[string]*tableResource,
 }
 
 func (h *Handler) fetchTableList(ctx context.Context) ([]tableResource, error) {
-	resp, err := h.tableClient.List(ctx, "tables")
+	tables, err := h.tableData.ListTables(ctx)
 	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var tables []tableResource
-	if err := json.Unmarshal(raw, &tables); err != nil {
 		return nil, err
 	}
 
@@ -432,23 +373,7 @@ func (h *Handler) fetchTableList(ctx context.Context) ([]tableResource, error) {
 }
 
 func (h *Handler) fetchOrderItems(ctx context.Context, orderID string) ([]orderItemResource, error) {
-	path := fmt.Sprintf("/orders/%s/items", orderID)
-	resp, err := h.orderClient.Request(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var items []orderItemResource
-	if err := json.Unmarshal(raw, &items); err != nil {
-		return nil, err
-	}
-
-	return items, nil
+	return h.orderData.ListOrderItems(ctx, orderID)
 }
 
 func (h *Handler) fetchGroupsForTable(ctx context.Context, tableID string, cache map[string][]orderGroupResource) ([]orderGroupResource, error) {
@@ -459,19 +384,8 @@ func (h *Handler) fetchGroupsForTable(ctx context.Context, tableID string, cache
 		return groups, nil
 	}
 
-	path := fmt.Sprintf("/tables/%s/groups", tableID)
-	resp, err := h.tableClient.Request(ctx, "GET", path, nil)
+	groups, err := h.tableData.ListTableGroups(ctx, tableID)
 	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var groups []orderGroupResource
-	if err := json.Unmarshal(raw, &groups); err != nil {
 		return nil, err
 	}
 
@@ -779,8 +693,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := map[string]interface{}{"table_id": tableID}
-	resp, err := h.orderClient.Create(r.Context(), "orders", body)
+	order, err := h.orderData.CreateOrder(r.Context(), CreateOrderRequest{TableID: tableID})
 	if err != nil {
 		h.log().Error("order service create failed", "table_id", tableID, "error", err)
 		if isHTMX {
@@ -792,16 +705,10 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isHTMX {
-		var resource orderResource
-		raw, marshalErr := json.Marshal(resp.Data)
-		if marshalErr != nil || json.Unmarshal(raw, &resource) != nil {
-			http.Error(w, "Could not decode new order", http.StatusInternalServerError)
-			return
-		}
 		items := []orderItemResource{}
-		table, _ := h.fetchTable(r.Context(), resource.TableID)
-		groups, _ := h.fetchGroupsForTable(r.Context(), resource.TableID, map[string][]orderGroupResource{})
-		card := h.buildOrderCard(resource, table, items, groups)
+		table, _ := h.fetchTable(r.Context(), order.TableID)
+		groups, _ := h.fetchGroupsForTable(r.Context(), order.TableID, map[string][]orderGroupResource{})
+		card := h.buildOrderCard(*order, table, items, groups)
 		h.renderOrderModal(w, card)
 		return
 	}
@@ -810,18 +717,8 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) collectTableOptions(ctx context.Context) ([]tableOption, error) {
-	resp, err := h.tableClient.List(ctx, "tables")
+	tables, err := h.tableData.ListTables(ctx)
 	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var tables []tableResource
-	if err := json.Unmarshal(raw, &tables); err != nil {
 		return nil, err
 	}
 
@@ -1241,19 +1138,7 @@ func pickMenuNameOption(label string) string {
 }
 
 func (h *Handler) fetchOrder(ctx context.Context, id string) (*orderResource, error) {
-	resp, err := h.orderClient.Get(ctx, "orders", id)
-	if err != nil {
-		return nil, err
-	}
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-	var resource orderResource
-	if err := json.Unmarshal(raw, &resource); err != nil {
-		return nil, err
-	}
-	return &resource, nil
+	return h.orderData.GetOrder(ctx, id)
 }
 
 // ----- Order group creation -----
