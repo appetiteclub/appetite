@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -28,21 +27,6 @@ type tableViewModel struct {
 	AssignedTo  string
 	Bill        string
 	UpdatedAt   string
-}
-
-type tableResource struct {
-	ID          string             `json:"id"`
-	Number      string             `json:"number"`
-	Status      string             `json:"status"`
-	GuestCount  int                `json:"guest_count"`
-	AssignedTo  *string            `json:"assigned_to"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
-	CurrentBill *tableBillResource `json:"current_bill"`
-}
-
-type tableBillResource struct {
-	Total float64 `json:"total"`
 }
 
 type tableFormModal struct {
@@ -343,23 +327,13 @@ func (h *Handler) renderTablesPage(w http.ResponseWriter, r *http.Request, state
 }
 
 func (h *Handler) fetchTableViewModels(ctx context.Context) ([]tableViewModel, error) {
-	resp, err := h.tableClient.List(ctx, "tables")
+	tables, err := h.tableData.ListTables(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var resources []tableResource
-	if err := json.Unmarshal(raw, &resources); err != nil {
-		return nil, err
-	}
-
-	models := make([]tableViewModel, 0, len(resources))
-	for _, resource := range resources {
+	models := make([]tableViewModel, 0, len(tables))
+	for _, resource := range tables {
 		assigned := "-"
 		if resource.AssignedTo != nil && *resource.AssignedTo != "" {
 			assigned = truncateID(*resource.AssignedTo)
@@ -385,22 +359,7 @@ func (h *Handler) fetchTableViewModels(ctx context.Context) ([]tableViewModel, e
 }
 
 func (h *Handler) fetchTable(ctx context.Context, id string) (*tableResource, error) {
-	resp, err := h.tableClient.Get(ctx, "tables", id)
-	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(resp.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	var resource tableResource
-	if err := json.Unmarshal(raw, &resource); err != nil {
-		return nil, err
-	}
-
-	return &resource, nil
+	return h.tableData.GetTable(ctx, id)
 }
 
 func (h *Handler) renderTableForm(w http.ResponseWriter, data tableFormModal) {
@@ -419,11 +378,11 @@ func (h *Handler) renderTableForm(w http.ResponseWriter, data tableFormModal) {
 
 // statusLabels maps internal status codes to human-readable labels
 var statusLabels = map[string]string{
-	"available":       "Available",
-	"open":            "Open",
-	"reserved":        "Reserved",
-	"cleaning":        "Cleaning",
-	"out_of_service":  "Out of Service",
+	"available":      "Available",
+	"open":           "Open",
+	"reserved":       "Reserved",
+	"cleaning":       "Cleaning",
+	"out_of_service": "Out of Service",
 }
 
 func humanizeStatus(status string) string {
