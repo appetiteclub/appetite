@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/aquamarinepk/aqm"
@@ -44,6 +45,30 @@ func (da *KitchenDataAccess) ListTickets(ctx context.Context) ([]kitchenTicketRe
 	}
 
 	resp, err := da.client.List(ctx, "tickets")
+	if err != nil {
+		return nil, err
+	}
+
+	var payload struct {
+		Tickets []kitchenTicketResource `json:"tickets"`
+	}
+	if err := decodeSuccessResponse(resp, &payload); err != nil {
+		return nil, err
+	}
+
+	return payload.Tickets, nil
+}
+
+func (da *KitchenDataAccess) ListTicketsByOrder(ctx context.Context, orderID string) ([]kitchenTicketResource, error) {
+	if da == nil || da.client == nil {
+		return nil, fmt.Errorf("kitchen client not configured")
+	}
+	if orderID == "" {
+		return nil, fmt.Errorf("missing order id")
+	}
+
+	path := fmt.Sprintf("/tickets?order_id=%s", url.QueryEscape(orderID))
+	resp, err := da.client.Request(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}

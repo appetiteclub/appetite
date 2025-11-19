@@ -156,6 +156,14 @@ func (r *TicketRepo) List(ctx context.Context, filter kitchen.TicketFilter) ([]k
 		query["status_id"] = *filter.StatusID
 	}
 
+	if filter.OrderID != nil {
+		query["order_id"] = *filter.OrderID
+	}
+
+	if filter.OrderItemID != nil {
+		query["order_item_id"] = *filter.OrderItemID
+	}
+
 	opts := options.Find().
 		SetSort(bson.D{{Key: "created_at", Value: -1}})
 

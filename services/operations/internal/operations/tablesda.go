@@ -25,11 +25,6 @@ type tableBillResource struct {
 }
 
 // orderGroupResource represents table-level billing groups used by the order UI.
-type orderGroupResource struct {
-	ID      string `json:"id"`
-	TableID string `json:"table_id"`
-	Name    string `json:"name"`
-}
 
 // TableDataAccess centralizes decoding of table service responses.
 type TableDataAccess struct {
@@ -74,26 +69,4 @@ func (da *TableDataAccess) GetTable(ctx context.Context, id string) (*tableResou
 	}
 
 	return &table, nil
-}
-
-func (da *TableDataAccess) ListTableGroups(ctx context.Context, tableID string) ([]orderGroupResource, error) {
-	if da == nil || da.client == nil {
-		return nil, fmt.Errorf("table client not configured")
-	}
-	if tableID == "" {
-		return nil, fmt.Errorf("missing table id")
-	}
-
-	path := fmt.Sprintf("/tables/%s/groups", tableID)
-	resp, err := da.client.Request(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var groups []orderGroupResource
-	if err := decodeSuccessResponse(resp, &groups); err != nil {
-		return nil, err
-	}
-
-	return groups, nil
 }

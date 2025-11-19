@@ -807,6 +807,64 @@ textarea:focus {
             font-size: 0.9rem;
         }
 
+        .order-billing-summary {
+            margin-top: 1.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f9fafb;
+            padding: 1rem 1.25rem;
+        }
+
+        .order-billing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.75rem;
+        }
+
+        .order-billing-updated {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .order-billing-table {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .order-billing-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+            align-items: center;
+        }
+
+        .order-billing-row:last-child {
+            border-bottom: none;
+        }
+
+        .order-billing-row-total {
+            font-weight: 600;
+        }
+
+        .order-billing-name {
+            font-weight: 600;
+        }
+
+        .order-billing-count {
+            text-align: right;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .order-billing-total {
+            text-align: right;
+            font-weight: 600;
+        }
+
         .order-items {
             display: flex;
             flex-direction: column;

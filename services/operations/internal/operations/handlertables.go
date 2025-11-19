@@ -431,6 +431,28 @@ func truncateID(value string) string {
 	return value[:8] + "..."
 }
 
+func shortOrderID(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "ORDER"
+	}
+	parts := strings.Split(value, "-")
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			return strings.ToUpper(trimmed)
+		}
+	}
+	clean := strings.ReplaceAll(value, "-", "")
+	if clean == "" {
+		return "ORDER"
+	}
+	if len(clean) > 8 {
+		clean = clean[:8]
+	}
+	return strings.ToUpper(clean)
+}
+
 var tableStatuses = []string{
 	"available",
 	"open",
