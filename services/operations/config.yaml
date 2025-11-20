@@ -26,11 +26,22 @@ services:
   # Env: OPERATIONS_SERVICES_ORDER_URL
   order:
     url: "http://localhost:8086"
+    # Order gRPC streaming address
+    # Env: OPERATIONS_SERVICES_ORDER_GRPC_ADDR
+    grpc_addr: "localhost:50052"
 
   # Menu service URL
   # Env: OPERATIONS_SERVICES_MENU_URL
   menu:
     url: "http://localhost:8088"
+
+  # Kitchen service URL
+  # Env: OPERATIONS_SERVICES_KITCHEN_URL
+  kitchen:
+    url: "http://localhost:8089"
+    # Kitchen gRPC streaming address
+    # Env: OPERATIONS_SERVICES_KITCHEN_GRPC_ADDR
+    grpc_addr: "localhost:50051"
 
 auth:
   session:

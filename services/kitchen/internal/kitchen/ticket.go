@@ -27,6 +27,11 @@ type Ticket struct {
 	DecisionRequired bool          `bson:"decision_required" json:"decision_required"`
 	DecisionPayload  []byte        `bson:"decision_payload,omitempty" json:"decision_payload,omitempty"`
 
+	// Denormalized data for display purposes
+	MenuItemName string `bson:"menu_item_name,omitempty" json:"menu_item_name,omitempty"`
+	StationName  string `bson:"station_name,omitempty" json:"station_name,omitempty"`
+	TableNumber  string `bson:"table_number,omitempty" json:"table_number,omitempty"`
+
 	CreatedAt   time.Time  `bson:"created_at" json:"created_at"`
 	UpdatedAt   time.Time  `bson:"updated_at" json:"updated_at"`
 	StartedAt   *time.Time `bson:"started_at,omitempty" json:"started_at,omitempty"`

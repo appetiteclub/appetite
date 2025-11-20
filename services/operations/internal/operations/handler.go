@@ -30,12 +30,14 @@ type Handler struct {
 	tokenStore       *TokenStore
 	auditLogger      *AuditLogger
 	commandProcessor CommandProcessor
+	sseHandler       http.Handler
 }
 
 func NewHandler(
 	tmplMgr *aqmtemplate.Manager,
 	roleRepo RoleRepo,
 	grantRepo GrantRepo,
+	kitchenDA *KitchenDataAccess,
 	config *aqm.Config,
 	logger aqm.Logger,
 ) *Handler {
@@ -58,12 +60,6 @@ func NewHandler(
 		menuURL = "http://localhost:8088"
 	}
 	menuClient := aqm.NewServiceClient(menuURL)
-
-	kitchenURL, _ := config.GetString("services.kitchen.url")
-	var kitchenClient *aqm.ServiceClient
-	if kitchenURL != "" {
-		kitchenClient = aqm.NewServiceClient(kitchenURL)
-	}
 
 	authzHelper := newAuthzHelper(config, logger)
 
@@ -91,7 +87,7 @@ func NewHandler(
 		menuClient:   menuClient,
 		tableData:    NewTableDataAccess(tableClient),
 		orderData:    NewOrderDataAccess(orderClient),
-		kitchenData:  NewKitchenDataAccess(kitchenClient),
+		kitchenData:  kitchenDA,
 		roleRepo:     roleRepo,
 		grantRepo:    grantRepo,
 		authzHelper:  authzHelper,
@@ -114,6 +110,16 @@ func NewHandler(
 	handler.commandProcessor = commandProcessor
 
 	return handler
+}
+
+// SetSSEHandler sets the SSE handler for Kitchen events
+func (h *Handler) SetSSEHandler(handler http.Handler) {
+	h.sseHandler = handler
+}
+
+// GetOrderDataAccess returns the order data access instance
+func (h *Handler) GetOrderDataAccess() *OrderDataAccess {
+	return h.orderData
 }
 
 func newAuthzHelper(config *aqm.Config, logger aqm.Logger) *authpkg.AuthzHelper {
@@ -168,6 +174,25 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/orders/{id}/modal", h.OrderModal)
 		r.Get("/orders/menu/match", h.OrderMenuMatch)
 		r.Get("/menu", h.Menu)
+		r.Get("/kitchen", h.KitchenKanban)
+
+		// SSE endpoint for Kitchen events
+		if h.sseHandler != nil {
+			r.Get("/kitchen/events", h.sseHandler.ServeHTTP)
+		}
+
+		// API proxy routes to Kitchen service
+		if h.kitchenData != nil {
+			r.Route("/api/kitchen", func(r chi.Router) {
+				r.Patch("/tickets/{id}/status", h.ProxyKitchenTicketStatus)
+			})
+		}
+
+		// API routes for Order items
+		r.Route("/api/order", func(r chi.Router) {
+			r.Patch("/items/{id}/deliver", h.MarkOrderItemDelivered)
+			r.Patch("/items/{id}/cancel", h.CancelOrderItem)
+		})
 	})
 }
 

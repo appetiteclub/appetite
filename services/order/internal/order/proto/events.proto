@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package appetite.order.v1;
+
+option go_package = "github.com/appetiteclub/appetite/services/order/internal/order/proto;orderpb";
+
+import "google/protobuf/timestamp.proto";
+
+// Request to subscribe to order item events
+message SubscribeOrderItemEventsRequest {
+  // Optional filter by table_id
+  string table_id = 1;
+  // Optional filter by order_id
+  string order_id = 2;
+}
+
+// Order item event streamed to clients
+message OrderItemEvent {
+  // Event type: "order.item.status_changed", "order.item.delivered", etc.
+  string event_type = 1;
+
+  // When the event occurred
+  google.protobuf.Timestamp occurred_at = 2;
+
+  // Order item identifiers
+  string order_item_id = 3;
+  string order_id = 4;
+  string menu_item_id = 5;
+
+  // Display data
+  string dish_name = 6;
+  string category = 7;
+  string table_number = 8;
+
+  // Status information
+  string new_status = 9;
+  string previous_status = 10;
+  int32 quantity = 11;
+  double price = 12;
+  bool requires_production = 13;
+  string notes = 14;
+
+  // Timestamps
+  google.protobuf.Timestamp delivered_at = 15;
+}
+
+// Service for streaming real-time order item events to clients
+service OrderEventStream {
+  // Stream order item events (status changes, deliveries, cancellations)
+  rpc StreamOrderItemEvents(SubscribeOrderItemEventsRequest) returns (stream OrderItemEvent);
+}

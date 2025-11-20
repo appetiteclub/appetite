@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/appetiteclub/appetite/pkg/event"
 	"github.com/aquamarinepk/aqm"
 	"github.com/aquamarinepk/aqm/events"
 	"github.com/aquamarinepk/aqm/telemetry"
@@ -17,20 +18,32 @@ import (
 
 const MaxBodyBytes = 1 << 20
 
+// Status UUIDs for ticket states
+var (
+	StatusCreated   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	StatusAccepted  = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	StatusStarted   = uuid.MustParse("00000000-0000-0000-0000-000000000003")
+	StatusReady     = uuid.MustParse("00000000-0000-0000-0000-000000000004")
+	StatusDelivered = uuid.MustParse("00000000-0000-0000-0000-000000000005")
+	StatusCancelled = uuid.MustParse("00000000-0000-0000-0000-000000000010")
+)
+
 type Handler struct {
 	repo      TicketRepository
+	cache     *TicketStateCache
 	publisher events.Publisher
 	logger    aqm.Logger
 	config    *aqm.Config
 	tlm       *telemetry.HTTP
 }
 
-func NewHandler(repo TicketRepository, publisher events.Publisher, config *aqm.Config, logger aqm.Logger) *Handler {
+func NewHandler(repo TicketRepository, cache *TicketStateCache, publisher events.Publisher, config *aqm.Config, logger aqm.Logger) *Handler {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
 	}
 	return &Handler{
 		repo:      repo,
+		cache:     cache,
 		publisher: publisher,
 		logger:    logger,
 		config:    config,
@@ -42,6 +55,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/tickets", func(r chi.Router) {
 		r.Get("/", h.ListTickets)
 		r.Get("/{id}", h.GetTicket)
+		r.Patch("/{id}/status", h.UpdateTicketStatus)
 		r.Patch("/{id}/accept", h.AcceptTicket)
 		r.Patch("/{id}/start", h.StartTicket)
 		r.Patch("/{id}/ready", h.ReadyTicket)
@@ -101,11 +115,34 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		filter.OrderItemID = &orderItemID
 	}
 
-	tickets, err := h.repo.List(ctx, filter)
-	if err != nil {
-		log.Errorf("cannot list tickets: %v", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not list tickets")
-		return
+	var tickets []*Ticket
+
+	// Use cache for simple queries (station, status, or all)
+	// Fall back to repo for complex filters (order_id, order_item_id)
+	if h.cache != nil && filter.OrderID == nil && filter.OrderItemID == nil {
+		// Fast path: read from cache
+		if filter.StationID != nil && filter.StatusID != nil {
+			tickets = h.cache.GetByStationAndStatus(*filter.StationID, *filter.StatusID)
+		} else if filter.StationID != nil {
+			tickets = h.cache.GetByStation(*filter.StationID)
+		} else if filter.StatusID != nil {
+			tickets = h.cache.GetByStatus(*filter.StatusID)
+		} else {
+			tickets = h.cache.GetAll()
+		}
+	} else {
+		// Slow path: query MongoDB for complex filters
+		repoTickets, err := h.repo.List(ctx, filter)
+		if err != nil {
+			log.Errorf("cannot list tickets: %v", err)
+			aqm.RespondError(w, http.StatusInternalServerError, "Could not list tickets")
+			return
+		}
+		// Convert []Ticket to []*Ticket
+		tickets = make([]*Ticket, len(repoTickets))
+		for i := range repoTickets {
+			tickets[i] = &repoTickets[i]
+		}
 	}
 
 	aqm.Respond(w, http.StatusOK, map[string]interface{}{
@@ -171,6 +208,11 @@ func (h *Handler) StartTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update cache after successful DB write
+	if h.cache != nil {
+		h.cache.Set(ticket)
+	}
+
 	h.publishStatusChange(ctx, ticket, previousStatus)
 	aqm.Respond(w, http.StatusOK, ticket, nil)
 }
@@ -206,6 +248,11 @@ func (h *Handler) ReadyTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update cache after successful DB write
+	if h.cache != nil {
+		h.cache.Set(ticket)
+	}
+
 	h.publishStatusChange(ctx, ticket, previousStatus)
 	aqm.Respond(w, http.StatusOK, ticket, nil)
 }
@@ -239,6 +286,11 @@ func (h *Handler) DeliverTicket(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("cannot update ticket: %v", err)
 		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
 		return
+	}
+
+	// Update cache after successful DB write
+	if h.cache != nil {
+		h.cache.Set(ticket)
 	}
 
 	h.publishStatusChange(ctx, ticket, previousStatus)
@@ -308,6 +360,11 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update cache after successful DB write
+	if h.cache != nil {
+		h.cache.Set(ticket)
+	}
+
 	h.publishStatusChange(ctx, ticket, previousStatus)
 	aqm.Respond(w, http.StatusOK, ticket, nil)
 }
@@ -318,6 +375,83 @@ func (h *Handler) RejectTicket(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CancelTicket(w http.ResponseWriter, r *http.Request) {
 	h.updateStatus(w, r, "cancel", uuid.MustParse("00000000-0000-0000-0000-000000000010"))
+}
+
+// UpdateTicketStatus handles generic status updates via PATCH /tickets/:id/status
+// Accepts {"status_id": "uuid"} in request body
+func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.UpdateTicketStatus")
+	defer finish()
+	log := h.log(r)
+	ctx := r.Context()
+
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	var req struct {
+		StatusID string `json:"status_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	newStatusID, err := uuid.Parse(req.StatusID)
+	if err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid status_id")
+		return
+	}
+
+	ticket, err := h.repo.FindByID(ctx, id)
+	if err != nil {
+		log.Errorf("cannot find ticket: %v", err)
+		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		return
+	}
+
+	// Prevent moving tickets that are already delivered or cancelled
+	if ticket.StatusID == StatusDelivered || ticket.StatusID == StatusCancelled {
+		aqm.RespondError(w, http.StatusBadRequest, "Cannot modify delivered or cancelled tickets")
+		return
+	}
+
+	previousStatus := ticket.StatusID
+	ticket.StatusID = newStatusID
+
+	// Update timestamps based on status
+	now := time.Now().UTC()
+	switch newStatusID.String() {
+	case StatusStarted.String():
+		if ticket.StartedAt == nil {
+			ticket.StartedAt = &now
+		}
+	case StatusReady.String():
+		if ticket.FinishedAt == nil {
+			ticket.FinishedAt = &now
+		}
+	case StatusDelivered.String():
+		if ticket.DeliveredAt == nil {
+			ticket.DeliveredAt = &now
+		}
+	}
+
+	if err := h.repo.Update(ctx, ticket); err != nil {
+		log.Errorf("cannot update ticket: %v", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
+		return
+	}
+
+	// Update cache after successful DB write
+	if h.cache != nil {
+		h.cache.Set(ticket)
+	}
+
+	h.publishStatusChange(ctx, ticket, previousStatus)
+	aqm.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action string, newStatusID StatusID) {
@@ -349,30 +483,42 @@ func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action st
 		return
 	}
 
+	// Update cache after successful DB write
+	if h.cache != nil {
+		h.cache.Set(ticket)
+	}
+
 	h.publishStatusChange(ctx, ticket, previousStatus)
 	aqm.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) publishStatusChange(ctx context.Context, ticket *Ticket, previousStatus StatusID) {
-	event := map[string]interface{}{
-		"event_type":         "kitchen.ticket.status_changed",
-		"occurred_at":        time.Now(),
-		"ticket_id":          ticket.ID.String(),
-		"order_id":           ticket.OrderID.String(),
-		"new_status_id":      ticket.StatusID.String(),
-		"previous_status_id": previousStatus.String(),
+	eventPayload := event.KitchenTicketStatusChangedEvent{
+		KitchenTicketEventMetadata: event.KitchenTicketEventMetadata{
+			EventType:    event.EventKitchenTicketStatusChange,
+			OccurredAt:   time.Now().UTC(),
+			TicketID:     ticket.ID.String(),
+			OrderID:      ticket.OrderID.String(),
+			OrderItemID:  ticket.OrderItemID.String(),
+			MenuItemID:   ticket.MenuItemID.String(),
+			StationID:    ticket.StationID.String(),
+			MenuItemName: ticket.MenuItemName,
+			StationName:  ticket.StationName,
+			TableNumber:  ticket.TableNumber,
+		},
+		NewStatusID:      ticket.StatusID.String(),
+		PreviousStatusID: previousStatus.String(),
+		Notes:            ticket.Notes,
+		StartedAt:        ticket.StartedAt,
+		FinishedAt:       ticket.FinishedAt,
+		DeliveredAt:      ticket.DeliveredAt,
 	}
-
 	if ticket.ReasonCodeID != nil {
-		event["reason_code_id"] = ticket.ReasonCodeID.String()
+		eventPayload.ReasonCodeID = ticket.ReasonCodeID.String()
 	}
 
-	if ticket.Notes != "" {
-		event["notes"] = ticket.Notes
-	}
-
-	eventBytes, _ := json.Marshal(event)
-	if err := h.publisher.Publish(ctx, "kitchen.tickets", eventBytes); err != nil {
+	eventBytes, _ := json.Marshal(eventPayload)
+	if err := h.publisher.Publish(ctx, event.KitchenTicketsTopic, eventBytes); err != nil {
 		h.logger.Errorf("Failed to publish status_changed event: %v", err)
 	}
 }

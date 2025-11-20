@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/appetiteclub/appetite/pkg"
+	"github.com/appetiteclub/appetite/pkg/event"
 	"github.com/aquamarinepk/aqm"
 	"github.com/aquamarinepk/aqm/events"
 	"github.com/aquamarinepk/aqm/telemetry"
@@ -28,6 +29,7 @@ type Handler struct {
 	tlm            *telemetry.HTTP
 	tableClient    *aqm.ServiceClient
 	tableStates    *TableStateCache
+	kitchenClient  *aqm.ServiceClient
 	publisher      events.Publisher
 }
 
@@ -38,6 +40,7 @@ func NewHandler(
 	logger aqm.Logger,
 	config *aqm.Config,
 	tableStates *TableStateCache,
+	kitchenClient *aqm.ServiceClient,
 	publisher events.Publisher,
 ) *Handler {
 	if logger == nil {
@@ -57,6 +60,7 @@ func NewHandler(
 		tlm:            telemetry.NewHTTP(),
 		tableClient:    tableClient,
 		tableStates:    tableStates,
+		kitchenClient:  kitchenClient,
 		publisher:      publisher,
 	}
 }
@@ -84,6 +88,11 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{id}", h.GetOrderItem)
 		r.Put("/{id}", h.UpdateOrderItem)
 		r.Delete("/{id}", h.DeleteOrderItem)
+	})
+
+	r.Route("/items", func(r chi.Router) {
+		r.Patch("/{id}/deliver", h.MarkItemDelivered)
+		r.Patch("/{id}/cancel", h.CancelItem)
 	})
 }
 
@@ -319,12 +328,20 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	item.Quantity = req.Quantity
 	item.Price = req.Price
 	item.Notes = req.Notes
+	item.MenuItemID = req.MenuItemID
+	item.ProductionStation = req.ProductionStation
+	item.RequiresProduction = req.RequiresProduction
 	item.BeforeCreate()
 
 	if err := h.orderItemRepo.Create(ctx, item); err != nil {
 		log.Error("cannot create order item", "error", err)
 		aqm.RespondError(w, http.StatusInternalServerError, "Could not create order item")
 		return
+	}
+
+	// Publish event to NATS if item requires production
+	if item.RequiresProduction && h.publisher != nil {
+		h.publishOrderItemCreated(ctx, item, parentOrder)
 	}
 
 	links := aqm.RESTfulLinksFor(item)
@@ -570,12 +587,15 @@ type OrderUpdateRequest struct {
 }
 
 type OrderItemCreateRequest struct {
-	GroupID  *uuid.UUID `json:"group_id,omitempty"`
-	DishName string     `json:"dish_name"`
-	Category string     `json:"category"`
-	Quantity int        `json:"quantity"`
-	Price    float64    `json:"price"`
-	Notes    string     `json:"notes,omitempty"`
+	GroupID            *uuid.UUID `json:"group_id,omitempty"`
+	DishName           string     `json:"dish_name"`
+	Category           string     `json:"category"`
+	Quantity           int        `json:"quantity"`
+	Price              float64    `json:"price"`
+	Notes              string     `json:"notes,omitempty"`
+	MenuItemID         *uuid.UUID `json:"menu_item_id,omitempty"`
+	ProductionStation  *uuid.UUID `json:"production_station,omitempty"`
+	RequiresProduction bool       `json:"requires_production"`
 }
 
 type OrderItemUpdateRequest struct {
@@ -737,5 +757,206 @@ func (h *Handler) publishOrderTableRejection(ctx context.Context, tableID uuid.U
 	}
 	if err := h.publisher.Publish(ctx, pkg.OrderTableTopic, payload); err != nil {
 		h.logger.Error("cannot publish order table rejection", "error", err, "table_id", tableID.String())
+	}
+}
+
+func (h *Handler) fetchTableInfo(ctx context.Context, tableID uuid.UUID) (*TableInfo, error) {
+	if h.tableClient == nil {
+		return nil, fmt.Errorf("table client not available")
+	}
+
+	resp, err := h.tableClient.Get(ctx, "tables", tableID.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var table TableInfo
+	if err := decodeSuccessResponse(resp, &table); err != nil {
+		return nil, err
+	}
+
+	return &table, nil
+}
+
+type TableInfo struct {
+	Number string `json:"number"`
+}
+
+func decodeSuccessResponse(resp *aqm.SuccessResponse, target interface{}) error {
+	if resp == nil {
+		return fmt.Errorf("nil success response")
+	}
+
+	raw, err := json.Marshal(resp.Data)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(raw, target); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Handler) publishOrderItemCreated(ctx context.Context, item *OrderItem, parentOrder *Order) {
+	if h.publisher == nil {
+		return
+	}
+
+	// Get table number for enrichment
+	tableNumber := ""
+	if h.tableClient != nil {
+		table, err := h.fetchTableInfo(ctx, parentOrder.TableID)
+		if err == nil && table != nil {
+			tableNumber = table.Number
+		}
+	}
+
+	// Get station name for enrichment (if production_station is set)
+	stationName := ""
+	if item.ProductionStation != nil {
+		// TODO: Fetch from Dictionary service when available
+		// For now, station name will be empty, Operations can fetch it
+	}
+
+	evt := event.OrderItemEvent{
+		EventType:          event.EventOrderItemCreated,
+		OccurredAt:         time.Now().UTC(),
+		OrderID:            item.OrderID.String(),
+		OrderItemID:        item.ID.String(),
+		Quantity:           item.Quantity,
+		Notes:              item.Notes,
+		RequiresProduction: item.RequiresProduction,
+		MenuItemName:       item.DishName,  // Use DishName as menu_item_name
+		TableNumber:        tableNumber,
+		StationName:        stationName,
+	}
+
+	if item.MenuItemID != nil {
+		evt.MenuItemID = item.MenuItemID.String()
+	}
+	if item.ProductionStation != nil {
+		evt.ProductionStation = item.ProductionStation.String()
+	}
+	if parentOrder != nil {
+		evt.TableID = parentOrder.TableID.String()
+	}
+
+	payload, err := json.Marshal(evt)
+	if err != nil {
+		h.logger.Error("cannot marshal order item created event", "error", err)
+		return
+	}
+	if err := h.publisher.Publish(ctx, event.OrderItemsTopic, payload); err != nil {
+		h.logger.Error("cannot publish order item created event", "error", err)
+	} else {
+		h.logger.Info("published order item created event", "order_item_id", item.ID.String())
+	}
+}
+
+// MarkItemDelivered marks an order item as delivered
+func (h *Handler) MarkItemDelivered(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.MarkItemDelivered")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid item ID")
+		return
+	}
+
+	item, err := h.orderItemRepo.Get(ctx, itemID)
+	if err != nil {
+		log.Error("cannot get order item", "error", err)
+		aqm.RespondError(w, http.StatusNotFound, "Item not found")
+		return
+	}
+
+	item.MarkAsDelivered()
+
+	if err := h.orderItemRepo.Save(ctx, item); err != nil {
+		log.Error("cannot update order item", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not mark item as delivered")
+		return
+	}
+
+	// Update kitchen ticket if item requires production
+	if item.RequiresProduction && h.kitchenClient != nil {
+		h.updateKitchenTicketStatus(ctx, itemID, "00000000-0000-0000-0000-000000000005", log)
+	}
+
+	log.Info("order item marked as delivered", "item_id", itemID)
+	w.WriteHeader(http.StatusOK)
+}
+
+// CancelItem cancels an order item
+func (h *Handler) CancelItem(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.CancelItem")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		aqm.RespondError(w, http.StatusBadRequest, "Invalid item ID")
+		return
+	}
+
+	item, err := h.orderItemRepo.Get(ctx, itemID)
+	if err != nil {
+		log.Error("cannot get order item", "error", err)
+		aqm.RespondError(w, http.StatusNotFound, "Item not found")
+		return
+	}
+
+	item.Cancel()
+
+	if err := h.orderItemRepo.Save(ctx, item); err != nil {
+		log.Error("cannot cancel order item", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not cancel item")
+		return
+	}
+
+	log.Info("order item cancelled", "item_id", itemID)
+	w.WriteHeader(http.StatusOK)
+}
+
+// updateKitchenTicketStatus updates the kitchen ticket status via Kitchen service
+// This is called when the waiter manually marks an item as delivered
+func (h *Handler) updateKitchenTicketStatus(ctx context.Context, orderItemID uuid.UUID, statusID string, log aqm.Logger) {
+	if h.kitchenClient == nil {
+		return
+	}
+
+	// Find ticket by order_item_id query
+	path := fmt.Sprintf("/tickets?order_item_id=%s", orderItemID.String())
+	resp, err := h.kitchenClient.Request(ctx, "GET", path, nil)
+	if err != nil {
+		log.Info("cannot find kitchen ticket for order item", "order_item_id", orderItemID, "error", err)
+		return
+	}
+
+	// Parse tickets response from Data field
+	if data, ok := resp.Data.(map[string]interface{}); ok {
+		if tickets, ok := data["tickets"].([]interface{}); ok && len(tickets) > 0 {
+			if ticket, ok := tickets[0].(map[string]interface{}); ok {
+				if ticketID, ok := ticket["id"].(string); ok {
+					// Update ticket status
+					updatePath := fmt.Sprintf("/tickets/%s/status", ticketID)
+					body := map[string]string{"status_id": statusID}
+					_, err := h.kitchenClient.Request(ctx, "PATCH", updatePath, body)
+					if err != nil {
+						log.Info("cannot update kitchen ticket status", "ticket_id", ticketID, "error", err)
+					} else {
+						log.Info("kitchen ticket status updated", "ticket_id", ticketID, "status_id", statusID)
+					}
+				}
+			}
+		}
 	}
 }

@@ -6,6 +6,11 @@ web:
   # Env: KITCHEN_WEB_PORT
   port: ":8089"
 
+grpc:
+  # The port the gRPC server will listen on for streaming events.
+  # Env: KITCHEN_GRPC_PORT
+  port: ":50051"
+
 db:
   mongo:
     # MongoDB connection string.

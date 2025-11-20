@@ -73,6 +73,20 @@ func main() {
 	tableStateCache := order.NewTableStateCache(tableClient, logger)
 	tableStatusSubscriber := order.NewTableStatusSubscriber(subscriber, tableStateCache, logger)
 
+	// Kitchen service client for updating tickets when order items change
+	kitchenURL, _ := config.GetString("services.kitchen.url")
+	var kitchenClient *aqm.ServiceClient
+	if kitchenURL != "" {
+		kitchenClient = aqm.NewServiceClient(kitchenURL)
+	}
+
+	// Initialize gRPC streaming server for real-time order item events
+	orderEventStreamServer := order.NewOrderEventStreamServer(orderItemRepo, logger)
+
+	// Subscribe to kitchen ticket events to sync OrderItem status
+	kitchenTicketSubscriber := order.NewKitchenTicketSubscriber(subscriber, orderItemRepo, logger)
+	kitchenTicketSubscriber.SetStreamServer(orderEventStreamServer)
+
 	publisherLifecycle := aqm.LifecycleHooks{OnStop: func(context.Context) error { return publisher.Close() }}
 	subscriberLifecycle := aqm.LifecycleHooks{OnStop: func(context.Context) error { return subscriber.Close() }}
 
@@ -83,6 +97,7 @@ func main() {
 		logger,
 		config,
 		tableStateCache,
+		kitchenClient,
 		publisher,
 	)
 
@@ -99,7 +114,8 @@ func main() {
 		aqm.WithLogger(logger),
 		aqm.WithHTTPMiddleware(stack...),
 		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(aqm.LifecycleHooks{OnStop: baseRepo.Stop}, tableStatusSubscriber, publisherLifecycle, subscriberLifecycle),
+		aqm.WithGRPCServerModules("grpc.port", orderEventStreamServer),
+		aqm.WithLifecycle(aqm.LifecycleHooks{OnStop: baseRepo.Stop}, tableStatusSubscriber, kitchenTicketSubscriber, publisherLifecycle, subscriberLifecycle),
 		aqm.WithHealthChecks(appName),
 	}
 

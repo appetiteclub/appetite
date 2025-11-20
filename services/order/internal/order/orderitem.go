@@ -18,10 +18,16 @@ type OrderItem struct {
 	Status      string     `json:"status" bson:"status"`
 	Notes       string     `json:"notes,omitempty" bson:"notes,omitempty"`
 	DeliveredAt *time.Time `json:"delivered_at,omitempty" bson:"delivered_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at" bson:"created_at"`
-	CreatedBy   string     `json:"created_by" bson:"created_by"`
-	UpdatedAt   time.Time  `json:"updated_at" bson:"updated_at"`
-	UpdatedBy   string     `json:"updated_by" bson:"updated_by"`
+
+	// Kitchen/Production fields (optional)
+	MenuItemID         *uuid.UUID `json:"menu_item_id,omitempty" bson:"menu_item_id,omitempty"`
+	ProductionStation  *uuid.UUID `json:"production_station,omitempty" bson:"production_station,omitempty"`
+	RequiresProduction bool       `json:"requires_production" bson:"requires_production"`
+
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
+	CreatedBy string    `json:"created_by" bson:"created_by"`
+	UpdatedAt time.Time `json:"updated_at" bson:"updated_at"`
+	UpdatedBy string    `json:"updated_by" bson:"updated_by"`
 }
 
 func (oi *OrderItem) GetID() uuid.UUID {

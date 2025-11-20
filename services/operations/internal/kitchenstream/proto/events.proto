@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package appetite.kitchen.v1;
+
+option go_package = "github.com/appetiteclub/appetite/services/kitchen/internal/kitchen/proto;kitchenpb";
+
+import "google/protobuf/timestamp.proto";
+
+// Request to subscribe to kitchen events
+message SubscribeKitchenEventsRequest {
+  // Optional filter by station_id
+  string station_id = 1;
+}
+
+// Kitchen ticket event streamed to clients
+message KitchenTicketEvent {
+  // Event type: "kitchen.ticket.created" or "kitchen.ticket.status_changed"
+  string event_type = 1;
+
+  // When the event occurred
+  google.protobuf.Timestamp occurred_at = 2;
+
+  // Ticket identifiers
+  string ticket_id = 3;
+  string order_id = 4;
+  string order_item_id = 5;
+  string menu_item_id = 6;
+  string station_id = 7;
+
+  // Denormalized display data
+  string menu_item_name = 8;
+  string station_name = 9;
+  string table_number = 10;
+
+  // Status information
+  string new_status_id = 11;
+  string previous_status_id = 12;
+  int32 quantity = 13;
+  string notes = 14;
+
+  // Timestamps
+  google.protobuf.Timestamp started_at = 15;
+  google.protobuf.Timestamp finished_at = 16;
+  google.protobuf.Timestamp delivered_at = 17;
+}
+
+// Request to subscribe to order events
+message SubscribeOrderEventsRequest {
+  // Optional filter by table_id or order_id
+  string table_id = 1;
+  string order_id = 2;
+}
+
+// Order item event streamed to clients
+message OrderItemEvent {
+  // Event type
+  string event_type = 1;
+
+  // When the event occurred
+  google.protobuf.Timestamp occurred_at = 2;
+
+  // Order item identifiers
+  string order_item_id = 3;
+  string order_id = 4;
+  string dish_id = 5;
+
+  // Display data
+  string dish_name = 6;
+  string table_number = 7;
+
+  // Status information
+  string new_status = 8;
+  string previous_status = 9;
+  int32 quantity = 10;
+  bool requires_production = 11;
+}
+
+// Service for streaming real-time events to web clients
+service EventStream {
+  // Stream kitchen ticket events (created, status changes)
+  rpc StreamKitchenEvents(SubscribeKitchenEventsRequest) returns (stream KitchenTicketEvent);
+
+  // Stream order item events (status changes, deliveries)
+  rpc StreamOrderEvents(SubscribeOrderEventsRequest) returns (stream OrderItemEvent);
+}
