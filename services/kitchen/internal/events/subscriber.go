@@ -6,27 +6,18 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/appetiteclub/appetite/pkg/event"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/kitchen"
 	"github.com/aquamarinepk/aqm"
 	"github.com/aquamarinepk/aqm/events"
 	"github.com/google/uuid"
 )
 
-type OrderItemEvent struct {
-	EventType         string    `json:"event_type"`
-	OccurredAt        time.Time `json:"occurred_at"`
-	OrderID           string    `json:"order_id"`
-	OrderItemID       string    `json:"order_item_id"`
-	MenuItemID        string    `json:"menu_item_id"`
-	Quantity          int       `json:"quantity"`
-	Notes             string    `json:"notes,omitempty"`
-	RequiresProduction bool      `json:"requires_production"`
-	ProductionStation string    `json:"production_station,omitempty"`
-}
 
 type OrderItemSubscriber struct {
 	subscriber events.Subscriber
 	repo       kitchen.TicketRepository
+	cache      *kitchen.TicketStateCache
 	publisher  events.Publisher
 	logger     aqm.Logger
 }
@@ -34,12 +25,14 @@ type OrderItemSubscriber struct {
 func NewOrderItemSubscriber(
 	subscriber events.Subscriber,
 	repo kitchen.TicketRepository,
+	cache *kitchen.TicketStateCache,
 	publisher events.Publisher,
 	logger aqm.Logger,
 ) *OrderItemSubscriber {
 	return &OrderItemSubscriber{
 		subscriber: subscriber,
 		repo:       repo,
+		cache:      cache,
 		publisher:  publisher,
 		logger:     logger,
 	}
@@ -57,32 +50,32 @@ func (s *OrderItemSubscriber) Start(ctx context.Context) error {
 }
 
 func (s *OrderItemSubscriber) handleEvent(ctx context.Context, msg []byte) error {
-	var event OrderItemEvent
-	if err := json.Unmarshal(msg, &event); err != nil {
+	var evt event.OrderItemEvent
+	if err := json.Unmarshal(msg, &evt); err != nil {
 		s.logger.Errorf("Failed to unmarshal event: %v", err)
 		return nil
 	}
 
-	if !event.RequiresProduction {
+	if !evt.RequiresProduction {
 		return nil
 	}
 
-	switch event.EventType {
-	case "order.item.created":
-		return s.handleCreated(ctx, &event)
-	case "order.item.updated":
-		return s.handleUpdated(ctx, &event)
-	case "order.item.cancelled":
-		return s.handleCancelled(ctx, &event)
+	switch evt.EventType {
+	case event.EventOrderItemCreated:
+		return s.handleCreated(ctx, &evt)
+	case event.EventOrderItemUpdated:
+		return s.handleUpdated(ctx, &evt)
+	case event.EventOrderItemCancelled:
+		return s.handleCancelled(ctx, &evt)
 	default:
-		s.logger.Infof("Unknown event type: %s", event.EventType)
+		s.logger.Infof("Unknown event type: %s", evt.EventType)
 	}
 
 	return nil
 }
 
-func (s *OrderItemSubscriber) handleCreated(ctx context.Context, event *OrderItemEvent) error {
-	orderItemID, err := uuid.Parse(event.OrderItemID)
+func (s *OrderItemSubscriber) handleCreated(ctx context.Context, evt *event.OrderItemEvent) error {
+	orderItemID, err := uuid.Parse(evt.OrderItemID)
 	if err != nil {
 		s.logger.Errorf("Invalid order_item_id: %v", err)
 		return nil
@@ -98,19 +91,19 @@ func (s *OrderItemSubscriber) handleCreated(ctx context.Context, event *OrderIte
 		return nil
 	}
 
-	orderID, err := uuid.Parse(event.OrderID)
+	orderID, err := uuid.Parse(evt.OrderID)
 	if err != nil {
 		s.logger.Errorf("Invalid order_id: %v", err)
 		return nil
 	}
 
-	menuItemID, err := uuid.Parse(event.MenuItemID)
+	menuItemID, err := uuid.Parse(evt.MenuItemID)
 	if err != nil {
 		s.logger.Errorf("Invalid menu_item_id: %v", err)
 		return nil
 	}
 
-	stationID, err := uuid.Parse(event.ProductionStation)
+	stationID, err := uuid.Parse(evt.ProductionStation)
 	if err != nil {
 		s.logger.Errorf("Invalid production_station: %v", err)
 		return nil
@@ -119,14 +112,17 @@ func (s *OrderItemSubscriber) handleCreated(ctx context.Context, event *OrderIte
 	statusID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 	ticket := &kitchen.Ticket{
-		ID:          uuid.New(),
-		OrderID:     orderID,
-		OrderItemID: orderItemID,
-		MenuItemID:  menuItemID,
-		StationID:   stationID,
-		Quantity:    event.Quantity,
-		StatusID:    statusID,
-		Notes:       event.Notes,
+		ID:           uuid.New(),
+		OrderID:      orderID,
+		OrderItemID:  orderItemID,
+		MenuItemID:   menuItemID,
+		StationID:    stationID,
+		Quantity:     evt.Quantity,
+		StatusID:     statusID,
+		Notes:        evt.Notes,
+		MenuItemName: evt.MenuItemName,
+		StationName:  evt.StationName,
+		TableNumber:  evt.TableNumber,
 	}
 
 	if err := s.repo.Create(ctx, ticket); err != nil {
@@ -134,27 +130,41 @@ func (s *OrderItemSubscriber) handleCreated(ctx context.Context, event *OrderIte
 		return err
 	}
 
-	s.logger.Infof("Created ticket %s for order item %s", ticket.ID, event.OrderItemID)
-
-	ticketEvent := map[string]interface{}{
-		"event_type":  "kitchen.ticket.created",
-		"occurred_at": time.Now(),
-		"ticket_id":   ticket.ID.String(),
-		"order_id":    ticket.OrderID.String(),
-		"station_id":  ticket.StationID.String(),
-		"status_id":   ticket.StatusID.String(),
+	// Update cache with new ticket
+	if s.cache != nil {
+		s.cache.Set(ticket)
 	}
 
-	eventBytes, _ := json.Marshal(ticketEvent)
-	if err := s.publisher.Publish(ctx, "kitchen.tickets", eventBytes); err != nil {
+	s.logger.Infof("Created ticket %s for order item %s", ticket.ID, evt.OrderItemID)
+
+	eventPayload := event.KitchenTicketCreatedEvent{
+		KitchenTicketEventMetadata: event.KitchenTicketEventMetadata{
+			EventType:    event.EventKitchenTicketCreated,
+			OccurredAt:   time.Now().UTC(),
+			TicketID:     ticket.ID.String(),
+			OrderID:      ticket.OrderID.String(),
+			OrderItemID:  ticket.OrderItemID.String(),
+			MenuItemID:   ticket.MenuItemID.String(),
+			StationID:    ticket.StationID.String(),
+			MenuItemName: evt.MenuItemName,
+			StationName:  evt.StationName,
+			TableNumber:  evt.TableNumber,
+		},
+		StatusID: ticket.StatusID.String(),
+		Quantity: ticket.Quantity,
+		Notes:    ticket.Notes,
+	}
+
+	eventBytes, _ := json.Marshal(eventPayload)
+	if err := s.publisher.Publish(ctx, event.KitchenTicketsTopic, eventBytes); err != nil {
 		s.logger.Errorf("Failed to publish ticket.created event: %v", err)
 	}
 
 	return nil
 }
 
-func (s *OrderItemSubscriber) handleUpdated(ctx context.Context, event *OrderItemEvent) error {
-	orderItemID, err := uuid.Parse(event.OrderItemID)
+func (s *OrderItemSubscriber) handleUpdated(ctx context.Context, evt *event.OrderItemEvent) error{
+	orderItemID, err := uuid.Parse(evt.OrderItemID)
 	if err != nil {
 		return nil
 	}
@@ -164,20 +174,25 @@ func (s *OrderItemSubscriber) handleUpdated(ctx context.Context, event *OrderIte
 		return err
 	}
 
-	ticket.Quantity = event.Quantity
-	ticket.Notes = event.Notes
+	ticket.Quantity = evt.Quantity
+	ticket.Notes = evt.Notes
 
 	if err := s.repo.Update(ctx, ticket); err != nil {
 		s.logger.Errorf("Failed to update ticket: %v", err)
 		return err
 	}
 
-	s.logger.Infof("Updated ticket %s for order item %s", ticket.ID, event.OrderItemID)
+	// Update cache
+	if s.cache != nil {
+		s.cache.Set(ticket)
+	}
+
+	s.logger.Infof("Updated ticket %s for order item %s", ticket.ID, evt.OrderItemID)
 	return nil
 }
 
-func (s *OrderItemSubscriber) handleCancelled(ctx context.Context, event *OrderItemEvent) error {
-	orderItemID, err := uuid.Parse(event.OrderItemID)
+func (s *OrderItemSubscriber) handleCancelled(ctx context.Context, evt *event.OrderItemEvent) error {
+	orderItemID, err := uuid.Parse(evt.OrderItemID)
 	if err != nil {
 		return nil
 	}
@@ -195,19 +210,30 @@ func (s *OrderItemSubscriber) handleCancelled(ctx context.Context, event *OrderI
 		return err
 	}
 
-	s.logger.Infof("Cancelled ticket %s for order item %s", ticket.ID, event.OrderItemID)
-
-	ticketEvent := map[string]interface{}{
-		"event_type":       "kitchen.ticket.status_changed",
-		"occurred_at":      time.Now(),
-		"ticket_id":        ticket.ID.String(),
-		"order_id":         ticket.OrderID.String(),
-		"new_status_id":    ticket.StatusID.String(),
-		"previous_status_id": "00000000-0000-0000-0000-000000000001",
+	// Update cache (or remove if filtering out cancelled)
+	if s.cache != nil {
+		s.cache.Set(ticket)
 	}
 
-	eventBytes, _ := json.Marshal(ticketEvent)
-	if err := s.publisher.Publish(ctx, "kitchen.tickets", eventBytes); err != nil {
+	s.logger.Infof("Cancelled ticket %s for order item %s", ticket.ID, evt.OrderItemID)
+
+	eventPayload := event.KitchenTicketStatusChangedEvent{
+		KitchenTicketEventMetadata: event.KitchenTicketEventMetadata{
+			EventType:   event.EventKitchenTicketStatusChange,
+			OccurredAt:  time.Now().UTC(),
+			TicketID:    ticket.ID.String(),
+			OrderID:     ticket.OrderID.String(),
+			OrderItemID: ticket.OrderItemID.String(),
+			MenuItemID:  ticket.MenuItemID.String(),
+			StationID:   ticket.StationID.String(),
+		},
+		NewStatusID:      ticket.StatusID.String(),
+		PreviousStatusID: "00000000-0000-0000-0000-000000000001",
+		Notes:            ticket.Notes,
+	}
+
+	eventBytes, _ := json.Marshal(eventPayload)
+	if err := s.publisher.Publish(ctx, event.KitchenTicketsTopic, eventBytes); err != nil {
 		s.logger.Errorf("Failed to publish ticket.status_changed event: %v", err)
 	}
 

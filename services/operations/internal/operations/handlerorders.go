@@ -1015,11 +1015,15 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dishName := pickMenuName(menuItem)
+	requiresProduction := routing != "direct" && routing != ""
+
 	payload := map[string]interface{}{
-		"dish_name": dishName,
-		"category":  routing,
-		"quantity":  quantity,
-		"price":     price,
+		"dish_name":          dishName,
+		"category":           routing,
+		"quantity":           quantity,
+		"price":              price,
+		"menu_item_id":       menuItemID,
+		"requires_production": requiresProduction,
 	}
 
 	if notes != "" {
@@ -1029,6 +1033,13 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	if groupIDStr != "" {
 		if _, err := uuid.Parse(groupIDStr); err == nil {
 			payload["group_id"] = groupIDStr
+		}
+	}
+
+	// Get production station ID from dictionary if needed
+	if requiresProduction {
+		if stationID, err := h.getStationIDByName(r.Context(), routing); err == nil && stationID != "" {
+			payload["production_station"] = stationID
 		}
 	}
 
@@ -1186,19 +1197,33 @@ func routingLabel(value string) string {
 	}
 }
 
-func defaultMenuSelection(options []menuItemOption) string {
-	if len(options) == 0 {
-		return ""
+func (h *Handler) getStationIDByName(ctx context.Context, stationName string) (string, error) {
+	// TODO: Query Dictionary service for production stations
+	// For now, use known station UUIDs from seeding
+	stationName = strings.ToLower(strings.TrimSpace(stationName))
+
+	// These IDs should match the seeded production_stations in Dictionary service
+	knownStations := map[string]string{
+		"kitchen": "00000000-0000-0000-0000-000000000001", // Kitchen station
+		"bar":     "00000000-0000-0000-0000-000000000002", // Bar station
 	}
-	return options[0].ID
+
+	if id, exists := knownStations[stationName]; exists {
+		return id, nil
+	}
+
+	return "", fmt.Errorf("unknown station: %s", stationName)
+}
+
+func defaultMenuSelection(options []menuItemOption) string {
+	// Do not pre-select any menu item - user must explicitly choose
+	return ""
 }
 
 func matchMenuOption(query string, options []menuItemOption) menuItemOption {
 	trimmed := strings.ToLower(strings.TrimSpace(query))
 	if trimmed == "" {
-		if len(options) > 0 {
-			return options[0]
-		}
+		// Do not return a default item when query is empty - user must type to search
 		return menuItemOption{}
 	}
 	for _, opt := range options {

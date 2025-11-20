@@ -69,6 +69,44 @@
         "users:read",
         "users:update"
       ]
+    },
+    {
+      "name": "kitchen-staff",
+      "permissions": [
+        "kitchen:read",
+        "kitchen:tickets:view",
+        "kitchen:tickets:update",
+        "operations:kitchen:access"
+      ]
+    },
+    {
+      "name": "bar-staff",
+      "permissions": [
+        "bar:read",
+        "bar:tickets:view",
+        "bar:tickets:update",
+        "operations:bar:access"
+      ]
+    },
+    {
+      "name": "expo-staff",
+      "permissions": [
+        "expo:read",
+        "expo:tickets:view",
+        "expo:orders:coordinate",
+        "operations:expo:access"
+      ]
+    },
+    {
+      "name": "operations-manager",
+      "permissions": [
+        "operations:*",
+        "kitchen:*",
+        "bar:*",
+        "expo:*",
+        "tickets:*",
+        "orders:read"
+      ]
     }
   ]
 }

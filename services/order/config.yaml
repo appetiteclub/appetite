@@ -6,6 +6,11 @@ web:
   # Env: ORDER_WEB_PORT
   port: ":8086"
 
+grpc:
+  # The port the gRPC server will listen on for streaming events.
+  # Env: ORDER_GRPC_PORT
+  port: ":50052"
+
 db:
   mongo:
     # MongoDB connection string.
@@ -21,6 +26,11 @@ services:
   # Env: ORDER_SERVICES_TABLE_URL
   table:
     url: "http://localhost:8087"
+
+  # Kitchen service URL for updating ticket status
+  # Env: ORDER_SERVICES_KITCHEN_URL
+  kitchen:
+    url: "http://localhost:8089"
 
 log:
   level: info

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} - Operations</title>
     <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.9/dist/ext/sse.js"></script>
     <style>
         * {
             margin: 0;
@@ -125,6 +126,11 @@
             align-items: center;
             justify-content: center;
             padding: 2rem 0;
+        }
+
+        main.main-fullscreen {
+            padding: 0;
+            align-items: stretch;
         }
 
 .card {
@@ -1392,6 +1398,8 @@ textarea:focus {
                         <li><a href="/chat">Chat</a></li>
                         <li><a href="/list-tables">Tables</a></li>
                         <li><a href="/orders">Orders</a></li>
+                        <li><a href="/kitchen">Kitchen</a></li>
+                        <li><a href="/menu">Menu</a></li>
                         <li>
                             <form method="post" action="/signout" hx-post="/signout" hx-boost="true" style="margin:0;">
                                 <button type="submit" class="signout-btn">
@@ -1407,10 +1415,14 @@ textarea:focus {
     </header>
     {{end}}
 
-    <main>
+    <main{{if eq .Template "kitchen"}} class="main-fullscreen"{{end}}>
+        {{if eq .Template "kitchen"}}
+            {{template "kitchen" .}}
+        {{else}}
         <div class="container{{if or (eq .Template "chat") (eq .Template "tables")}} container-wide{{end}}">
             {{if eq .Template "signin"}}{{template "signin" .}}{{else if eq .Template "home"}}{{template "home" .}}{{else if eq .Template "chat"}}{{template "chat" .}}{{else if eq .Template "tables"}}{{template "tables" .}}{{else if eq .Template "orders"}}{{template "orders" .}}{{else if eq .Template "menu"}}{{template "menu" .}}{{end}}
         </div>
+        {{end}}
     </main>
     <div id="modal-root"></div>
 </body>

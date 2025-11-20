@@ -1,0 +1,31 @@
+{{define "order_item_row"}}
+<div class="order-item-row" data-item-id="{{.ID}}" data-status="{{.Status}}">
+    <div class="order-item-info">
+        <div class="order-item-name">{{.DishName}}</div>
+        <div class="order-item-meta">
+            <span class="order-item-status {{.StatusClass}}">{{.StatusLabel}}</span>
+            {{if .RequiresProduction}}
+            <span class="order-item-tag">Kitchen</span>
+            {{else}}
+            <span class="order-item-tag order-item-tag-soft">Add-on</span>
+            {{end}}
+            {{if .Notes}}
+            <span class="order-item-notes">📝 {{.Notes}}</span>
+            {{end}}
+        </div>
+    </div>
+    <div class="order-item-qty">×{{.Quantity}}</div>
+    <div class="order-item-price">{{.Total}}</div>
+    <div class="order-item-actions">
+        {{if eq .Status "ready"}}
+        <button type="button" class="btn-item-action btn-deliver" onclick="markItemDelivered('{{.ID}}')">
+            🚀 Deliver
+        </button>
+        {{else if eq .Status "pending"}}
+        <button type="button" class="btn-item-action btn-cancel" onclick="cancelOrderItem('{{.ID}}')">
+            ✕ Cancel
+        </button>
+        {{end}}
+    </div>
+</div>
+{{end}}

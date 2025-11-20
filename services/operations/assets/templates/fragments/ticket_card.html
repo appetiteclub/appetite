@@ -1,0 +1,38 @@
+{{define "ticket_card"}}
+<div class="ticket-card-modern {{if eq .StatusID "00000000-0000-0000-0000-000000000005"}}delivered{{end}}" draggable="{{if eq .StatusID "00000000-0000-0000-0000-000000000005"}}false{{else}}true{{end}}"
+     data-ticket-id="{{.TicketID}}"
+     data-order-id="{{.OrderID}}"
+     data-dish-name="{{.MenuItemName}}"
+     data-quantity="{{.Quantity}}"
+     data-table="{{.TableNumber}}"
+     data-notes="{{.Notes}}"
+     data-status="{{.StatusID}}"
+     onclick="openTicketModal(this, event)">
+    <div class="ticket-card-header">
+        <span class="ticket-dish-name">{{.MenuItemName}}</span>
+        <span class="ticket-qty-badge">×{{.Quantity}}</span>
+    </div>
+    {{if .TableNumber}}
+    <div class="ticket-info-row">
+        <span class="info-icon">🪑</span>
+        <span class="info-text">Table {{.TableNumber}}</span>
+    </div>
+    {{end}}
+    {{if .Notes}}
+    <div class="ticket-notes-modern">
+        <span class="notes-icon">📝</span>
+        <span class="notes-text">{{.Notes}}</span>
+    </div>
+    {{end}}
+    <div class="ticket-time-row">
+        <span class="time-label">Ordered</span>
+        <span class="time-value">{{.CreatedAt}}</span>
+    </div>
+    {{if .StartedAt}}
+    <div class="ticket-time-row started">
+        <span class="time-label">Started</span>
+        <span class="time-value">{{.StartedAt}}</span>
+    </div>
+    {{end}}
+</div>
+{{end}}

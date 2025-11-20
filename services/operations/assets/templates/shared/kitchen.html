@@ -1,0 +1,1111 @@
+{{template "base.html" .}}
+
+{{define "kitchen"}}
+<div class="kitchen-dashboard-modern" hx-ext="sse" sse-connect="/kitchen/events">
+    <!-- SSE update target -->
+    <div id="sse-updates" sse-swap="ticket-update" hx-swap="beforebegin"></div>
+
+    <div class="kitchen-header">
+        <div>
+            <h1 class="kitchen-title">👨‍🍳 Kitchen Dashboard</h1>
+            <p class="kitchen-subtitle">Drag tickets across columns to update their status</p>
+        </div>
+    </div>
+
+    {{if not .stations}}
+    <div class="empty-state-modern">
+        <div class="empty-icon">🍽️</div>
+        <p class="empty-message">No active tickets at the moment</p>
+        <p class="empty-hint">New orders will appear here automatically</p>
+    </div>
+    {{else}}
+    <!-- Station Tabs -->
+    <div class="station-tabs-modern">
+        {{range $index, $station := .stations}}
+        <button class="station-tab {{if eq $index 0}}active{{end}}"
+                data-station="{{$station.StationID}}">
+            <span class="tab-name">{{$station.StationName}}</span>
+            <span class="tab-badge" data-station-badge="{{$station.StationID}}">0</span>
+        </button>
+        {{end}}
+    </div>
+
+    <!-- Station Kanban Boards -->
+    {{range $stationIndex, $station := .stations}}
+    <div class="kanban-board-modern"
+         data-station="{{$station.StationID}}"
+         style="{{if ne $stationIndex 0}}display: none;{{end}}">
+
+        <div class="kanban-columns-modern">
+            {{range $station.ColumnsList}}
+            <div class="kanban-column-modern" data-status="{{.StatusID}}">
+                <div class="column-header-modern">
+                    <h3 class="column-title">{{.StatusName}}</h3>
+                    <span class="column-count">{{len .Tickets}}</span>
+                </div>
+                <div class="tickets-drop-zone" data-status-id="{{.StatusID}}">
+                    {{range .Tickets}}
+                    <div class="ticket-card-modern {{if eq .StatusID "00000000-0000-0000-0000-000000000005"}}delivered{{end}}" draggable="{{if eq .StatusID "00000000-0000-0000-0000-000000000005"}}false{{else}}true{{end}}"
+                         data-ticket-id="{{.ID}}"
+                         data-order-id="{{.OrderID}}"
+                         data-dish-name="{{.MenuItemName}}"
+                         data-quantity="{{.Quantity}}"
+                         data-table="{{.TableNumber}}"
+                         data-notes="{{.Notes}}"
+                         data-status="{{.StatusID}}"
+                         onclick="openTicketModal(this, event)">
+                        <div class="ticket-card-header">
+                            <span class="ticket-dish-name">{{.MenuItemName}}</span>
+                            <span class="ticket-qty-badge">×{{.Quantity}}</span>
+                        </div>
+                        {{if .TableNumber}}
+                        <div class="ticket-info-row">
+                            <span class="info-icon">🪑</span>
+                            <span class="info-text">Table {{.TableNumber}}</span>
+                        </div>
+                        {{end}}
+                        {{if .Notes}}
+                        <div class="ticket-notes-modern">
+                            <span class="notes-icon">📝</span>
+                            <span class="notes-text">{{.Notes}}</span>
+                        </div>
+                        {{end}}
+                        <div class="ticket-time-row">
+                            <span class="time-label">Ordered</span>
+                            <span class="time-value">{{.CreatedAt.Format "15:04"}}</span>
+                        </div>
+                        {{if .StartedAt}}
+                        <div class="ticket-time-row started">
+                            <span class="time-label">Started</span>
+                            <span class="time-value">{{.StartedAt.Format "15:04"}}</span>
+                        </div>
+                        {{end}}
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+    {{end}}
+</div>
+
+<!-- Ticket Details Modal -->
+<div id="ticketModal" class="ticket-modal" style="display: none;" onclick="closeTicketModal(event)">
+    <div class="ticket-modal-content" onclick="event.stopPropagation()">
+        <div class="ticket-modal-header">
+            <div>
+                <h2 class="ticket-modal-title" id="modalDishName"></h2>
+                <p class="ticket-modal-subtitle">
+                    <span id="modalTable"></span> · <span id="modalQuantity"></span>
+                </p>
+            </div>
+            <button class="ticket-modal-close" onclick="closeTicketModal()">&times;</button>
+        </div>
+
+        <div class="ticket-modal-body">
+            <!-- Customer Notes Section -->
+            <div class="modal-section" id="customerNotesSection">
+                <div class="section-header">
+                    <span class="section-icon">📝</span>
+                    <h3 class="section-title">Customer Notes</h3>
+                </div>
+                <div class="customer-notes-display" id="customerNotes"></div>
+            </div>
+
+            <!-- Kitchen Response Section -->
+            <div class="modal-section">
+                <div class="section-header">
+                    <span class="section-icon">💬</span>
+                    <h3 class="section-title">Kitchen Response</h3>
+                </div>
+                <textarea class="kitchen-response-input" id="kitchenResponse"
+                          placeholder="Reply to customer notes or add preparation notes...&#10;&#10;Examples:&#10;• Can we use cilantro instead of parsley?&#10;• Extra sauce on the side&#10;• Cooking temperature adjusted"></textarea>
+                <button class="btn-send-response" onclick="sendKitchenResponse()">
+                    <span class="btn-icon">💬</span>
+                    Send Response
+                </button>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="modal-section" id="quickActionsSection">
+                <div class="section-header">
+                    <span class="section-icon">⚡</span>
+                    <h3 class="section-title">Quick Actions</h3>
+                </div>
+                <div class="quick-actions-grid">
+                    <button class="action-btn action-start" onclick="updateTicketStatus('started')">
+                        <span class="action-icon">🔥</span>
+                        <span class="action-text">Start Cooking</span>
+                    </button>
+                    <button class="action-btn action-ready" onclick="updateTicketStatus('ready')">
+                        <span class="action-icon">✅</span>
+                        <span class="action-text">Mark Ready</span>
+                    </button>
+                    <button class="action-btn action-reject" onclick="showRejectSection()">
+                        <span class="action-icon">🚫</span>
+                        <span class="action-text">Reject Order</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reject Order Section (initially hidden) -->
+            <div class="modal-section" id="rejectSection" style="display: none;">
+                <div class="section-header">
+                    <span class="section-icon">⚠️</span>
+                    <h3 class="section-title">Reject Order - Select Reason</h3>
+                </div>
+                <select class="reject-reason-select" id="rejectReason">
+                    <option value="">Select a reason...</option>
+                    <option value="kitchen_closed">Kitchen Closed</option>
+                    <option value="equipment_broken">Equipment Broken</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                    <option value="prep_time_too_long">Requires Long Preparation</option>
+                    <option value="ingredient_unavailable">Missing Key Ingredient</option>
+                    <option value="custom">Custom Reason...</option>
+                </select>
+                <textarea class="reject-reason-custom" id="customRejectReason"
+                          placeholder="Enter custom reason..."
+                          style="display: none;"></textarea>
+                <div style="display: flex; gap: 12px; margin-top: 12px;">
+                    <button class="btn-reject-order" onclick="rejectTicket()">
+                        <span class="btn-icon">🚫</span>
+                        Confirm Reject
+                    </button>
+                    <button class="btn-send-response" onclick="hideRejectSection()" style="background: #6b7280;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.kitchen-dashboard-modern {
+    background: white;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.kitchen-header {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.kitchen-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+}
+
+.kitchen-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.empty-state-modern {
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.empty-message {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 8px 0;
+}
+
+.empty-hint {
+    font-size: 14px;
+    color: #9ca3af;
+    margin: 0;
+}
+
+.station-tabs-modern {
+    display: flex;
+    gap: 8px;
+    padding: 16px 32px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.station-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.station-tab:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.station-tab.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.tab-name {
+    font-weight: 600;
+}
+
+.tab-badge {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.station-tab.active .tab-badge {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.kanban-board-modern {
+    flex: 1;
+    padding: 24px 32px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-columns-modern {
+    display: flex;
+    gap: 24px;
+    overflow-x: auto;
+    flex: 1;
+    align-items: flex-start;
+}
+
+.kanban-column-modern {
+    flex: 1;
+    min-width: 300px;
+    max-width: 400px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 200px);
+}
+
+.column-header-modern {
+    background: white;
+    border-bottom: 2px solid #e5e7eb;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.column-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.column-count {
+    background: #e5e7eb;
+    color: #6b7280;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.tickets-drop-zone {
+    padding: 16px;
+    min-height: 200px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tickets-drop-zone.drag-over {
+    background: #dbeafe;
+    border: 2px dashed #3b82f6;
+    border-radius: 8px;
+}
+
+.ticket-card-modern {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    cursor: move;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.ticket-card-modern:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    border-color: #3b82f6;
+}
+
+.ticket-card-modern.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.ticket-card-modern.delivered {
+    opacity: 0.6;
+    cursor: default;
+    border-color: #d1d5db;
+    background: #f9fafb;
+}
+
+.ticket-card-modern.delivered:hover {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transform: none;
+    border-color: #d1d5db;
+}
+
+.ticket-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.ticket-dish-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.3;
+    flex: 1;
+}
+
+.ticket-qty-badge {
+    background: #3b82f6;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-left: 8px;
+}
+
+.ticket-info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.info-icon {
+    font-size: 16px;
+}
+
+.info-text {
+    font-weight: 500;
+}
+
+.ticket-notes-modern {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 4px;
+}
+
+.notes-icon {
+    font-size: 14px;
+}
+
+.notes-text {
+    font-size: 13px;
+    color: #92400e;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.ticket-time-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    margin-top: 8px;
+    border-top: 1px solid #f3f4f6;
+    font-size: 12px;
+}
+
+.time-label {
+    color: #9ca3af;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.time-value {
+    color: #374151;
+    font-weight: 600;
+}
+
+.ticket-time-row.started {
+    border-top: none;
+    padding-top: 4px;
+    margin-top: 4px;
+}
+
+.ticket-time-row.started .time-label {
+    color: #059669;
+}
+
+.ticket-time-row.started .time-value {
+    color: #059669;
+}
+
+/* Ticket Modal Styles */
+.ticket-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.ticket-modal-content {
+    background: white;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.ticket-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.ticket-modal-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+}
+
+.ticket-modal-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.ticket-modal-close {
+    background: none;
+    border: none;
+    font-size: 32px;
+    color: #9ca3af;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.ticket-modal-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.ticket-modal-body {
+    padding: 24px;
+}
+
+.modal-section {
+    margin-bottom: 24px;
+}
+
+.modal-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.section-icon {
+    font-size: 20px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.customer-notes-display {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #92400e;
+    line-height: 1.6;
+    font-weight: 500;
+}
+
+.kitchen-response-input {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.kitchen-response-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.btn-send-response {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-send-response:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.btn-icon {
+    font-size: 16px;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.action-start:hover {
+    border-color: #f59e0b;
+    background: #fef3c7;
+}
+
+.action-ready:hover {
+    border-color: #059669;
+    background: #d1fae5;
+}
+
+.action-deliver:hover {
+    border-color: #3b82f6;
+    background: #dbeafe;
+}
+
+.action-reject:hover {
+    border-color: #ef4444;
+    background: #fee2e2;
+}
+
+.action-icon {
+    font-size: 24px;
+}
+
+.action-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.reject-reason-select,
+.reject-reason-custom {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+}
+
+.reject-reason-select:focus,
+.reject-reason-custom:focus {
+    outline: none;
+    border-color: #ef4444;
+}
+
+.reject-reason-custom {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.btn-reject-order {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-reject-order:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update station badge counts
+    function updateStationBadges() {
+        document.querySelectorAll('[data-station-badge]').forEach(badge => {
+            const stationID = badge.dataset.stationBadge;
+            const board = document.querySelector(`.kanban-board-modern[data-station="${stationID}"]`);
+            if (board) {
+                const ticketCount = board.querySelectorAll('.ticket-card-modern').length;
+                badge.textContent = ticketCount;
+            }
+        });
+    }
+
+    // Initial count
+    updateStationBadges();
+
+    // Tab switching with localStorage persistence
+    const tabs = document.querySelectorAll('.station-tab');
+    const boards = document.querySelectorAll('.kanban-board-modern');
+
+    // Restore active tab from localStorage
+    const savedTab = localStorage.getItem('kitchen-active-tab');
+    if (savedTab) {
+        tabs.forEach(t => t.classList.remove('active'));
+        boards.forEach(board => board.style.display = 'none');
+
+        const activeTab = document.querySelector(`.station-tab[data-station="${savedTab}"]`);
+        const activeBoard = document.querySelector(`.kanban-board-modern[data-station="${savedTab}"]`);
+
+        if (activeTab && activeBoard) {
+            activeTab.classList.add('active');
+            activeBoard.style.display = 'block';
+        } else {
+            // Fallback to first tab if saved tab doesn't exist
+            if (tabs[0]) tabs[0].classList.add('active');
+            if (boards[0]) boards[0].style.display = 'block';
+        }
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const stationID = this.dataset.station;
+            localStorage.setItem('kitchen-active-tab', stationID);
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            boards.forEach(board => {
+                board.style.display = board.dataset.station === stationID ? 'block' : 'none';
+            });
+        });
+    });
+
+    // Drag and drop functionality
+    let draggedTicket = null;
+
+    document.querySelectorAll('.ticket-card-modern').forEach(ticket => {
+        ticket.addEventListener('dragstart', function(e) {
+            // Prevent dragging delivered tickets
+            if (this.classList.contains('delivered')) {
+                e.preventDefault();
+                return;
+            }
+            draggedTicket = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        });
+
+        ticket.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+        });
+    });
+
+    document.querySelectorAll('.tickets-drop-zone').forEach(zone => {
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('drag-over');
+        });
+
+        zone.addEventListener('dragleave', function() {
+            this.classList.remove('drag-over');
+        });
+
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+
+            if (draggedTicket) {
+                const ticketID = draggedTicket.dataset.ticketId;
+                const newStatusID = this.dataset.statusId;
+
+                // Move ticket to new column
+                this.appendChild(draggedTicket);
+
+                // Update ticket status via API
+                updateTicketStatus(ticketID, newStatusID);
+
+                // Update column counts
+                updateColumnCounts();
+            }
+        });
+    });
+
+    function updateTicketStatus(ticketID, newStatusID) {
+        // TODO: Implement API call to update ticket status
+        fetch(`/api/kitchen/tickets/${ticketID}/status`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status_id: newStatusID })
+        }).catch(err => console.error('Error updating ticket:', err));
+    }
+
+    function updateColumnCounts() {
+        document.querySelectorAll('.kanban-column-modern').forEach(column => {
+            const count = column.querySelectorAll('.ticket-card-modern').length;
+            const countBadge = column.querySelector('.column-count');
+            if (countBadge) {
+                countBadge.textContent = count;
+            }
+        });
+        // Also update station badges
+        updateStationBadges();
+    }
+
+    // Handle reject reason select
+    const rejectSelect = document.getElementById('rejectReason');
+    const customRejectTextarea = document.getElementById('customRejectReason');
+
+    if (rejectSelect) {
+        rejectSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customRejectTextarea.style.display = 'block';
+            } else {
+                customRejectTextarea.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Global variable to store current ticket data
+let currentTicketData = null;
+
+// Open ticket modal
+function openTicketModal(ticketElement, event) {
+    // Prevent drag when clicking
+    if (event) {
+        event.stopPropagation();
+    }
+
+    currentTicketData = {
+        id: ticketElement.dataset.ticketId,
+        orderId: ticketElement.dataset.orderId,
+        dishName: ticketElement.dataset.dishName,
+        quantity: ticketElement.dataset.quantity,
+        table: ticketElement.dataset.table,
+        notes: ticketElement.dataset.notes,
+        status: ticketElement.dataset.status
+    };
+
+    // Populate modal
+    document.getElementById('modalDishName').textContent = currentTicketData.dishName;
+    document.getElementById('modalTable').textContent = `Table ${currentTicketData.table}`;
+    document.getElementById('modalQuantity').textContent = `Quantity: ${currentTicketData.quantity}`;
+
+    const customerNotes = document.getElementById('customerNotes');
+    const notesSection = document.getElementById('customerNotesSection');
+    if (currentTicketData.notes && currentTicketData.notes.trim()) {
+        customerNotes.textContent = currentTicketData.notes;
+        notesSection.style.display = 'block';
+    } else {
+        notesSection.style.display = 'none';
+    }
+
+    // Clear response textarea
+    document.getElementById('kitchenResponse').value = '';
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('customRejectReason').style.display = 'none';
+    document.getElementById('customRejectReason').value = '';
+
+    // Hide Quick Actions and Reject sections if ticket is delivered
+    const isDelivered = currentTicketData.status === '00000000-0000-0000-0000-000000000005';
+    const quickActionsSection = document.getElementById('quickActionsSection');
+    const rejectSection = document.getElementById('rejectSection');
+
+    if (isDelivered) {
+        quickActionsSection.style.display = 'none';
+        rejectSection.style.display = 'none';
+    } else {
+        quickActionsSection.style.display = 'block';
+        rejectSection.style.display = 'none';  // Initially hidden, shown by button
+    }
+
+    // Show modal
+    document.getElementById('ticketModal').style.display = 'flex';
+}
+
+// Close ticket modal
+function closeTicketModal(event) {
+    if (!event || event.target.id === 'ticketModal') {
+        document.getElementById('ticketModal').style.display = 'none';
+        currentTicketData = null;
+    }
+}
+
+// Send kitchen response
+function sendKitchenResponse() {
+    const response = document.getElementById('kitchenResponse').value.trim();
+    if (!response) {
+        alert('Please enter a response');
+        return;
+    }
+
+    if (!currentTicketData) {
+        alert('No ticket selected');
+        return;
+    }
+
+    // TODO: Send to API
+    fetch(`/api/kitchen/tickets/${currentTicketData.id}/response`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            response: response,
+            order_id: currentTicketData.orderId
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert('Response sent to customer!');
+        document.getElementById('kitchenResponse').value = '';
+    })
+    .catch(err => {
+        console.error('Error sending response:', err);
+        alert('Failed to send response. Please try again.');
+    });
+}
+
+// Update ticket status from modal
+function updateTicketStatus(newStatus) {
+    if (!currentTicketData) {
+        alert('No ticket selected');
+        return;
+    }
+
+    const statusMap = {
+        'started': '00000000-0000-0000-0000-000000000003',
+        'ready': '00000000-0000-0000-0000-000000000004',
+        'delivered': '00000000-0000-0000-0000-000000000005'
+    };
+
+    const statusID = statusMap[newStatus];
+    if (!statusID) {
+        alert('Invalid status');
+        return;
+    }
+
+    // Update via API
+    fetch(`/api/kitchen/tickets/${currentTicketData.id}/status`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status_id: statusID })
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        alert(`Ticket marked as ${newStatus}!`);
+        closeTicketModal();
+        // Reload page to show updated status
+        window.location.reload();
+    })
+    .catch(err => {
+        console.error('Error updating status:', err);
+        alert('Failed to update status. Please try again.');
+    });
+}
+
+// Show/hide reject section
+function showRejectSection() {
+    document.getElementById('rejectSection').style.display = 'block';
+}
+
+function hideRejectSection() {
+    document.getElementById('rejectSection').style.display = 'none';
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('customRejectReason').value = '';
+    document.getElementById('customRejectReason').style.display = 'none';
+}
+
+// Reject ticket
+function rejectTicket() {
+    if (!currentTicketData) {
+        alert('No ticket selected');
+        return;
+    }
+
+    const reasonSelect = document.getElementById('rejectReason').value;
+    if (!reasonSelect) {
+        alert('Please select a rejection reason');
+        return;
+    }
+
+    let reason = reasonSelect;
+    if (reasonSelect === 'custom') {
+        const customReason = document.getElementById('customRejectReason').value.trim();
+        if (!customReason) {
+            alert('Please enter a custom reason');
+            return;
+        }
+        reason = customReason;
+    }
+
+    const confirmMsg = `Are you sure you want to reject this order?\n\nDish: ${currentTicketData.dishName}\nTable: ${currentTicketData.table}\nReason: ${reason}`;
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    // Reject via API
+    fetch(`/api/kitchen/tickets/${currentTicketData.id}/reject`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            reason: reason,
+            order_id: currentTicketData.orderId
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert('Order rejected. Customer will be notified.');
+        closeTicketModal();
+        // Reload page to remove ticket
+        window.location.reload();
+    })
+    .catch(err => {
+        console.error('Error rejecting ticket:', err);
+        alert('Failed to reject order. Please try again.');
+    });
+}
+</script>
+{{end}}

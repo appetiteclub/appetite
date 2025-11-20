@@ -1,5 +1,8 @@
 {{define "order_modal.html"}}
-<div class="modal modal-modern order-modal">
+<div class="modal modal-modern order-modal" hx-ext="sse" sse-connect="/kitchen/events" data-order-id="{{.Order.ID}}">
+    <!-- SSE update target -->
+    <div id="order-modal-sse-updates" sse-swap="order-item-update" hx-swap="beforeend" style="display:none;"></div>
+
     <div class="modal-backdrop" onclick="this.closest('.modal').remove()"></div>
     <div class="modal-dialog modal-dialog-modern order-modal-dialog">
         <div class="modal-header modal-header-modern">
@@ -71,7 +74,7 @@
                 </div>
                 <div class="order-items">
                     {{range .Items}}
-                    <div class="order-item-row">
+                    <div class="order-item-row" data-item-id="{{.ID}}" data-status="{{.Status}}">
                         <div class="order-item-info">
                             <div class="order-item-name">{{.DishName}}</div>
                             <div class="order-item-meta">
@@ -88,6 +91,17 @@
                         </div>
                         <div class="order-item-qty">×{{.Quantity}}</div>
                         <div class="order-item-price">{{.Total}}</div>
+                        <div class="order-item-actions">
+                            {{if eq .Status "ready"}}
+                            <button type="button" class="btn-item-action btn-deliver" onclick="markItemDelivered('{{.ID}}')">
+                                🚀 Deliver
+                            </button>
+                            {{else if eq .Status "pending"}}
+                            <button type="button" class="btn-item-action btn-cancel" onclick="cancelOrderItem('{{.ID}}')">
+                                ✕ Cancel
+                            </button>
+                            {{end}}
+                        </div>
                     </div>
                     {{end}}
                 </div>
@@ -106,7 +120,7 @@
                 </div>
                 <div class="order-items">
                     {{range .Order.Ungrouped.Items}}
-                    <div class="order-item-row">
+                    <div class="order-item-row" data-item-id="{{.ID}}" data-status="{{.Status}}">
                         <div class="order-item-info">
                             <div class="order-item-name">{{.DishName}}</div>
                             <div class="order-item-meta">
@@ -123,6 +137,17 @@
                         </div>
                         <div class="order-item-qty">×{{.Quantity}}</div>
                         <div class="order-item-price">{{.Total}}</div>
+                        <div class="order-item-actions">
+                            {{if eq .Status "ready"}}
+                            <button type="button" class="btn-item-action btn-deliver" onclick="markItemDelivered('{{.ID}}')">
+                                🚀 Deliver
+                            </button>
+                            {{else if eq .Status "pending"}}
+                            <button type="button" class="btn-item-action btn-cancel" onclick="cancelOrderItem('{{.ID}}')">
+                                ✕ Cancel
+                            </button>
+                            {{end}}
+                        </div>
                     </div>
                     {{end}}
                 </div>
@@ -170,4 +195,237 @@
         </div>
     </div>
 </div>
+
+<style>
+.order-item-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.order-item-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+}
+
+.btn-item-action {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-deliver {
+    background: #10b981;
+    color: white;
+}
+
+.btn-deliver:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.btn-cancel {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+.btn-item-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.item-status-badge {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-delivered {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+</style>
+
+<script>
+function markItemDelivered(itemID) {
+    if (!confirm('Mark this item as delivered to the customer?')) {
+        return;
+    }
+
+    fetch(`/api/order/items/${itemID}/deliver`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        // Refresh the modal to show updated status
+        const orderID = new URLSearchParams(window.location.search).get('order_id') ||
+                        document.querySelector('[data-order-id]')?.dataset.orderId ||
+                        document.querySelector('.modal-title')?.textContent.match(/Order (\S+)/)?.[1];
+
+        if (orderID) {
+            htmx.ajax('GET', `/orders/${orderID}/modal`, {target: '#modal-root', swap: 'innerHTML'});
+        } else {
+            location.reload();
+        }
+    })
+    .catch(err => {
+        console.error('Error marking item as delivered:', err);
+        alert('Failed to mark item as delivered. Please try again.');
+    });
+}
+
+function cancelOrderItem(itemID) {
+    if (!confirm('Cancel this item? This action cannot be undone.')) {
+        return;
+    }
+
+    fetch(`/api/order/items/${itemID}/cancel`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        // Refresh the modal
+        const orderID = new URLSearchParams(window.location.search).get('order_id') ||
+                        document.querySelector('[data-order-id]')?.dataset.orderId ||
+                        document.querySelector('.modal-title')?.textContent.match(/Order (\S+)/)?.[1];
+
+        if (orderID) {
+            htmx.ajax('GET', `/orders/${orderID}/modal`, {target: '#modal-root', swap: 'innerHTML'});
+        } else {
+            location.reload();
+        }
+    })
+    .catch(err => {
+        console.error('Error canceling item:', err);
+        alert('Failed to cancel item. Please try again.');
+    });
+}
+
+// SSE handler for order modal updates - using HTMX events directly
+console.log('[Order Modal] Script loaded and event listener being registered');
+
+document.body.addEventListener('htmx:sseMessage', function(evt) {
+    console.log('[Order Modal] htmx:sseMessage event received:', evt);
+    console.log('[Order Modal] Event detail:', evt.detail);
+    console.log('[Order Modal] Event type:', evt.detail?.type);
+
+    // Only process if this event is for order-item-update
+    if (evt.detail && evt.detail.type === 'order-item-update') {
+        console.log('[Order Modal] ✅ Processing order-item-update event');
+
+        const modal = document.querySelector('.order-modal');
+        console.log('[Order Modal] Modal found:', modal);
+        if (!modal) {
+            console.log('[Order Modal] ❌ No modal found, exiting');
+            return;
+        }
+
+        // Get the HTML directly from the event data instead of waiting for HTMX to insert it
+        const htmlData = evt.detail.data;
+        console.log('[Order Modal] HTML data from event:', htmlData?.substring(0, 200));
+        if (!htmlData) {
+            console.log('[Order Modal] ❌ No data in event, exiting');
+            return;
+        }
+
+        // Parse the HTML to extract the order item row
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlData;
+        const newItemRow = tempDiv.querySelector('.order-item-row');
+        console.log('[Order Modal] New item row parsed from HTML:', newItemRow);
+        if (!newItemRow) {
+            console.log('[Order Modal] ❌ No order-item-row found in event data, exiting');
+            return;
+        }
+
+        const orderItemID = newItemRow.dataset.itemId;
+        console.log('[Order Modal] Order item ID:', orderItemID);
+        if (!orderItemID) {
+            console.log('[Order Modal] ❌ No item ID found, exiting');
+            return;
+        }
+
+        // Log the status information from the new row
+        const newStatus = newItemRow.dataset.status;
+        const newStatusLabel = newItemRow.querySelector('.order-item-status')?.textContent;
+        const newStatusClass = newItemRow.querySelector('.order-item-status')?.className;
+        console.log('[Order Modal] New row status:', newStatus);
+        console.log('[Order Modal] New row status label TEXT:', newStatusLabel);
+        console.log('[Order Modal] New row status label CLASS:', newStatusClass);
+
+        // Find ALL existing rows with this ID (check for duplicates)
+        const allExistingRows = modal.querySelectorAll(`.order-item-row[data-item-id="${orderItemID}"]`);
+        console.log('[Order Modal] 🔍 Total elements with this ID:', allExistingRows.length);
+
+        if (allExistingRows.length === 0) {
+            console.log('[Order Modal] ⚠️ No existing row found for item ID:', orderItemID);
+            return;
+        }
+
+        // Replace ALL instances (in case there are duplicates)
+        allExistingRows.forEach((existingRow, index) => {
+            console.log(`[Order Modal] Processing row ${index + 1} of ${allExistingRows.length}`);
+
+            // Log old status info
+            const oldStatus = existingRow.dataset.status;
+            const oldStatusLabel = existingRow.querySelector('.order-item-status')?.textContent;
+            console.log('[Order Modal] Old row status:', oldStatus);
+            console.log('[Order Modal] Old row status label TEXT:', oldStatusLabel);
+
+            console.log('[Order Modal] ✅ Replacing row with new content using replaceWith()');
+            console.log('[Order Modal] Old HTML:', existingRow.outerHTML.substring(0, 100));
+            console.log('[Order Modal] New HTML:', newItemRow.outerHTML.substring(0, 100));
+
+            // Use replaceWith() instead of outerHTML for better browser compatibility
+            existingRow.replaceWith(newItemRow.cloneNode(true));
+            console.log('[Order Modal] ✅ Row replacement complete');
+        });
+
+        // Verify the replacement worked
+        const updatedRow = modal.querySelector(`.order-item-row[data-item-id="${orderItemID}"]`);
+        if (updatedRow) {
+            const updatedStatus = updatedRow.dataset.status;
+            const updatedStatusLabel = updatedRow.querySelector('.order-item-status')?.textContent;
+            console.log('[Order Modal] AFTER replacement - status:', updatedStatus);
+            console.log('[Order Modal] AFTER replacement - status label:', updatedStatusLabel);
+            console.log('[Order Modal] AFTER replacement - element visible?', updatedRow.offsetParent !== null);
+            console.log('[Order Modal] AFTER replacement - element in DOM?', document.contains(updatedRow));
+        } else {
+            console.log('[Order Modal] ❌ ERROR: Element disappeared after replacement!');
+        }
+    } else {
+        console.log('[Order Modal] Event is not order-item-update, ignoring');
+    }
+});
+
+console.log('[Order Modal] Event listener registered successfully');
+</script>
 {{end}}
