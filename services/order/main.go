@@ -99,6 +99,7 @@ func main() {
 		tableStateCache,
 		kitchenClient,
 		publisher,
+		orderEventStreamServer,
 	)
 
 	stack := middleware.DefaultStack(middleware.StackOptions{
