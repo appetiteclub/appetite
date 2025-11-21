@@ -67,6 +67,8 @@ func (s *OrderItemSubscriber) handleEvent(ctx context.Context, msg []byte) error
 		return s.handleUpdated(ctx, &evt)
 	case event.EventOrderItemCancelled:
 		return s.handleCancelled(ctx, &evt)
+	case "order.item.status_changed":
+		return s.handleStatusChanged(ctx, &evt)
 	default:
 		s.logger.Infof("Unknown event type: %s", evt.EventType)
 	}
@@ -229,6 +231,68 @@ func (s *OrderItemSubscriber) handleCancelled(ctx context.Context, evt *event.Or
 		},
 		NewStatusID:      ticket.StatusID.String(),
 		PreviousStatusID: "00000000-0000-0000-0000-000000000001",
+		Notes:            ticket.Notes,
+	}
+
+	eventBytes, _ := json.Marshal(eventPayload)
+	if err := s.publisher.Publish(ctx, event.KitchenTicketsTopic, eventBytes); err != nil {
+		s.logger.Errorf("Failed to publish ticket.status_changed event: %v", err)
+	}
+
+	return nil
+}
+
+func (s *OrderItemSubscriber) handleStatusChanged(ctx context.Context, evt *event.OrderItemEvent) error {
+	orderItemID, err := uuid.Parse(evt.OrderItemID)
+	if err != nil {
+		return nil
+	}
+
+	ticket, err := s.repo.FindByOrderItemID(ctx, orderItemID)
+	if err != nil || ticket == nil {
+		return err
+	}
+
+	// Map order item status to kitchen ticket status
+	var newStatusID uuid.UUID
+	switch evt.Status {
+	case "delivered":
+		newStatusID = uuid.MustParse("00000000-0000-0000-0000-000000000005") // Delivered
+	case "cancelled":
+		newStatusID = uuid.MustParse("00000000-0000-0000-0000-000000000010") // Cancelled
+	default:
+		s.logger.Infof("Status %s not mapped to kitchen ticket status", evt.Status)
+		return nil
+	}
+
+	previousStatusID := ticket.StatusID
+	ticket.StatusID = newStatusID
+
+	if err := s.repo.Update(ctx, ticket); err != nil {
+		s.logger.Errorf("Failed to update ticket status: %v", err)
+		return err
+	}
+
+	// Update cache
+	if s.cache != nil {
+		s.cache.Set(ticket)
+	}
+
+	s.logger.Infof("Updated ticket %s status from %s to %s", ticket.ID, previousStatusID, newStatusID)
+
+	// Publish kitchen ticket status changed event
+	eventPayload := event.KitchenTicketStatusChangedEvent{
+		KitchenTicketEventMetadata: event.KitchenTicketEventMetadata{
+			EventType:   event.EventKitchenTicketStatusChange,
+			OccurredAt:  time.Now().UTC(),
+			TicketID:    ticket.ID.String(),
+			OrderID:     ticket.OrderID.String(),
+			OrderItemID: ticket.OrderItemID.String(),
+			MenuItemID:  ticket.MenuItemID.String(),
+			StationID:   ticket.StationID.String(),
+		},
+		NewStatusID:      ticket.StatusID.String(),
+		PreviousStatusID: previousStatusID.String(),
 		Notes:            ticket.Notes,
 	}
 

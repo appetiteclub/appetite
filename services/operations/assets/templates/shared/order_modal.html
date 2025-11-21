@@ -280,15 +280,24 @@ function markItemDelivered(itemID) {
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
         }
-        // Refresh the modal to show updated status
-        const orderID = new URLSearchParams(window.location.search).get('order_id') ||
-                        document.querySelector('[data-order-id]')?.dataset.orderId ||
-                        document.querySelector('.modal-title')?.textContent.match(/Order (\S+)/)?.[1];
+        // Update only the specific item's UI without reloading the entire modal
+        const itemRow = document.querySelector(`.order-item-row[data-item-id="${itemID}"]`);
+        if (itemRow) {
+            // Update status attribute
+            itemRow.dataset.status = 'delivered';
 
-        if (orderID) {
-            htmx.ajax('GET', `/orders/${orderID}/modal`, {target: '#modal-root', swap: 'innerHTML'});
-        } else {
-            location.reload();
+            // Update status badge if exists
+            const statusBadge = itemRow.querySelector('.order-item-status');
+            if (statusBadge) {
+                statusBadge.textContent = 'Delivered';
+                statusBadge.className = 'order-item-status status-delivered';
+            }
+
+            // Remove the deliver button
+            const actionsDiv = itemRow.querySelector('.order-item-actions');
+            if (actionsDiv) {
+                actionsDiv.innerHTML = '<span class="text-success">✓ Delivered</span>';
+            }
         }
     })
     .catch(err => {
