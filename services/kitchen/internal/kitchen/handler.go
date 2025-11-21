@@ -414,8 +414,16 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prevent moving tickets that are already delivered or cancelled
-	if ticket.StatusID == StatusDelivered || ticket.StatusID == StatusCancelled {
+	terminalStatuses := []uuid.UUID{StatusDelivered, StatusCancelled}
+	if aqm.IsInList(ticket.StatusID, terminalStatuses) {
 		aqm.RespondError(w, http.StatusBadRequest, "Cannot modify delivered or cancelled tickets")
+		return
+	}
+
+	// Prevent chef from marking tickets as delivered (only waiters can do this from orders)
+	forbiddenFromReady := []uuid.UUID{StatusDelivered}
+	if ticket.StatusID == StatusReady && aqm.IsInList(newStatusID, forbiddenFromReady) {
+		aqm.RespondError(w, http.StatusBadRequest, "Cannot transition from ready to delivered. This must be done from the order by waitstaff.")
 		return
 	}
 

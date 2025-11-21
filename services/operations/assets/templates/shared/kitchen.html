@@ -850,7 +850,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (draggedTicket) {
                 const ticketID = draggedTicket.dataset.ticketId;
+                const currentStatusID = draggedTicket.dataset.status;
                 const newStatusID = this.dataset.statusId;
+
+                // Prevent dropping ready tickets into delivered column (chef cannot mark as delivered)
+                const StatusReady = '00000000-0000-0000-0000-000000000004';
+                const StatusDelivered = '00000000-0000-0000-0000-000000000005';
+
+                if (currentStatusID === StatusReady && newStatusID === StatusDelivered) {
+                    alert('Waitstaff will mark as delivered when serving the dish.');
+                    return;
+                }
 
                 // Move ticket to new column
                 this.appendChild(draggedTicket);
