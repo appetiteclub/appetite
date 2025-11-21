@@ -122,10 +122,10 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Send two types of SSE events:
-			// 1. ticket-update for Kitchen Kanban (always)
-			// 2. order-item-update for Order Modal (only for status changes)
+			// ticket-update for Kitchen Kanban (always)
+			// order-item-update for Order Modal (only for status changes)
 
-			// 1. Render ticket card for Kanban dashboard
+			// Render ticket card for Kanban dashboard
 			ticketHTML, err := h.renderTicketCard(evt)
 			if err != nil {
 				h.logger.Error("failed to render ticket card", "error", err)
@@ -137,7 +137,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// 2. If this is a status change AND has order_item_id, send order-item-update
+			// If this is a status change and has order_item_id, send order-item-update
 			if evt.EventType == "kitchen.ticket.status_changed" && evt.OrderItemId != "" {
 				itemHTML, err := h.renderOrderItemRowFromKitchen(evt)
 				if err != nil {

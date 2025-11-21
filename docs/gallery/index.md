@@ -19,6 +19,12 @@ Views from the public-facing operational interfaces used by staff.
 ### Add Order Item
 ![Add Order Item](../img/gallery/add-order-item.png)
 
+### Orders Board
+![Orders Board](../img/gallery/orders-board.png)
+
+### Order Detail
+![Sample Order](../img/gallery/sample-order.png)
+
 ### Operations Chat
 ![Operations Chat](../img/gallery/operations-chat.png)
 
@@ -50,6 +56,18 @@ Views from the public-facing operational interfaces used by staff.
 
 ### Chat Exit
 ![Operations Chat Exit](../img/gallery/operations-chat-exit.png)
+
+## Kitchen Operations
+
+Kitchen staff interfaces for managing tickets and production flow.
+
+### Kitchen Kanban Board
+![Kitchen Ticket Board](../img/gallery/sample-tiket-board.png)
+
+![Kitchen Ticket Board - Alternative View](../img/gallery/sample-tiket-board-2.png)
+
+### Kitchen Ticket Detail
+![Sample Kitchen Ticket](../img/gallery/sample-tiket.png)
 
 ## Admin Interface
 
