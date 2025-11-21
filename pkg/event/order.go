@@ -22,6 +22,10 @@ type OrderItemEvent struct {
 	RequiresProduction bool      `json:"requires_production"`
 	ProductionStation  string    `json:"production_station,omitempty"`
 
+	// Status fields (for status change events)
+	Status         string `json:"status,omitempty"`
+	PreviousStatus string `json:"previous_status,omitempty"`
+
 	// Denormalized data for Kitchen/Operations display
 	MenuItemName string `json:"menu_item_name,omitempty"`
 	StationName  string `json:"station_name,omitempty"`

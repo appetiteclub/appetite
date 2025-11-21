@@ -31,6 +31,7 @@ type Handler struct {
 	tableStates    *TableStateCache
 	kitchenClient  *aqm.ServiceClient
 	publisher      events.Publisher
+	streamServer   *OrderEventStreamServer
 }
 
 func NewHandler(
@@ -42,6 +43,7 @@ func NewHandler(
 	tableStates *TableStateCache,
 	kitchenClient *aqm.ServiceClient,
 	publisher events.Publisher,
+	streamServer *OrderEventStreamServer,
 ) *Handler {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
@@ -62,6 +64,7 @@ func NewHandler(
 		tableStates:    tableStates,
 		kitchenClient:  kitchenClient,
 		publisher:      publisher,
+		streamServer:   streamServer,
 	}
 }
 
@@ -876,6 +879,7 @@ func (h *Handler) MarkItemDelivered(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	previousStatus := item.Status
 	item.MarkAsDelivered()
 
 	if err := h.orderItemRepo.Save(ctx, item); err != nil {
@@ -884,13 +888,42 @@ func (h *Handler) MarkItemDelivered(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update kitchen ticket if item requires production
-	if item.RequiresProduction && h.kitchenClient != nil {
-		h.updateKitchenTicketStatus(ctx, itemID, "00000000-0000-0000-0000-000000000005", log)
+	// Broadcast the status change to gRPC stream subscribers (operations service, etc.)
+	if h.streamServer != nil {
+		h.streamServer.BroadcastOrderItemEvent(item, "order.item.status_changed", previousStatus)
+	}
+
+	// Publish NATS event for kitchen service to update ticket status
+	if item.RequiresProduction {
+		h.publishOrderItemStatusChange(ctx, item, previousStatus)
 	}
 
 	log.Info("order item marked as delivered", "item_id", itemID)
-	w.WriteHeader(http.StatusOK)
+	aqm.Respond(w, http.StatusOK, item, nil)
+}
+
+func (h *Handler) publishOrderItemStatusChange(ctx context.Context, item *OrderItem, previousStatus string) {
+	evt := event.OrderItemEvent{
+		EventType:          "order.item.status_changed",
+		OccurredAt:         time.Now().UTC(),
+		OrderID:            item.OrderID.String(),
+		OrderItemID:        item.ID.String(),
+		Status:             item.Status,
+		PreviousStatus:     previousStatus,
+		RequiresProduction: item.RequiresProduction,
+	}
+
+	payload, err := json.Marshal(evt)
+	if err != nil {
+		h.logger.Error("cannot marshal order item status change event", "error", err)
+		return
+	}
+
+	if err := h.publisher.Publish(ctx, event.OrderItemsTopic, payload); err != nil {
+		h.logger.Error("cannot publish order item status change event", "error", err)
+	} else {
+		h.logger.Info("published order item status change event", "order_item_id", item.ID.String(), "status", item.Status)
+	}
 }
 
 // CancelItem cancels an order item
