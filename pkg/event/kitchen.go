@@ -15,7 +15,7 @@ type KitchenTicketEventMetadata struct {
 	OrderID     string    `json:"order_id"`
 	OrderItemID string    `json:"order_item_id,omitempty"`
 	MenuItemID  string    `json:"menu_item_id,omitempty"`
-	StationID   string    `json:"station_id"`
+	Station     string    `json:"station"`
 
 	// Denormalized data for display (Kanban UI)
 	MenuItemName string `json:"menu_item_name,omitempty"`
@@ -25,18 +25,18 @@ type KitchenTicketEventMetadata struct {
 
 type KitchenTicketCreatedEvent struct {
 	KitchenTicketEventMetadata
-	StatusID string `json:"status_id"`
+	Status   string `json:"status"`
 	Quantity int    `json:"quantity"`
 	Notes    string `json:"notes,omitempty"`
 }
 
 type KitchenTicketStatusChangedEvent struct {
 	KitchenTicketEventMetadata
-	NewStatusID      string     `json:"new_status_id"`
-	PreviousStatusID string     `json:"previous_status_id"`
-	ReasonCodeID     string     `json:"reason_code_id,omitempty"`
-	Notes            string     `json:"notes,omitempty"`
-	StartedAt        *time.Time `json:"started_at,omitempty"`
-	FinishedAt       *time.Time `json:"finished_at,omitempty"`
-	DeliveredAt      *time.Time `json:"delivered_at,omitempty"`
+	NewStatus      string     `json:"new_status"`
+	PreviousStatus string     `json:"previous_status"`
+	ReasonCodeID   string     `json:"reason_code_id,omitempty"`
+	Notes          string     `json:"notes,omitempty"`
+	StartedAt      *time.Time `json:"started_at,omitempty"`
+	FinishedAt     *time.Time `json:"finished_at,omitempty"`
+	DeliveredAt    *time.Time `json:"delivered_at,omitempty"`
 }

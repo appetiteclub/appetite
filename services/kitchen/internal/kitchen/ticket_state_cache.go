@@ -18,10 +18,10 @@ type TicketStateCache struct {
 	mu sync.RWMutex
 	// tickets indexed by ticket_id
 	tickets map[uuid.UUID]*Ticket
-	// index by station_id -> ticket_id
-	byStation map[uuid.UUID][]uuid.UUID
-	// index by status_id -> ticket_id
-	byStatus map[uuid.UUID][]uuid.UUID
+	// index by station (string code) -> ticket_id
+	byStation map[string][]uuid.UUID
+	// index by status (string code) -> ticket_id
+	byStatus map[string][]uuid.UUID
 
 	stream events.StreamConsumer // For event replay on startup
 	repo   TicketRepository       // Fallback to MongoDB if stream unavailable
@@ -45,8 +45,8 @@ func NewTicketStateCache(stream events.StreamConsumer, repo TicketRepository, lo
 	}
 	return &TicketStateCache{
 		tickets:   make(map[uuid.UUID]*Ticket),
-		byStation: make(map[uuid.UUID][]uuid.UUID),
-		byStatus:  make(map[uuid.UUID][]uuid.UUID),
+		byStation: make(map[string][]uuid.UUID),
+		byStatus:  make(map[string][]uuid.UUID),
 		stream:    stream,
 		repo:      repo,
 		logger:    logger,
@@ -177,16 +177,14 @@ func (c *TicketStateCache) handleTicketCreatedLocked(data []byte) {
 	orderID, _ := uuid.Parse(evt.OrderID)
 	orderItemID, _ := uuid.Parse(evt.OrderItemID)
 	menuItemID, _ := uuid.Parse(evt.MenuItemID)
-	stationID, _ := uuid.Parse(evt.StationID)
-	statusID, _ := uuid.Parse(evt.StatusID)
 
 	ticket := &Ticket{
 		ID:           ticketID,
 		OrderID:      orderID,
 		OrderItemID:  orderItemID,
 		MenuItemID:   menuItemID,
-		StationID:    stationID,
-		StatusID:     statusID,
+		Station:      evt.Station,
+		Status:       evt.Status,
 		Quantity:     evt.Quantity,
 		Notes:        evt.Notes,
 		MenuItemName: evt.MenuItemName,
@@ -214,14 +212,13 @@ func (c *TicketStateCache) handleTicketStatusChangedLocked(data []byte) {
 		orderID, _ := uuid.Parse(evt.OrderID)
 		orderItemID, _ := uuid.Parse(evt.OrderItemID)
 		menuItemID, _ := uuid.Parse(evt.MenuItemID)
-		stationID, _ := uuid.Parse(evt.StationID)
 
 		ticket = &Ticket{
 			ID:           ticketID,
 			OrderID:      orderID,
 			OrderItemID:  orderItemID,
 			MenuItemID:   menuItemID,
-			StationID:    stationID,
+			Station:      evt.Station,
 			MenuItemName: evt.MenuItemName,
 			StationName:  evt.StationName,
 			TableNumber:  evt.TableNumber,
@@ -229,8 +226,7 @@ func (c *TicketStateCache) handleTicketStatusChangedLocked(data []byte) {
 	}
 
 	// Update status and timestamps
-	newStatusID, _ := uuid.Parse(evt.NewStatusID)
-	ticket.StatusID = newStatusID
+	ticket.Status = evt.NewStatus
 	ticket.Notes = evt.Notes
 	ticket.UpdatedAt = evt.OccurredAt
 	ticket.StartedAt = evt.StartedAt
@@ -256,14 +252,11 @@ func (c *TicketStateCache) removeCompletedTickets() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	deliveredID := StatusDelivered
-	cancelledID := StatusCancelled
-
 	var removed int
 	for id, ticket := range c.tickets {
-		if ticket.StatusID == deliveredID || ticket.StatusID == cancelledID {
-			c.removeFromIndex(c.byStation, ticket.StationID, id)
-			c.removeFromIndex(c.byStatus, ticket.StatusID, id)
+		if ticket.Status == "delivered" || ticket.Status == "cancelled" {
+			c.removeFromIndexStr(c.byStation, ticket.Station, id)
+			c.removeFromIndexStr(c.byStatus, ticket.Status, id)
 			delete(c.tickets, id)
 			removed++
 		}
@@ -288,19 +281,19 @@ func (c *TicketStateCache) setLocked(ticket *Ticket) {
 	ticketID := ticket.ID
 
 	// Capture old ticket for broadcasting changes
-	var previousStatusID string
+	var previousStatus string
 	if old, exists := c.tickets[ticketID]; exists {
-		previousStatusID = old.StatusID.String()
-		c.removeFromIndex(c.byStation, old.StationID, ticketID)
-		c.removeFromIndex(c.byStatus, old.StatusID, ticketID)
+		previousStatus = old.Status
+		c.removeFromIndexStr(c.byStation, old.Station, ticketID)
+		c.removeFromIndexStr(c.byStatus, old.Status, ticketID)
 	}
 
 	// Update ticket
 	c.tickets[ticketID] = ticket
 
 	// Update indexes
-	c.addToIndex(c.byStation, ticket.StationID, ticketID)
-	c.addToIndex(c.byStatus, ticket.StatusID, ticketID)
+	c.addToIndexStr(c.byStation, ticket.Station, ticketID)
+	c.addToIndexStr(c.byStatus, ticket.Status, ticketID)
 
 	// Broadcast to gRPC stream subscribers
 	if c.streamServer != nil {
@@ -312,17 +305,17 @@ func (c *TicketStateCache) setLocked(ticket *Ticket) {
 				OrderID:      ticket.OrderID.String(),
 				OrderItemID:  ticket.OrderItemID.String(),
 				MenuItemID:   ticket.MenuItemID.String(),
-				StationID:    ticket.StationID.String(),
+				Station:      ticket.Station,
 				MenuItemName: ticket.MenuItemName,
 				StationName:  ticket.StationName,
 				TableNumber:  ticket.TableNumber,
 			},
-			NewStatusID:      ticket.StatusID.String(),
-			PreviousStatusID: previousStatusID,
-			Notes:            ticket.Notes,
-			StartedAt:        ticket.StartedAt,
-			FinishedAt:       ticket.FinishedAt,
-			DeliveredAt:      ticket.DeliveredAt,
+			NewStatus:      ticket.Status,
+			PreviousStatus: previousStatus,
+			Notes:          ticket.Notes,
+			StartedAt:      ticket.StartedAt,
+			FinishedAt:     ticket.FinishedAt,
+			DeliveredAt:    ticket.DeliveredAt,
 		}
 		c.streamServer.BroadcastTicketEvent(evt)
 	}
@@ -335,12 +328,12 @@ func (c *TicketStateCache) Get(ticketID uuid.UUID) *Ticket {
 	return c.tickets[ticketID]
 }
 
-// GetByStation returns all tickets for a given station.
-func (c *TicketStateCache) GetByStation(stationID uuid.UUID) []*Ticket {
+// GetByStationCode returns all tickets for a given station code.
+func (c *TicketStateCache) GetByStationCode(station string) []*Ticket {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	ticketIDs := c.byStation[stationID]
+	ticketIDs := c.byStation[station]
 	result := make([]*Ticket, 0, len(ticketIDs))
 	for _, id := range ticketIDs {
 		if ticket := c.tickets[id]; ticket != nil {
@@ -350,12 +343,12 @@ func (c *TicketStateCache) GetByStation(stationID uuid.UUID) []*Ticket {
 	return result
 }
 
-// GetByStatus returns all tickets for a given status.
-func (c *TicketStateCache) GetByStatus(statusID uuid.UUID) []*Ticket {
+// GetByStatusCode returns all tickets for a given status code.
+func (c *TicketStateCache) GetByStatusCode(status string) []*Ticket {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	ticketIDs := c.byStatus[statusID]
+	ticketIDs := c.byStatus[status]
 	result := make([]*Ticket, 0, len(ticketIDs))
 	for _, id := range ticketIDs {
 		if ticket := c.tickets[id]; ticket != nil {
@@ -365,15 +358,15 @@ func (c *TicketStateCache) GetByStatus(statusID uuid.UUID) []*Ticket {
 	return result
 }
 
-// GetByStationAndStatus returns tickets filtered by both station and status.
-func (c *TicketStateCache) GetByStationAndStatus(stationID, statusID uuid.UUID) []*Ticket {
+// GetByStationAndStatusCode returns tickets filtered by both station and status code.
+func (c *TicketStateCache) GetByStationAndStatusCode(station string, status string) []*Ticket {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	ticketIDs := c.byStation[stationID]
+	ticketIDs := c.byStation[station]
 	result := make([]*Ticket, 0)
 	for _, id := range ticketIDs {
-		if ticket := c.tickets[id]; ticket != nil && ticket.StatusID == statusID {
+		if ticket := c.tickets[id]; ticket != nil && ticket.Status == status {
 			result = append(result, ticket)
 		}
 	}
@@ -402,18 +395,18 @@ func (c *TicketStateCache) Remove(ticketID uuid.UUID) {
 		return
 	}
 
-	c.removeFromIndex(c.byStation, ticket.StationID, ticketID)
-	c.removeFromIndex(c.byStatus, ticket.StatusID, ticketID)
+	c.removeFromIndexStr(c.byStation, ticket.Station, ticketID)
+	c.removeFromIndexStr(c.byStatus, ticket.Status, ticketID)
 	delete(c.tickets, ticketID)
 }
 
 // Helper functions for index management
 
-func (c *TicketStateCache) addToIndex(index map[uuid.UUID][]uuid.UUID, key, ticketID uuid.UUID) {
+func (c *TicketStateCache) addToIndexStr(index map[string][]uuid.UUID, key string, ticketID uuid.UUID) {
 	index[key] = append(index[key], ticketID)
 }
 
-func (c *TicketStateCache) removeFromIndex(index map[uuid.UUID][]uuid.UUID, key, ticketID uuid.UUID) {
+func (c *TicketStateCache) removeFromIndexStr(index map[string][]uuid.UUID, key string, ticketID uuid.UUID) {
 	ids := index[key]
 	for i, id := range ids {
 		if id == ticketID {

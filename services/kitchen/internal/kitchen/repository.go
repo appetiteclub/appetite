@@ -3,8 +3,8 @@ package kitchen
 import "context"
 
 type TicketFilter struct {
-	StationID   *StationID
-	StatusID    *StatusID
+	Station     *string
+	Status      *string
 	OrderID     *OrderID
 	OrderItemID *OrderItemID
 	Limit       int

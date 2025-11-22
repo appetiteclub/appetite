@@ -23,9 +23,9 @@
     <div class="station-tabs-modern">
         {{range $index, $station := .stations}}
         <button class="station-tab {{if eq $index 0}}active{{end}}"
-                data-station="{{$station.StationID}}">
+                data-station="{{$station.Station}}">
             <span class="tab-name">{{$station.StationName}}</span>
-            <span class="tab-badge" data-station-badge="{{$station.StationID}}">0</span>
+            <span class="tab-badge" data-station-badge="{{$station.Station}}">0</span>
         </button>
         {{end}}
     </div>
@@ -33,26 +33,26 @@
     <!-- Station Kanban Boards -->
     {{range $stationIndex, $station := .stations}}
     <div class="kanban-board-modern"
-         data-station="{{$station.StationID}}"
+         data-station="{{$station.Station}}"
          style="{{if ne $stationIndex 0}}display: none;{{end}}">
 
         <div class="kanban-columns-modern">
             {{range $station.ColumnsList}}
-            <div class="kanban-column-modern" data-status="{{.StatusID}}">
+            <div class="kanban-column-modern" data-status="{{.Status}}">
                 <div class="column-header-modern">
                     <h3 class="column-title">{{.StatusName}}</h3>
                     <span class="column-count">{{len .Tickets}}</span>
                 </div>
-                <div class="tickets-drop-zone" data-status-id="{{.StatusID}}">
+                <div class="tickets-drop-zone" data-status="{{.Status}}">
                     {{range .Tickets}}
-                    <div class="ticket-card-modern {{if eq .StatusID "00000000-0000-0000-0000-000000000005"}}delivered{{end}}" draggable="{{if eq .StatusID "00000000-0000-0000-0000-000000000005"}}false{{else}}true{{end}}"
+                    <div class="ticket-card-modern {{if eq .Status "delivered"}}delivered{{end}}" draggable="{{if eq .Status "delivered"}}false{{else}}true{{end}}"
                          data-ticket-id="{{.ID}}"
                          data-order-id="{{.OrderID}}"
                          data-dish-name="{{.MenuItemName}}"
                          data-quantity="{{.Quantity}}"
                          data-table="{{.TableNumber}}"
                          data-notes="{{.Notes}}"
-                         data-status="{{.StatusID}}"
+                         data-status="{{.Status}}"
                          onclick="openTicketModal(this, event)">
                         <div class="ticket-card-header">
                             <span class="ticket-dish-name">{{.MenuItemName}}</span>
@@ -850,14 +850,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (draggedTicket) {
                 const ticketID = draggedTicket.dataset.ticketId;
-                const currentStatusID = draggedTicket.dataset.status;
-                const newStatusID = this.dataset.statusId;
+                const currentStatus = draggedTicket.dataset.status;
+                const newStatus = this.dataset.status;
 
                 // Prevent dropping ready tickets into delivered column (chef cannot mark as delivered)
-                const StatusReady = '00000000-0000-0000-0000-000000000004';
-                const StatusDelivered = '00000000-0000-0000-0000-000000000005';
+                const StatusReady = 'ready';
+                const StatusDelivered = 'delivered';
 
-                if (currentStatusID === StatusReady && newStatusID === StatusDelivered) {
+                if (currentStatus === StatusReady && newStatus === StatusDelivered) {
                     alert('Waitstaff will mark as delivered when serving the dish.');
                     return;
                 }
@@ -866,7 +866,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.appendChild(draggedTicket);
 
                 // Update ticket status via API
-                updateTicketStatus(ticketID, newStatusID);
+                updateTicketStatus(ticketID, newStatus);
 
                 // Update column counts
                 updateColumnCounts();
@@ -874,14 +874,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    function updateTicketStatus(ticketID, newStatusID) {
-        // TODO: Implement API call to update ticket status
+    function updateTicketStatus(ticketID, newStatus) {
         fetch(`/api/kitchen/tickets/${ticketID}/status`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ status_id: newStatusID })
+            body: JSON.stringify({ status: newStatus })
         }).catch(err => console.error('Error updating ticket:', err));
     }
 
@@ -1037,7 +1036,7 @@ function updateTicketStatus(newStatus) {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status_id: statusID })
+        body: JSON.stringify({ status: statusID })
     })
     .then(res => {
         if (!res.ok) {
