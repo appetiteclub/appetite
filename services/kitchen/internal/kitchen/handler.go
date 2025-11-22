@@ -20,25 +20,31 @@ import (
 const MaxBodyBytes = 1 << 20
 
 type Handler struct {
+	config    *aqm.Config
+	logger    aqm.Logger
+	tlm       *telemetry.HTTP
 	repo      TicketRepository
 	cache     *TicketStateCache
 	publisher events.Publisher
-	logger    aqm.Logger
-	config    *aqm.Config
-	tlm       *telemetry.HTTP
 }
 
-func NewHandler(repo TicketRepository, cache *TicketStateCache, publisher events.Publisher, config *aqm.Config, logger aqm.Logger) *Handler {
+type HandlerDeps struct {
+	Repo      TicketRepository
+	Cache     *TicketStateCache
+	Publisher events.Publisher
+}
+
+func NewHandler(hd HandlerDeps, config *aqm.Config, logger aqm.Logger) *Handler {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
 	}
 	return &Handler{
-		repo:      repo,
-		cache:     cache,
-		publisher: publisher,
-		logger:    logger,
 		config:    config,
+		logger:    logger,
 		tlm:       telemetry.NewHTTP(),
+		repo:      hd.Repo,
+		cache:     hd.Cache,
+		publisher: hd.Publisher,
 	}
 }
 
@@ -56,6 +62,11 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Patch("/{id}/reject", h.RejectTicket)
 		r.Patch("/{id}/cancel", h.CancelTicket)
 	})
+
+	// Internal endpoints for operations/debugging
+	r.Route("/internal", func(r chi.Router) {
+		r.Post("/reload-cache", h.ReloadCache)
+	})
 }
 
 func (h *Handler) log(r *http.Request) aqm.Logger {
@@ -70,20 +81,24 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 
 	filter := TicketFilter{}
 
-	if station := r.URL.Query().Get("station"); station != "" {
+	station := r.URL.Query().Get("station")
+	if station != "" {
 		filter.Station = &station
 	}
 
-	if status := r.URL.Query().Get("status"); status != "" {
+	status := r.URL.Query().Get("status")
+	if status != "" {
 		filter.Status = &status
 	}
 
-	if orderIDStr := r.URL.Query().Get("order_id"); orderIDStr != "" {
+	orderIDStr := r.URL.Query().Get("order_id")
+	if orderIDStr != "" {
 		orderID, err := uuid.Parse(orderIDStr)
 		if err != nil {
 			aqm.RespondError(w, http.StatusBadRequest, "Invalid order ID")
 			return
 		}
+
 		filter.OrderID = &orderID
 	}
 
@@ -93,6 +108,7 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 			aqm.RespondError(w, http.StatusBadRequest, "Invalid order item ID")
 			return
 		}
+
 		filter.OrderItemID = &orderItemID
 	}
 
@@ -494,12 +510,12 @@ func (h *Handler) publishStatusChange(ctx context.Context, ticket *Ticket, previ
 			StationName:  ticket.StationName,
 			TableNumber:  ticket.TableNumber,
 		},
-		NewStatus:     ticket.Status,
+		NewStatus:      ticket.Status,
 		PreviousStatus: previousStatus,
-		Notes:            ticket.Notes,
-		StartedAt:        ticket.StartedAt,
-		FinishedAt:       ticket.FinishedAt,
-		DeliveredAt:      ticket.DeliveredAt,
+		Notes:          ticket.Notes,
+		StartedAt:      ticket.StartedAt,
+		FinishedAt:     ticket.FinishedAt,
+		DeliveredAt:    ticket.DeliveredAt,
 	}
 	if ticket.ReasonCodeID != nil {
 		eventPayload.ReasonCodeID = ticket.ReasonCodeID.String()
@@ -509,4 +525,32 @@ func (h *Handler) publishStatusChange(ctx context.Context, ticket *Ticket, previ
 	if err := h.publisher.Publish(ctx, event.KitchenTicketsTopic, eventBytes); err != nil {
 		h.logger.Errorf("Failed to publish status_changed event: %v", err)
 	}
+}
+
+// ReloadCache reloads the ticket cache from the database
+// This is useful after seeding demo data or for cache refresh
+func (h *Handler) ReloadCache(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.ReloadCache")
+	defer finish()
+	log := h.log(r)
+	ctx := r.Context()
+
+	log.Info("reloading ticket cache")
+
+	if err := h.cache.Warm(ctx); err != nil {
+		log.Infof("failed to reload cache: %v", err)
+		http.Error(w, fmt.Sprintf("failed to reload cache: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	count := h.cache.Count()
+	log.Info("cache reloaded successfully", "ticket_count", count)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Cache reloaded successfully",
+		"count":   count,
+	})
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -24,7 +25,7 @@ const (
 func main() {
 	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
-		log.Fatalf("Cannot setup %s(%s): %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
@@ -40,72 +41,84 @@ func main() {
 	defer stop()
 
 	baseRepo := mongo.NewBaseRepo(config, logger)
-	if err := baseRepo.Start(ctx); err != nil {
-		log.Fatalf("Cannot start base repository: %v", err)
+	err = baseRepo.Start(ctx)
+	if err != nil {
+		log.Fatalf("%s(%s) cannot start base repository: %v", appName, appVersion, err)
 	}
 
 	db := baseRepo.GetDatabase()
 	if db == nil {
-		log.Fatalf("cannot initialize repository database")
+		log.Fatalf("%s(%s) cannot initialize repository database: %v", appName, appVersion, errors.New("repository database is nil"))
 	}
 
 	orderRepo := mongo.NewOrderRepo(db)
 	orderItemRepo := mongo.NewOrderItemRepo(db)
 	orderGroupRepo := mongo.NewOrderGroupRepo(db)
 
-	natsURL, _ := config.GetString("nats.url")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
+	repos := order.Repos{
+		OrderRepo:      orderRepo,
+		OrderItemRepo:  orderItemRepo,
+		OrderGroupRepo: orderGroupRepo,
 	}
 
-	publisher, err := pkg.NewNATSPublisher(natsURL)
+	natsURL := config.GetStringOrDef("nats.url", "nats://localhost:4222")
+
+	pub, err := pkg.NewNATSPublisher(natsURL)
 	if err != nil {
-		log.Fatalf("Cannot connect to NATS publisher: %v", err)
+		log.Fatalf("%s(%s) cannot connect to NATS publisher: %v", appName, appVersion, err)
 	}
 
-	subscriber, err := pkg.NewNATSSubscriber(natsURL)
+	sub, err := pkg.NewNATSSubscriber(natsURL)
 	if err != nil {
-		log.Fatalf("Cannot connect to NATS subscriber: %v", err)
+		log.Fatalf("%s(%s) cannot connect to NATS subscriber: %v", appName, appVersion, err)
 	}
 
 	tableURL, _ := config.GetString("services.table.url")
 	tableClient := aqm.NewServiceClient(tableURL)
 	tableStateCache := order.NewTableStateCache(tableClient, logger)
-	tableStatusSubscriber := order.NewTableStatusSubscriber(subscriber, tableStateCache, logger)
+	tableStatusSub := order.NewTableStatusSubscriber(sub, tableStateCache, logger)
 
 	// Kitchen service client for updating tickets when order items change
-	kitchenURL, _ := config.GetString("services.kitchen.url")
-	var kitchenClient *aqm.ServiceClient
-	if kitchenURL != "" {
-		kitchenClient = aqm.NewServiceClient(kitchenURL)
+	kitchenURL := config.GetStringOrDef("services.kitchen.url", "")
+	if kitchenURL == "" {
+		log.Fatalf("Cannot create kitchen service client: %v", err)
 	}
+	kitchenClient := aqm.NewServiceClient(kitchenURL)
 
 	// Initialize gRPC streaming server for real-time order item events
-	orderEventStreamServer := order.NewOrderEventStreamServer(orderItemRepo, logger)
+	orderEvents := order.NewOrderEventStreamServer(orderItemRepo, logger)
 
 	// Subscribe to kitchen ticket events to sync OrderItem status
-	kitchenTicketSubscriber := order.NewKitchenTicketSubscriber(subscriber, orderItemRepo, logger)
-	kitchenTicketSubscriber.SetStreamServer(orderEventStreamServer)
+	kitchenSub := order.NewKitchenTicketSubscriber(sub, orderItemRepo, logger)
+	kitchenSub.SetStreamServer(orderEvents)
 
-	publisherLifecycle := aqm.LifecycleHooks{OnStop: func(context.Context) error { return publisher.Close() }}
-	subscriberLifecycle := aqm.LifecycleHooks{OnStop: func(context.Context) error { return subscriber.Close() }}
+	publisherLifecycle := aqm.LifecycleHooks{
+		OnStop: func(context.Context) error {
+			return pub.Close()
+		},
+	}
 
-	handler := order.NewHandler(
-		orderRepo,
-		orderItemRepo,
-		orderGroupRepo,
-		logger,
-		config,
-		tableStateCache,
-		kitchenClient,
-		publisher,
-		orderEventStreamServer,
-	)
+	subLifecycle := aqm.LifecycleHooks{
+		OnStop: func(context.Context) error {
+			return sub.Close()
+		},
+	}
+
+	hd := order.HandlerDeps{
+		Repos:             repos,
+		TableStatesCache:  tableStateCache,
+		KitchenClient:     kitchenClient,
+		Publisher:         pub,
+		OrderStreamServer: orderEvents,
+	}
+
+	handler := order.NewHandler(hd, config, logger)
 
 	stack := middleware.DefaultStack(middleware.StackOptions{
 		Logger:      logger,
 		DisableCORS: true, // Internal API service
 	})
+
 	// Defense-in-depth: restrict to internal networks only.
 	// This complements (does not replace) network policies at the infrastructure level.
 	stack = append(stack, middleware.InternalOnly())
@@ -115,17 +128,18 @@ func main() {
 		aqm.WithLogger(logger),
 		aqm.WithHTTPMiddleware(stack...),
 		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithGRPCServerModules("grpc.port", orderEventStreamServer),
-		aqm.WithLifecycle(aqm.LifecycleHooks{OnStop: baseRepo.Stop}, tableStatusSubscriber, kitchenTicketSubscriber, publisherLifecycle, subscriberLifecycle),
+		aqm.WithGRPCServerModules("grpc.port", orderEvents),
+		aqm.WithLifecycle(aqm.LifecycleHooks{OnStop: baseRepo.Stop}, tableStatusSub, kitchenSub, publisherLifecycle, subLifecycle),
 		aqm.WithHealthChecks(appName),
 	}
 
 	ms := aqm.NewMicro(options...)
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
-	if err := ms.Run(ctx); err != nil {
-		baseRepo.Stop(context.Background())
-		log.Fatalf("%s(%s) stopped with error: %v", appName, appVersion, err)
+	err = ms.Run(ctx)
+	if err != nil {
+		_ = baseRepo.Stop(context.Background())
+		log.Fatalf("%s(%s) stopped: %v", appName, appVersion, err)
 	}
 
 	logger.Infof("%s(%s) stopped", appName, appVersion)

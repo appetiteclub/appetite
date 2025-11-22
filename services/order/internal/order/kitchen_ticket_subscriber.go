@@ -35,7 +35,7 @@ func (s *KitchenTicketSubscriber) SetStreamServer(streamServer *OrderEventStream
 }
 
 func (s *KitchenTicketSubscriber) Start(ctx context.Context) error {
-	s.logger.Info("starting kitchen ticket subscriber", "topic", event.KitchenTicketsTopic)
+	s.log().Info("starting kitchen ticket subscriber", "topic", event.KitchenTicketsTopic)
 	if s.subscriber == nil {
 		return fmt.Errorf("kitchen ticket subscriber not configured")
 	}
@@ -46,7 +46,7 @@ func (s *KitchenTicketSubscriber) handleEvent(ctx context.Context, msg []byte) e
 	// Parse base metadata to determine event type
 	var metadata event.KitchenTicketEventMetadata
 	if err := json.Unmarshal(msg, &metadata); err != nil {
-		s.logger.Info("invalid kitchen ticket event", "error", err)
+		s.log().Info("invalid kitchen ticket event", "error", err)
 		return nil
 	}
 
@@ -57,7 +57,7 @@ func (s *KitchenTicketSubscriber) handleEvent(ctx context.Context, msg []byte) e
 		// We don't need to handle ticket creation - it was triggered by OrderItem creation
 		return nil
 	default:
-		s.logger.Debug("unknown kitchen ticket event type", "event_type", metadata.EventType)
+		s.log().Debug("unknown kitchen ticket event type", "event_type", metadata.EventType)
 		return nil
 	}
 }
@@ -65,7 +65,7 @@ func (s *KitchenTicketSubscriber) handleEvent(ctx context.Context, msg []byte) e
 func (s *KitchenTicketSubscriber) handleStatusChange(ctx context.Context, msg []byte) error {
 	var evt event.KitchenTicketStatusChangedEvent
 	if err := json.Unmarshal(msg, &evt); err != nil {
-		s.logger.Info("invalid status change event", "error", err)
+		s.log().Info("invalid status change event", "error", err)
 		return nil
 	}
 
@@ -158,4 +158,8 @@ func (s *KitchenTicketSubscriber) mapKitchenStatusToOrderStatus(kitchenStatus st
 	default:
 		return "" // Unknown status, no mapping
 	}
+}
+
+func (s *KitchenTicketSubscriber) log() aqm.Logger {
+	return s.logger.With("component", "KitchenTicketSubscriber")
 }

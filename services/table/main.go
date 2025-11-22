@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -28,7 +29,7 @@ const (
 func main() {
 	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
-		log.Fatalf("Cannot setup %s(%s): %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) cannot setup with error: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
@@ -46,14 +47,20 @@ func main() {
 	seedCtx, cancelSeeds := context.WithCancel(ctx)
 	defer cancelSeeds()
 
+	var lifecycle []aqm.LifecycleHooks
+
 	tableRepo := mongo.NewTableRepo(config, logger)
-	if err := tableRepo.Start(ctx); err != nil {
-		log.Fatalf("Cannot start table repository: %v", err)
+	err = tableRepo.Start(ctx)
+	if err != nil {
+		log.Fatalf("%s(%s) cannot start table repositoryr: %v", appName, appVersion, err)
 	}
+
+	lifecycle = append(lifecycle, aqm.LifecycleHooks{})
 
 	db := tableRepo.GetDatabase()
 	if db == nil {
-		log.Fatalf("cannot initialize table repo database")
+		err := errors.New("cannot get table repo database")
+		log.Fatalf("%s(%s) cannot initialize database: %v", appName, appVersion, err)
 	}
 
 	groupRepo := mongo.NewGroupRepo(db)
@@ -61,14 +68,11 @@ func main() {
 	orderItemRepo := mongo.NewOrderItemRepo(db)
 	reservationRepo := mongo.NewReservationRepo(db)
 
-	natsURL, _ := config.GetString("nats.url")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
-	}
+	natsURL := config.GetStringOrDef("nats.url", "nats://localhost:4222")
 
 	publisher, err := pkg.NewNATSPublisher(natsURL)
 	if err != nil {
-		log.Fatalf("Cannot connect to NATS publisher: %v", err)
+		log.Fatalf("%s(%s) cannot connect to NATS publisher: %v", appName, appVersion, err)
 	}
 
 	publisherLifecycle := aqm.LifecycleHooks{
@@ -76,22 +80,32 @@ func main() {
 			return publisher.Close()
 		},
 	}
+	lifecycle = append(lifecycle, publisherLifecycle)
+
+	repos := tables.Repos{
+		TableRepo:       tableRepo,
+		GroupRepo:       groupRepo,
+		OrderRepo:       orderRepo,
+		OrderItemRepo:   orderItemRepo,
+		ReservationRepo: reservationRepo,
+	}
+
+	hd := tables.HandlerDeps{
+		Repos:     repos,
+		Publisher: publisher,
+	}
 
 	handler := tables.NewHandler(
-		tableRepo,
-		groupRepo,
-		orderRepo,
-		orderItemRepo,
-		reservationRepo,
-		logger,
+		hd,
 		config,
-		publisher,
+		logger,
 	)
 
 	seedHooks := aqm.LifecycleHooks{
 		OnStart: tables.SeedingFunc(seedCtx, tableRepo, seedFS, logger),
 		OnStop:  tables.StopFunc(cancelSeeds),
 	}
+	lifecycle = append(lifecycle, seedHooks)
 
 	stack := middleware.DefaultStack(middleware.StackOptions{
 		Logger:      logger,
@@ -106,7 +120,7 @@ func main() {
 		aqm.WithLogger(logger),
 		aqm.WithHTTPMiddleware(stack...),
 		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(tableRepo, seedHooks, publisherLifecycle),
+		aqm.WithLifecycle(lifecycle),
 		aqm.WithHealthChecks(appName),
 	}
 
@@ -114,7 +128,7 @@ func main() {
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {
-		tableRepo.Stop(context.Background())
+		_ = tableRepo.Stop(context.Background())
 		log.Fatalf("%s(%s) stopped with error: %v", appName, appVersion, err)
 	}
 

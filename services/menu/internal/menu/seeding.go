@@ -310,6 +310,7 @@ func seedSampleMenuItems(ctx context.Context, db *mongo.Database) error {
 		Station     string
 		Class       string
 	}{
+		// Kitchen items
 		{"BURG-001", "Smash Burger", "Double smash patties with cheddar and pickles", 14.50, "kitchen", "entree"},
 		{"PAST-001", "Truffle Pasta", "Handmade tagliatelle with truffle cream", 18.00, "kitchen", "entree"},
 		{"FISH-001", "Seared Salmon", "Atlantic salmon with citrus glaze", 21.00, "kitchen", "entree"},
@@ -319,18 +320,38 @@ func seedSampleMenuItems(ctx context.Context, db *mongo.Database) error {
 		{"BBQ-001", "Smokehouse Ribs", "Slow cooked pork ribs with house sauce", 22.00, "kitchen", "entree"},
 		{"PIZ-001", "Margherita Pizza", "San Marzano tomatoes, mozzarella, basil", 17.00, "kitchen", "entree"},
 		{"SAL-001", "Citrus Kale Salad", "Baby kale, grapefruit, toasted seeds", 13.00, "kitchen", "starter"},
-		{"DESS-001", "Chocolate Lava Cake", "Warm cake with vanilla gelato", 10.00, "kitchen", "dessert"},
-		{"DESS-002", "Classic Cheesecake", "NY style cheesecake, berry compote", 9.00, "kitchen", "dessert"},
+
+		// Dessert items (dessert station)
+		{"DESS-001", "Chocolate Lava Cake", "Warm cake with vanilla gelato", 10.00, "dessert", "dessert"},
+		{"DESS-002", "Classic Cheesecake", "NY style cheesecake, berry compote", 9.00, "dessert", "dessert"},
+		{"DESS-003", "Tiramisu", "Coffee-soaked ladyfingers, mascarpone", 9.50, "dessert", "dessert"},
+		{"DESS-004", "Crème Brûlée", "Vanilla custard with caramelized sugar", 10.50, "dessert", "dessert"},
+
+		// Bar items (cocktails, draft beer)
 		{"DRK-OLD", "Smoked Old Fashioned", "Rye whiskey, bitters, orange peel", 13.00, "bar", "cocktail"},
 		{"DRK-MARG", "Spicy Margarita", "Reposado tequila, jalapeño cordial", 12.00, "bar", "cocktail"},
 		{"DRK-ESP", "Espresso Martini", "Vodka, espresso, coffee liqueur", 12.50, "bar", "cocktail"},
 		{"DRK-SPRZ", "Aperol Spritz", "Aperol, prosecco, soda", 11.00, "bar", "cocktail"},
 		{"DRK-GTON", "Garden Gin & Tonic", "Botanical gin, tonic, herbs", 11.50, "bar", "cocktail"},
+		{"BEER-IPA", "West Coast IPA", "16oz draft craft IPA", 8.50, "bar", "beer"},
+		{"BEER-LAGER", "Czech Pilsner", "16oz draft lager", 7.50, "bar", "beer"},
+
+		// Coffee items (coffee station)
+		{"COFF-ESP", "Espresso", "Double shot espresso", 3.50, "coffee", "coffee"},
+		{"COFF-CAP", "Cappuccino", "Espresso with steamed milk and foam", 4.50, "coffee", "coffee"},
+		{"COFF-LATTE", "Caffè Latte", "Espresso with steamed milk", 5.00, "coffee", "coffee"},
+		{"COFF-MACH", "Macchiato", "Espresso with foam", 4.00, "coffee", "coffee"},
+		{"COFF-AMER", "Americano", "Espresso with hot water", 4.00, "coffee", "coffee"},
+
+		// Direct service (no production needed)
 		{"BEV-SPRK", "Sparkling Water", "Chilled bottled sparkling water", 4.50, "direct", "beverage"},
 		{"BEV-COLA", "Bottled Cola", "12oz glass bottle cola", 4.00, "direct", "beverage"},
-		{"BEV-BEER", "West Coast IPA", "16oz draft craft IPA", 8.50, "direct", "beverage"},
 		{"BEV-ICED", "House Iced Tea", "Fresh brewed black tea, lemon", 5.00, "direct", "beverage"},
 		{"BEV-LEMO", "Cucumber Lemonade", "Pressed lemons, cucumber syrup", 6.00, "direct", "beverage"},
+
+		// Other/unusual items (atypical station assignments)
+		{"SPEC-WINE", "Wine Pairing", "Sommelier wine selection", 18.00, "other", "beverage"},
+		{"SPEC-CHEESE", "Cheese Board", "Curated selection with preserves", 16.00, "other", "shareable"},
 	}
 
 	for idx, item := range items {

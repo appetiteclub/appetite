@@ -415,3 +415,10 @@ func (c *TicketStateCache) removeFromIndexStr(index map[string][]uuid.UUID, key 
 		}
 	}
 }
+
+// Count returns the number of tickets in the cache
+func (c *TicketStateCache) Count() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.tickets)
+}

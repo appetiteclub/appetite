@@ -81,6 +81,10 @@ func (r *TicketRepo) Start(ctx context.Context) error {
 	return nil
 }
 
+func (r *TicketRepo) GetDatabase() *mongo.Database {
+	return r.db
+}
+
 func (r *TicketRepo) Stop(ctx context.Context) error {
 	if r.client != nil {
 		if err := r.client.Disconnect(ctx); err != nil {
