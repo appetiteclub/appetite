@@ -89,9 +89,9 @@ func (s *KitchenTicketSubscriber) handleStatusChange(ctx context.Context, msg []
 	}
 
 	// Map kitchen ticket status to order item status
-	newStatus := s.mapKitchenStatusToOrderStatus(evt.NewStatusID)
+	newStatus := s.mapKitchenStatusToOrderStatus(evt.NewStatus)
 	if newStatus == "" {
-		s.logger.Debug("no status mapping for kitchen status", "status_id", evt.NewStatusID)
+		s.logger.Debug("no status mapping for kitchen status", "status", evt.NewStatus)
 		return nil
 	}
 
@@ -135,25 +135,25 @@ func (s *KitchenTicketSubscriber) handleStatusChange(ctx context.Context, msg []
 	return nil
 }
 
-// mapKitchenStatusToOrderStatus maps kitchen ticket status UUIDs to order item status strings
-func (s *KitchenTicketSubscriber) mapKitchenStatusToOrderStatus(kitchenStatusID string) string {
-	// Kitchen status IDs from kitchen service:
-	// 00000000-0000-0000-0000-000000000001 = Created (Received)
-	// 00000000-0000-0000-0000-000000000003 = Started (In Preparation)
-	// 00000000-0000-0000-0000-000000000004 = Ready (Ready for Delivery)
-	// 00000000-0000-0000-0000-000000000005 = Delivered
-	// 00000000-0000-0000-0000-000000000010 = Cancelled (Rejected)
+// mapKitchenStatusToOrderStatus maps kitchen ticket status codes to order item status strings
+func (s *KitchenTicketSubscriber) mapKitchenStatusToOrderStatus(kitchenStatus string) string {
+	// Kitchen status codes from kitchen service:
+	// created = Received
+	// started = In Preparation
+	// ready = Ready for Delivery
+	// delivered = Delivered
+	// cancelled = Rejected/Cancelled
 
-	switch kitchenStatusID {
-	case "00000000-0000-0000-0000-000000000001":
+	switch kitchenStatus {
+	case "created":
 		return "pending" // Kitchen received the order
-	case "00000000-0000-0000-0000-000000000003":
+	case "started":
 		return "preparing" // Kitchen started preparation
-	case "00000000-0000-0000-0000-000000000004":
+	case "ready":
 		return "ready" // Ready for delivery
-	case "00000000-0000-0000-0000-000000000005":
+	case "delivered":
 		return "delivered" // Delivered to customer
-	case "00000000-0000-0000-0000-000000000010":
+	case "cancelled":
 		return "cancelled" // Kitchen rejected/cancelled
 	default:
 		return "" // Unknown status, no mapping

@@ -10,8 +10,6 @@ type TicketID = uuid.UUID
 type OrderID = uuid.UUID
 type OrderItemID = uuid.UUID
 type MenuItemID = uuid.UUID
-type StationID = uuid.UUID
-type StatusID = uuid.UUID
 type ReasonCodeID = uuid.UUID
 
 type Ticket struct {
@@ -19,9 +17,9 @@ type Ticket struct {
 	OrderID          OrderID       `bson:"order_id" json:"order_id"`
 	OrderItemID      OrderItemID   `bson:"order_item_id" json:"order_item_id"`
 	MenuItemID       MenuItemID    `bson:"menu_item_id" json:"menu_item_id"`
-	StationID        StationID     `bson:"station_id" json:"station_id"`
+	Station          string        `bson:"station" json:"station"`
 	Quantity         int           `bson:"quantity" json:"quantity"`
-	StatusID         StatusID      `bson:"status_id" json:"status_id"`
+	Status           string        `bson:"status" json:"status"`
 	ReasonCodeID     *ReasonCodeID `bson:"reason_code_id,omitempty" json:"reason_code_id,omitempty"`
 	Notes            string        `bson:"notes,omitempty" json:"notes,omitempty"`
 	DecisionRequired bool          `bson:"decision_required" json:"decision_required"`
