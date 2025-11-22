@@ -597,7 +597,7 @@ type OrderItemCreateRequest struct {
 	Price              float64    `json:"price"`
 	Notes              string     `json:"notes,omitempty"`
 	MenuItemID         *uuid.UUID `json:"menu_item_id,omitempty"`
-	ProductionStation  *uuid.UUID `json:"production_station,omitempty"`
+	ProductionStation  *string    `json:"production_station,omitempty"`
 	RequiresProduction bool       `json:"requires_production"`
 }
 
@@ -840,7 +840,7 @@ func (h *Handler) publishOrderItemCreated(ctx context.Context, item *OrderItem, 
 		evt.MenuItemID = item.MenuItemID.String()
 	}
 	if item.ProductionStation != nil {
-		evt.ProductionStation = item.ProductionStation.String()
+		evt.ProductionStation = *item.ProductionStation
 	}
 	if parentOrder != nil {
 		evt.TableID = parentOrder.TableID.String()

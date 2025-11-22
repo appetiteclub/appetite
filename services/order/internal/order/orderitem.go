@@ -21,7 +21,7 @@ type OrderItem struct {
 
 	// Kitchen/Production fields (optional)
 	MenuItemID         *uuid.UUID `json:"menu_item_id,omitempty" bson:"menu_item_id,omitempty"`
-	ProductionStation  *uuid.UUID `json:"production_station,omitempty" bson:"production_station,omitempty"`
+	ProductionStation  *string    `json:"production_station,omitempty" bson:"production_station,omitempty"`
 	RequiresProduction bool       `json:"requires_production" bson:"requires_production"`
 
 	CreatedAt time.Time `json:"created_at" bson:"created_at"`

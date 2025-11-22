@@ -64,17 +64,17 @@ func (r *TicketRepo) Start(ctx context.Context) error {
 	}
 
 	stationIndexModel := mongo.IndexModel{
-		Keys: bson.D{{Key: "station_id", Value: 1}},
+		Keys: bson.D{{Key: "station", Value: 1}},
 	}
 	if _, err := r.collection.Indexes().CreateOne(ctx, stationIndexModel); err != nil {
-		return fmt.Errorf("cannot create station_id index: %w", err)
+		return fmt.Errorf("cannot create station index: %w", err)
 	}
 
 	statusIndexModel := mongo.IndexModel{
-		Keys: bson.D{{Key: "status_id", Value: 1}},
+		Keys: bson.D{{Key: "status", Value: 1}},
 	}
 	if _, err := r.collection.Indexes().CreateOne(ctx, statusIndexModel); err != nil {
-		return fmt.Errorf("cannot create status_id index: %w", err)
+		return fmt.Errorf("cannot create status index: %w", err)
 	}
 
 	r.logger.Infof("Connected to MongoDB: %s, database: %s, collection: tickets", mongoURL, dbName)
@@ -148,12 +148,12 @@ func (r *TicketRepo) FindByOrderItemID(ctx context.Context, id kitchen.OrderItem
 func (r *TicketRepo) List(ctx context.Context, filter kitchen.TicketFilter) ([]kitchen.Ticket, error) {
 	query := bson.M{}
 
-	if filter.StationID != nil {
-		query["station_id"] = *filter.StationID
+	if filter.Station != nil {
+		query["station"] = *filter.Station
 	}
 
-	if filter.StatusID != nil {
-		query["status_id"] = *filter.StatusID
+	if filter.Status != nil {
+		query["status"] = *filter.Status
 	}
 
 	if filter.OrderID != nil {
