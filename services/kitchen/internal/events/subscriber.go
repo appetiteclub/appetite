@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
 	"github.com/appetiteclub/appetite/pkg/event"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/kitchen"
 	"github.com/aquamarinepk/aqm"
@@ -105,22 +106,14 @@ func (s *OrderItemSubscriber) handleCreated(ctx context.Context, evt *event.Orde
 		return nil
 	}
 
-	stationID, err := uuid.Parse(evt.ProductionStation)
-	if err != nil {
-		s.logger.Errorf("Invalid production_station: %v", err)
-		return nil
-	}
-
-	statusID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
-
 	ticket := &kitchen.Ticket{
 		ID:           uuid.New(),
 		OrderID:      orderID,
 		OrderItemID:  orderItemID,
 		MenuItemID:   menuItemID,
-		StationID:    stationID,
+		Station:      evt.ProductionStation,
 		Quantity:     evt.Quantity,
-		StatusID:     statusID,
+		Status:       kitchenstatus.Statuses.Created.Code(),
 		Notes:        evt.Notes,
 		MenuItemName: evt.MenuItemName,
 		StationName:  evt.StationName,
@@ -147,12 +140,12 @@ func (s *OrderItemSubscriber) handleCreated(ctx context.Context, evt *event.Orde
 			OrderID:      ticket.OrderID.String(),
 			OrderItemID:  ticket.OrderItemID.String(),
 			MenuItemID:   ticket.MenuItemID.String(),
-			StationID:    ticket.StationID.String(),
+			Station:      ticket.Station,
 			MenuItemName: evt.MenuItemName,
 			StationName:  evt.StationName,
 			TableNumber:  evt.TableNumber,
 		},
-		StatusID: ticket.StatusID.String(),
+		Status:   ticket.Status,
 		Quantity: ticket.Quantity,
 		Notes:    ticket.Notes,
 	}
@@ -204,8 +197,8 @@ func (s *OrderItemSubscriber) handleCancelled(ctx context.Context, evt *event.Or
 		return err
 	}
 
-	cancelledStatusID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
-	ticket.StatusID = cancelledStatusID
+	previousStatus := ticket.Status
+	ticket.Status = kitchenstatus.Statuses.Cancelled.Code()
 
 	if err := s.repo.Update(ctx, ticket); err != nil {
 		s.logger.Errorf("Failed to cancel ticket: %v", err)
@@ -227,11 +220,11 @@ func (s *OrderItemSubscriber) handleCancelled(ctx context.Context, evt *event.Or
 			OrderID:     ticket.OrderID.String(),
 			OrderItemID: ticket.OrderItemID.String(),
 			MenuItemID:  ticket.MenuItemID.String(),
-			StationID:   ticket.StationID.String(),
+			Station:     ticket.Station,
 		},
-		NewStatusID:      ticket.StatusID.String(),
-		PreviousStatusID: "00000000-0000-0000-0000-000000000001",
-		Notes:            ticket.Notes,
+		NewStatus:      ticket.Status,
+		PreviousStatus: previousStatus,
+		Notes:          ticket.Notes,
 	}
 
 	eventBytes, _ := json.Marshal(eventPayload)
@@ -254,19 +247,19 @@ func (s *OrderItemSubscriber) handleStatusChanged(ctx context.Context, evt *even
 	}
 
 	// Map order item status to kitchen ticket status
-	var newStatusID uuid.UUID
+	var newStatus string
 	switch evt.Status {
 	case "delivered":
-		newStatusID = uuid.MustParse("00000000-0000-0000-0000-000000000005") // Delivered
+		newStatus = kitchenstatus.Statuses.Delivered.Code()
 	case "cancelled":
-		newStatusID = uuid.MustParse("00000000-0000-0000-0000-000000000010") // Cancelled
+		newStatus = kitchenstatus.Statuses.Cancelled.Code()
 	default:
 		s.logger.Infof("Status %s not mapped to kitchen ticket status", evt.Status)
 		return nil
 	}
 
-	previousStatusID := ticket.StatusID
-	ticket.StatusID = newStatusID
+	previousStatus := ticket.Status
+	ticket.Status = newStatus
 
 	if err := s.repo.Update(ctx, ticket); err != nil {
 		s.logger.Errorf("Failed to update ticket status: %v", err)
@@ -278,7 +271,7 @@ func (s *OrderItemSubscriber) handleStatusChanged(ctx context.Context, evt *even
 		s.cache.Set(ticket)
 	}
 
-	s.logger.Infof("Updated ticket %s status from %s to %s", ticket.ID, previousStatusID, newStatusID)
+	s.logger.Infof("Updated ticket %s status from %s to %s", ticket.ID, previousStatus, newStatus)
 
 	// Publish kitchen ticket status changed event
 	eventPayload := event.KitchenTicketStatusChangedEvent{
@@ -289,11 +282,11 @@ func (s *OrderItemSubscriber) handleStatusChanged(ctx context.Context, evt *even
 			OrderID:     ticket.OrderID.String(),
 			OrderItemID: ticket.OrderItemID.String(),
 			MenuItemID:  ticket.MenuItemID.String(),
-			StationID:   ticket.StationID.String(),
+			Station:     ticket.Station,
 		},
-		NewStatusID:      ticket.StatusID.String(),
-		PreviousStatusID: previousStatusID.String(),
-		Notes:            ticket.Notes,
+		NewStatus:      ticket.Status,
+		PreviousStatus: previousStatus,
+		Notes:          ticket.Notes,
 	}
 
 	eventBytes, _ := json.Marshal(eventPayload)

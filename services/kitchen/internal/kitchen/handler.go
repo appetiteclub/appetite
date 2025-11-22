@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
 	"github.com/appetiteclub/appetite/pkg/event"
 	"github.com/aquamarinepk/aqm"
 	"github.com/aquamarinepk/aqm/events"
@@ -17,16 +18,6 @@ import (
 )
 
 const MaxBodyBytes = 1 << 20
-
-// Status UUIDs for ticket states
-var (
-	StatusCreated   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	StatusAccepted  = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	StatusStarted   = uuid.MustParse("00000000-0000-0000-0000-000000000003")
-	StatusReady     = uuid.MustParse("00000000-0000-0000-0000-000000000004")
-	StatusDelivered = uuid.MustParse("00000000-0000-0000-0000-000000000005")
-	StatusCancelled = uuid.MustParse("00000000-0000-0000-0000-000000000010")
-)
 
 type Handler struct {
 	repo      TicketRepository
@@ -79,22 +70,12 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 
 	filter := TicketFilter{}
 
-	if stationIDStr := r.URL.Query().Get("station"); stationIDStr != "" {
-		stationID, err := uuid.Parse(stationIDStr)
-		if err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid station ID")
-			return
-		}
-		filter.StationID = &stationID
+	if station := r.URL.Query().Get("station"); station != "" {
+		filter.Station = &station
 	}
 
-	if statusIDStr := r.URL.Query().Get("status"); statusIDStr != "" {
-		statusID, err := uuid.Parse(statusIDStr)
-		if err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid status ID")
-			return
-		}
-		filter.StatusID = &statusID
+	if status := r.URL.Query().Get("status"); status != "" {
+		filter.Status = &status
 	}
 
 	if orderIDStr := r.URL.Query().Get("order_id"); orderIDStr != "" {
@@ -121,12 +102,12 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 	// Fall back to repo for complex filters (order_id, order_item_id)
 	if h.cache != nil && filter.OrderID == nil && filter.OrderItemID == nil {
 		// Fast path: read from cache
-		if filter.StationID != nil && filter.StatusID != nil {
-			tickets = h.cache.GetByStationAndStatus(*filter.StationID, *filter.StatusID)
-		} else if filter.StationID != nil {
-			tickets = h.cache.GetByStation(*filter.StationID)
-		} else if filter.StatusID != nil {
-			tickets = h.cache.GetByStatus(*filter.StatusID)
+		if filter.Station != nil && filter.Status != nil {
+			tickets = h.cache.GetByStationAndStatusCode(*filter.Station, *filter.Status)
+		} else if filter.Station != nil {
+			tickets = h.cache.GetByStationCode(*filter.Station)
+		} else if filter.Status != nil {
+			tickets = h.cache.GetByStatusCode(*filter.Status)
 		} else {
 			tickets = h.cache.GetAll()
 		}
@@ -174,7 +155,7 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AcceptTicket(w http.ResponseWriter, r *http.Request) {
-	h.updateStatus(w, r, "accept", uuid.MustParse("00000000-0000-0000-0000-000000000002"))
+	h.updateStatus(w, r, "accept", kitchenstatus.Statuses.Accepted.Code())
 }
 
 func (h *Handler) StartTicket(w http.ResponseWriter, r *http.Request) {
@@ -197,8 +178,8 @@ func (h *Handler) StartTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	previousStatus := ticket.StatusID
-	ticket.StatusID = uuid.MustParse("00000000-0000-0000-0000-000000000003")
+	previousStatus := ticket.Status
+	ticket.Status = kitchenstatus.Statuses.Started.Code()
 	now := time.Now()
 	ticket.StartedAt = &now
 
@@ -237,8 +218,8 @@ func (h *Handler) ReadyTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	previousStatus := ticket.StatusID
-	ticket.StatusID = uuid.MustParse("00000000-0000-0000-0000-000000000004")
+	previousStatus := ticket.Status
+	ticket.Status = kitchenstatus.Statuses.Ready.Code()
 	now := time.Now()
 	ticket.FinishedAt = &now
 
@@ -277,8 +258,8 @@ func (h *Handler) DeliverTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	previousStatus := ticket.StatusID
-	ticket.StatusID = uuid.MustParse("00000000-0000-0000-0000-000000000005")
+	previousStatus := ticket.Status
+	ticket.Status = kitchenstatus.Statuses.Delivered.Code()
 	now := time.Now()
 	ticket.DeliveredAt = &now
 
@@ -298,7 +279,7 @@ func (h *Handler) DeliverTicket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StandbyTicket(w http.ResponseWriter, r *http.Request) {
-	h.updateStatus(w, r, "standby", uuid.MustParse("00000000-0000-0000-0000-000000000007"))
+	h.updateStatus(w, r, "standby", kitchenstatus.Statuses.Standby.Code())
 }
 
 func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
@@ -340,8 +321,8 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	previousStatus := ticket.StatusID
-	ticket.StatusID = uuid.MustParse("00000000-0000-0000-0000-000000000008")
+	previousStatus := ticket.Status
+	ticket.Status = kitchenstatus.Statuses.Block.Code()
 
 	if payload.ReasonCodeID != "" {
 		reasonID, err := uuid.Parse(payload.ReasonCodeID)
@@ -370,15 +351,15 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RejectTicket(w http.ResponseWriter, r *http.Request) {
-	h.updateStatus(w, r, "reject", uuid.MustParse("00000000-0000-0000-0000-000000000006"))
+	h.updateStatus(w, r, "reject", kitchenstatus.Statuses.Reject.Code())
 }
 
 func (h *Handler) CancelTicket(w http.ResponseWriter, r *http.Request) {
-	h.updateStatus(w, r, "cancel", uuid.MustParse("00000000-0000-0000-0000-000000000010"))
+	h.updateStatus(w, r, "cancel", kitchenstatus.Statuses.Cancelled.Code())
 }
 
 // UpdateTicketStatus handles generic status updates via PATCH /tickets/:id/status
-// Accepts {"status_id": "uuid"} in request body
+// Accepts {"status": "status-code"} in request body
 func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	w, r, finish := h.tlm.Start(w, r, "Handler.UpdateTicketStatus")
 	defer finish()
@@ -393,16 +374,15 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		StatusID string `json:"status_id"`
+		Status string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		aqm.RespondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	newStatusID, err := uuid.Parse(req.StatusID)
-	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid status_id")
+	if req.Status == "" {
+		aqm.RespondError(w, http.StatusBadRequest, "Status is required")
 		return
 	}
 
@@ -414,34 +394,34 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prevent moving tickets that are already delivered or cancelled
-	terminalStatuses := []uuid.UUID{StatusDelivered, StatusCancelled}
-	if aqm.IsInList(ticket.StatusID, terminalStatuses) {
+	terminalStatuses := []string{kitchenstatus.Statuses.Delivered.Code(), kitchenstatus.Statuses.Cancelled.Code()}
+	if aqm.IsInList(ticket.Status, terminalStatuses) {
 		aqm.RespondError(w, http.StatusBadRequest, "Cannot modify delivered or cancelled tickets")
 		return
 	}
 
 	// Prevent chef from marking tickets as delivered (only waiters can do this from orders)
-	forbiddenFromReady := []uuid.UUID{StatusDelivered}
-	if ticket.StatusID == StatusReady && aqm.IsInList(newStatusID, forbiddenFromReady) {
+	forbiddenFromReady := []string{kitchenstatus.Statuses.Delivered.Code()}
+	if ticket.Status == kitchenstatus.Statuses.Ready.Code() && aqm.IsInList(req.Status, forbiddenFromReady) {
 		aqm.RespondError(w, http.StatusBadRequest, "Cannot transition from ready to delivered. This must be done from the order by waitstaff.")
 		return
 	}
 
-	previousStatus := ticket.StatusID
-	ticket.StatusID = newStatusID
+	previousStatus := ticket.Status
+	ticket.Status = req.Status
 
 	// Update timestamps based on status
 	now := time.Now().UTC()
-	switch newStatusID.String() {
-	case StatusStarted.String():
+	switch req.Status {
+	case kitchenstatus.Statuses.Started.Code():
 		if ticket.StartedAt == nil {
 			ticket.StartedAt = &now
 		}
-	case StatusReady.String():
+	case kitchenstatus.Statuses.Ready.Code():
 		if ticket.FinishedAt == nil {
 			ticket.FinishedAt = &now
 		}
-	case StatusDelivered.String():
+	case kitchenstatus.Statuses.Delivered.Code():
 		if ticket.DeliveredAt == nil {
 			ticket.DeliveredAt = &now
 		}
@@ -462,7 +442,7 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	aqm.Respond(w, http.StatusOK, ticket, nil)
 }
 
-func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action string, newStatusID StatusID) {
+func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action string, newStatus string) {
 	w, r, finish := h.tlm.Start(w, r, fmt.Sprintf("Handler.%sTicket", action))
 	defer finish()
 	log := h.log(r)
@@ -482,8 +462,8 @@ func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action st
 		return
 	}
 
-	previousStatus := ticket.StatusID
-	ticket.StatusID = newStatusID
+	previousStatus := ticket.Status
+	ticket.Status = newStatus
 
 	if err := h.repo.Update(ctx, ticket); err != nil {
 		log.Errorf("cannot update ticket: %v", err)
@@ -500,7 +480,7 @@ func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action st
 	aqm.Respond(w, http.StatusOK, ticket, nil)
 }
 
-func (h *Handler) publishStatusChange(ctx context.Context, ticket *Ticket, previousStatus StatusID) {
+func (h *Handler) publishStatusChange(ctx context.Context, ticket *Ticket, previousStatus string) {
 	eventPayload := event.KitchenTicketStatusChangedEvent{
 		KitchenTicketEventMetadata: event.KitchenTicketEventMetadata{
 			EventType:    event.EventKitchenTicketStatusChange,
@@ -509,13 +489,13 @@ func (h *Handler) publishStatusChange(ctx context.Context, ticket *Ticket, previ
 			OrderID:      ticket.OrderID.String(),
 			OrderItemID:  ticket.OrderItemID.String(),
 			MenuItemID:   ticket.MenuItemID.String(),
-			StationID:    ticket.StationID.String(),
+			Station:      ticket.Station,
 			MenuItemName: ticket.MenuItemName,
 			StationName:  ticket.StationName,
 			TableNumber:  ticket.TableNumber,
 		},
-		NewStatusID:      ticket.StatusID.String(),
-		PreviousStatusID: previousStatus.String(),
+		NewStatus:     ticket.Status,
+		PreviousStatus: previousStatus,
 		Notes:            ticket.Notes,
 		StartedAt:        ticket.StartedAt,
 		FinishedAt:       ticket.FinishedAt,

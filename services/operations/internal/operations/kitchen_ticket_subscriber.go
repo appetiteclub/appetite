@@ -84,8 +84,8 @@ func (s *KitchenTicketSubscriber) handleTicketCreated(ctx context.Context, msg [
 		OrderID:      evt.OrderID,
 		OrderItemID:  evt.OrderItemID,
 		MenuItemID:   evt.MenuItemID,
-		StationID:    evt.StationID,
-		StatusID:     evt.StatusID,
+		Station:      evt.Station,
+		Status:       evt.Status,
 		Quantity:     evt.Quantity,
 		Notes:        evt.Notes,
 		MenuItemName: evt.MenuItemName,
@@ -116,7 +116,7 @@ func (s *KitchenTicketSubscriber) handleTicketStatusChanged(ctx context.Context,
 			OrderID:      evt.OrderID,
 			OrderItemID:  evt.OrderItemID,
 			MenuItemID:   evt.MenuItemID,
-			StationID:    evt.StationID,
+			Station:      evt.Station,
 			MenuItemName: evt.MenuItemName,
 			StationName:  evt.StationName,
 			TableNumber:  evt.TableNumber,
@@ -124,7 +124,7 @@ func (s *KitchenTicketSubscriber) handleTicketStatusChanged(ctx context.Context,
 	}
 
 	// Update status and timestamps
-	ticket.StatusID = evt.NewStatusID
+	ticket.Status = evt.NewStatus
 	ticket.Notes = evt.Notes
 	ticket.UpdatedAt = evt.OccurredAt
 	ticket.StartedAt = evt.StartedAt
@@ -136,6 +136,6 @@ func (s *KitchenTicketSubscriber) handleTicketStatusChanged(ctx context.Context,
 	}
 
 	s.cache.Set(ticket)
-	s.logger.Debug("ticket status changed", "ticket_id", evt.TicketID, "new_status", evt.NewStatusID)
+	s.logger.Debug("ticket status changed", "ticket_id", evt.TicketID, "new_status", evt.NewStatus)
 	return nil
 }

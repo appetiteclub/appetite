@@ -19,9 +19,9 @@ type kitchenTicketResource struct {
 	OrderID          string     `json:"order_id"`
 	OrderItemID      string     `json:"order_item_id"`
 	MenuItemID       string     `json:"menu_item_id"`
-	StationID        string     `json:"station_id"`
+	Station          string     `json:"station"`
 	Quantity         int        `json:"quantity"`
-	StatusID         string     `json:"status_id"`
+	Status           string     `json:"status"`
 	ReasonCodeID     *string    `json:"reason_code_id"`
 	Notes            string     `json:"notes"`
 	DecisionRequired bool       `json:"decision_required"`
@@ -145,14 +145,14 @@ func (da *KitchenDataAccess) UpdateTicketStatus(ctx context.Context, r *http.Req
 		return fmt.Errorf("missing ticket ID")
 	}
 
-	// Read request body - expects {"status_id": "uuid"}
+	// Read request body - expects {"status": "status-code"}
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read request body: %w", err)
 	}
 	defer r.Body.Close()
 
-	// Parse the body to get the status_id
+	// Parse the body to get the status
 	var reqBody map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &reqBody); err != nil {
 		return fmt.Errorf("invalid request body: %w", err)

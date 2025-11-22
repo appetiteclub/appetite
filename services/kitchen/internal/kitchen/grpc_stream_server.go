@@ -63,7 +63,7 @@ func (s *EventStreamServer) StreamKitchenEvents(req *proto.SubscribeKitchenEvent
 	initialTickets := s.cache.GetAll()
 	for _, ticket := range initialTickets {
 		// Apply station filter if provided
-		if req.StationId != "" && ticket.StationID.String() != req.StationId {
+		if req.StationId != "" && ticket.Station != req.StationId {
 			continue
 		}
 
@@ -74,11 +74,11 @@ func (s *EventStreamServer) StreamKitchenEvents(req *proto.SubscribeKitchenEvent
 			OrderId:        ticket.OrderID.String(),
 			OrderItemId:    ticket.OrderItemID.String(),
 			MenuItemId:     ticket.MenuItemID.String(),
-			StationId:      ticket.StationID.String(),
+			StationId:      ticket.Station,
 			MenuItemName:   ticket.MenuItemName,
 			StationName:    ticket.StationName,
 			TableNumber:    ticket.TableNumber,
-			NewStatusId:    ticket.StatusID.String(),
+			NewStatusId:    ticket.Status,
 			Quantity:       int32(ticket.Quantity),
 			Notes:          ticket.Notes,
 		}
@@ -128,12 +128,12 @@ func (s *EventStreamServer) BroadcastTicketEvent(evt *event.KitchenTicketStatusC
 		OrderId:          evt.OrderID,
 		OrderItemId:      evt.OrderItemID,
 		MenuItemId:       evt.MenuItemID,
-		StationId:        evt.StationID,
+		StationId:        evt.Station,
 		MenuItemName:     evt.MenuItemName,
 		StationName:      evt.StationName,
 		TableNumber:      evt.TableNumber,
-		NewStatusId:      evt.NewStatusID,
-		PreviousStatusId: evt.PreviousStatusID,
+		NewStatusId:      evt.NewStatus,
+		PreviousStatusId: evt.PreviousStatus,
 		Notes:            evt.Notes,
 	}
 

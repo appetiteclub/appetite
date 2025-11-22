@@ -143,8 +143,8 @@ func (c *TicketStateCache) handleTicketCreatedLocked(data []byte) {
 		OrderID:      evt.OrderID,
 		OrderItemID:  evt.OrderItemID,
 		MenuItemID:   evt.MenuItemID,
-		StationID:    evt.StationID,
-		StatusID:     evt.StatusID,
+		Station:      evt.Station,
+		Status:       evt.Status,
 		Quantity:     evt.Quantity,
 		Notes:        evt.Notes,
 		MenuItemName: evt.MenuItemName,
@@ -173,7 +173,7 @@ func (c *TicketStateCache) handleTicketStatusChangedLocked(data []byte) {
 			OrderID:      evt.OrderID,
 			OrderItemID:  evt.OrderItemID,
 			MenuItemID:   evt.MenuItemID,
-			StationID:    evt.StationID,
+			Station:      evt.Station,
 			MenuItemName: evt.MenuItemName,
 			StationName:  evt.StationName,
 			TableNumber:  evt.TableNumber,
@@ -181,7 +181,7 @@ func (c *TicketStateCache) handleTicketStatusChangedLocked(data []byte) {
 	}
 
 	// Update status and timestamps
-	ticket.StatusID = evt.NewStatusID
+	ticket.Status = evt.NewStatus
 	ticket.Notes = evt.Notes
 	ticket.UpdatedAt = evt.OccurredAt
 	ticket.StartedAt = evt.StartedAt
@@ -203,9 +203,9 @@ func (c *TicketStateCache) removeCompletedTickets() {
 
 	var removed int
 	for id, ticket := range c.tickets {
-		if ticket.StatusID == StatusDelivered || ticket.StatusID == StatusCancelled {
-			c.removeFromIndex(c.byStation, ticket.StationID, id)
-			c.removeFromIndex(c.byStatus, ticket.StatusID, id)
+		if ticket.Status == StatusDelivered || ticket.Status == StatusCancelled {
+			c.removeFromIndex(c.byStation, ticket.Station, id)
+			c.removeFromIndex(c.byStatus, ticket.Status, id)
 			delete(c.tickets, id)
 			removed++
 		}
@@ -230,16 +230,16 @@ func (c *TicketStateCache) setLocked(ticket *kitchenTicketResource) {
 
 	// Remove from old indexes if ticket already exists
 	if old, exists := c.tickets[ticketID]; exists {
-		c.removeFromIndex(c.byStation, old.StationID, ticketID)
-		c.removeFromIndex(c.byStatus, old.StatusID, ticketID)
+		c.removeFromIndex(c.byStation, old.Station, ticketID)
+		c.removeFromIndex(c.byStatus, old.Status, ticketID)
 	}
 
 	// Update ticket
 	c.tickets[ticketID] = ticket
 
 	// Update indexes
-	c.addToIndex(c.byStation, ticket.StationID, ticketID)
-	c.addToIndex(c.byStatus, ticket.StatusID, ticketID)
+	c.addToIndex(c.byStation, ticket.Station, ticketID)
+	c.addToIndex(c.byStatus, ticket.Status, ticketID)
 }
 
 // Get retrieves a ticket by ID.
@@ -287,7 +287,7 @@ func (c *TicketStateCache) GetByStationAndStatus(stationID, statusID string) []*
 	ticketIDs := c.byStation[stationID]
 	result := make([]*kitchenTicketResource, 0)
 	for _, id := range ticketIDs {
-		if ticket := c.tickets[id]; ticket != nil && ticket.StatusID == statusID {
+		if ticket := c.tickets[id]; ticket != nil && ticket.Status == statusID {
 			result = append(result, ticket)
 		}
 	}
@@ -316,8 +316,8 @@ func (c *TicketStateCache) Remove(ticketID string) {
 		return
 	}
 
-	c.removeFromIndex(c.byStation, ticket.StationID, ticketID)
-	c.removeFromIndex(c.byStatus, ticket.StatusID, ticketID)
+	c.removeFromIndex(c.byStation, ticket.Station, ticketID)
+	c.removeFromIndex(c.byStatus, ticket.Status, ticketID)
 	delete(c.tickets, ticketID)
 }
 

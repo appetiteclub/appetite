@@ -1198,21 +1198,21 @@ func routingLabel(value string) string {
 }
 
 func (h *Handler) getStationIDByName(ctx context.Context, stationName string) (string, error) {
-	// TODO: Query Dictionary service for production stations
-	// For now, use known station UUIDs from seeding
 	stationName = strings.ToLower(strings.TrimSpace(stationName))
 
-	// These IDs should match the seeded production_stations in Dictionary service
-	knownStations := map[string]string{
-		"kitchen": "00000000-0000-0000-0000-000000000001", // Kitchen station
-		"bar":     "00000000-0000-0000-0000-000000000002", // Bar station
+	// Validate against known stations
+	knownStations := map[string]bool{
+		"kitchen": true,
+		"bar":     true,
+		"coffee":  true,
+		"dessert": true,
 	}
 
-	if id, exists := knownStations[stationName]; exists {
-		return id, nil
+	if !knownStations[stationName] {
+		return "", fmt.Errorf("unknown station: %s", stationName)
 	}
 
-	return "", fmt.Errorf("unknown station: %s", stationName)
+	return stationName, nil
 }
 
 func defaultMenuSelection(options []menuItemOption) string {

@@ -3,16 +3,17 @@ package operations
 import (
 	"net/http"
 	"sort"
+
+	"github.com/appetiteclub/appetite/pkg/enums/station"
 )
 
-// Status IDs (match Kitchen service constants)
+// Status codes (match Kitchen service status enum)
 const (
-	StatusCreated   = "00000000-0000-0000-0000-000000000001"
-	StatusAccepted  = "00000000-0000-0000-0000-000000000002"
-	StatusStarted   = "00000000-0000-0000-0000-000000000003"
-	StatusReady     = "00000000-0000-0000-0000-000000000004"
-	StatusDelivered = "00000000-0000-0000-0000-000000000005"
-	StatusCancelled = "00000000-0000-0000-0000-000000000010"
+	StatusCreated   = "created"
+	StatusStarted   = "started"
+	StatusReady     = "ready"
+	StatusDelivered = "delivered"
+	StatusCancelled = "cancelled"
 )
 
 // KitchenKanban displays the kitchen dashboard with tabs by station and columns by status.
@@ -39,38 +40,50 @@ func (h *Handler) KitchenKanban(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Group tickets by station
+	// Pre-create all stations from enum (so they always show, even without tickets)
 	stationMap := make(map[string]*StationView)
+	for _, s := range station.All {
+		stationMap[s.Code()] = &StationView{
+			Station:     s.Code(),
+			StationName: s.Label(),
+			Columns:     make(map[string]*ColumnView),
+		}
+	}
+
+	// Group tickets by station
 	for i := range allTickets {
 		ticket := &allTickets[i]
-		stationID := ticket.StationID
-		if _, exists := stationMap[stationID]; !exists {
-			stationMap[stationID] = &StationView{
-				StationID:   stationID,
-				StationName: ticket.StationName,
+		stationCode := ticket.Station
+
+		// Get station (should always exist from pre-creation above)
+		st, exists := stationMap[stationCode]
+		if !exists {
+			// Fallback for unknown station codes (shouldn't happen with valid data)
+			st = &StationView{
+				Station:     stationCode,
+				StationName: stationCode,
 				Columns:     make(map[string]*ColumnView),
 			}
+			stationMap[stationCode] = st
 		}
 
-		station := stationMap[stationID]
-
 		// Create columns for each status
-		statusID := ticket.StatusID
-		if _, exists := station.Columns[statusID]; !exists {
-			station.Columns[statusID] = &ColumnView{
-				StatusID:   statusID,
-				StatusName: getStatusName(statusID),
+		status := ticket.Status
+		if _, exists := st.Columns[status]; !exists {
+			st.Columns[status] = &ColumnView{
+				Status:     status,
+				StatusName: getStatusName(status),
 				Tickets:    []*kitchenTicketResource{},
 			}
 		}
 
-		station.Columns[statusID].Tickets = append(station.Columns[statusID].Tickets, ticket)
+		st.Columns[status].Tickets = append(st.Columns[status].Tickets, ticket)
 	}
 
 	// Convert map to slice and sort stations
 	// Always show all columns even if empty
 	statusOrder := []struct {
-		ID   string
+		Code string
 		Name string
 	}{
 		{StatusCreated, "Received"},
@@ -85,13 +98,13 @@ func (h *Handler) KitchenKanban(w http.ResponseWriter, r *http.Request) {
 		// Create all columns (even empty ones)
 		orderedColumns := make([]*ColumnView, 0, len(statusOrder))
 		for _, status := range statusOrder {
-			if col, exists := station.Columns[status.ID]; exists {
+			if col, exists := station.Columns[status.Code]; exists {
 				col.StatusName = status.Name // Override with proper name
 				orderedColumns = append(orderedColumns, col)
 			} else {
 				// Create empty column
 				orderedColumns = append(orderedColumns, &ColumnView{
-					StatusID:   status.ID,
+					Status:     status.Code,
 					StatusName: status.Name,
 					Tickets:    []*kitchenTicketResource{},
 				})
@@ -99,24 +112,6 @@ func (h *Handler) KitchenKanban(w http.ResponseWriter, r *http.Request) {
 		}
 		station.ColumnsList = orderedColumns
 		stations = append(stations, station)
-	}
-
-	// If no stations exist, create a default one to show the empty columns
-	if len(stations) == 0 {
-		defaultStation := &StationView{
-			StationID:   "default",
-			StationName: "Kitchen",
-			Columns:     make(map[string]*ColumnView),
-			ColumnsList: make([]*ColumnView, 0, len(statusOrder)),
-		}
-		for _, status := range statusOrder {
-			defaultStation.ColumnsList = append(defaultStation.ColumnsList, &ColumnView{
-				StatusID:   status.ID,
-				StatusName: status.Name,
-				Tickets:    []*kitchenTicketResource{},
-			})
-		}
-		stations = append(stations, defaultStation)
 	}
 
 	// Sort stations by name
@@ -136,7 +131,7 @@ func (h *Handler) KitchenKanban(w http.ResponseWriter, r *http.Request) {
 
 // StationView represents a station with its columns
 type StationView struct {
-	StationID   string
+	Station     string
 	StationName string
 	Columns     map[string]*ColumnView
 	ColumnsList []*ColumnView // Ordered list for rendering
@@ -144,23 +139,23 @@ type StationView struct {
 
 // ColumnView represents a Kanban column (status)
 type ColumnView struct {
-	StatusID   string
+	Status     string
 	StatusName string
 	Tickets    []*kitchenTicketResource
 }
 
-func getStatusName(statusID string) string {
-	switch statusID {
+func getStatusName(status string) string {
+	switch status {
 	case StatusCreated:
 		return "Created"
-	case StatusAccepted:
-		return "Accepted"
 	case StatusStarted:
 		return "In Progress"
 	case StatusReady:
 		return "Ready"
 	case StatusDelivered:
 		return "Delivered"
+	case StatusCancelled:
+		return "Cancelled"
 	default:
 		return "Unknown"
 	}
