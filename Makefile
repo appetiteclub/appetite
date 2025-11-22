@@ -3,6 +3,7 @@
 # Variables
 PROJECT_NAME=appetite
 SERVICES=authn authz dictionary menu order table operations admin media kitchen
+UTILS=utils
 BASE_PORTS=8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 8090
 PKG_LIBS=auth core fake telemetry
 COMPOSE_FILE?=deployments/docker/compose/docker-compose.yml
@@ -48,8 +49,11 @@ all: build-all
 help:
 	@echo "Available targets:"
 	@echo "  build-all    - Build all services"
+	@echo "  build-utils  - Build appetite-utils CLI tool"
 	@echo "  run-all      - Kill ports, build, and start all services"
 	@echo "  stop-all     - Stop all running services"
+	@echo "  seed-demo    - Seed demo data (orders and kitchen tickets)"
+	@echo "  clear-demo   - Clear all demo data"
 	@echo "  test         - Run tests for all components"
 	@echo "  test-v       - Run tests with verbose output"
 	@echo "  test-short   - Run tests in short mode"
@@ -68,14 +72,14 @@ help:
 	@echo "  run-compose-neat - Launch compose stack while filtering $(COMPOSE_LOG_FILTER) logs"
 	@echo "  stop-compose - Stop the compose stack defined in $(COMPOSE_FILE)"
 	@echo "  reset-compose-data - Drop MongoDB databases inside the compose stack"
-	@echo "  db-reset-dev - Drop AuthN users and AuthZ roles/grants collections (dev helper)"
+	@echo "  db-reset-dev - Drop all development databases"
 	@echo "  check        - Run all quality checks"
 	@echo "  ci           - Run CI pipeline with strict checks"
 	@echo "  nomad-run    - Register MongoDB and service jobs in Nomad"
 	@echo "  nomad-stop   - Stop and purge Nomad jobs"
 	@echo "  nomad-status - Show current job status in Nomad"
 	@echo ""
-	@echo "Individual service targets (replace <service> with authn/authz/dictionary/menu/order/table/operations/admin/media):"
+	@echo "Individual service targets (replace <service> with authn/authz/dictionary/menu/order/table/operations/admin/media/kitchen):"
 	@echo "  build-<service>  - Build specific service"
 	@echo "  test-<service>   - Test specific service"
 	@echo "  lint-<service>   - Lint specific service"
@@ -164,44 +168,37 @@ build-all:
 
 # Build individual services
 build-authn:
-	@echo "📦 Building authn service..."
-	@cd services/authn && go build -o authn .
+	@cd services/authn && go build -o authn . 2>&1 && echo "✅ AuthN build successful"
 
 build-authz:
-	@echo "📦 Building authz service..."
-	@cd services/authz && go build -o authz .
+	@cd services/authz && go build -o authz . 2>&1 && echo "✅ AuthZ build successful"
 
 build-dictionary:
-	@echo "📦 Building dictionary service..."
-	@cd services/dictionary && go build -o dictionary .
+	@cd services/dictionary && go build -o dictionary . 2>&1 && echo "✅ Dictionary build successful"
 
 build-order:
-	@echo "📦 Building order service..."
-	@cd services/order && go build -o order .
+	@cd services/order && go build -o order . 2>&1 && echo "✅ Order build successful"
 
 build-table:
-	@echo "📦 Building table service..."
-	@cd services/table && go build -o table .
+	@cd services/table && go build -o table . 2>&1 && echo "✅ Table build successful"
 
 build-operations:
-	@echo "📦 Building operations service..."
-	@cd services/operations && go build -o operations .
+	@cd services/operations && go build -o operations . 2>&1 && echo "✅ Operations build successful"
 
 build-admin:
-	@echo "📦 Building admin service..."
-	@cd services/admin && go build -o admin .
+	@cd services/admin && go build -o admin . 2>&1 && echo "✅ Admin build successful"
 
 build-media:
-	@echo "📦 Building media service..."
-	@cd services/media && go build -o media .
+	@cd services/media && go build -o media . 2>&1 && echo "✅ Media build successful"
 
 build-menu:
-	@echo "📦 Building menu service..."
-	@cd services/menu && go build -o menu .
+	@cd services/menu && go build -o menu . 2>&1 && echo "✅ Menu build successful"
 
 build-kitchen:
-	@echo "📦 Building kitchen service..."
-	@cd services/kitchen && go build -o kitchen .
+	@cd services/kitchen && go build -o kitchen . 2>&1 && echo "✅ Kitchen build successful"
+
+build-utils:
+	@cd cmd/utils && go build -o ../../bin/appetite-utils . 2>&1 && echo "✅ Utils build successful"
 
 log-stream:
 	@echo "📜 Streaming raw logs from all services..."
@@ -576,3 +573,34 @@ tidy:
 		cd ../..; \
 	done
 	@echo "✅ All modules tidied"
+
+# Demo data seeding (new approach using utils CLI)
+seed-demo: build-utils
+	@echo "🎬 Seeding demo orders and kitchen tickets..."
+	@./bin/appetite-utils seed-demo
+	@echo "🔄 Reloading kitchen cache..."
+	@curl -s -X POST http://localhost:8089/internal/reload-cache > /dev/null 2>&1 || echo "⚠️  Kitchen service not running or cache reload failed"
+	@echo ""
+	@echo "✅ Demo data seeded! Sample test data now available."
+	@echo "📋 Check /orders and /kitchen for demo content"
+	@echo "💡 Tip: Run 'make clear-demo' to remove demo data or 'make db-reset-dev' to reset everything"
+
+clear-demo: build-utils
+	@echo "🧹 Clearing demo data..."
+	@./bin/appetite-utils clear-demo
+
+# Legacy demo seeding (kept for reference, will be removed in future)
+seed-demo-legacy:
+	@echo "⚠️  This is the legacy seeding approach. Use 'make seed-demo' instead."
+	@echo "🎬 Seeding demo orders and kitchen tickets..."
+	@command -v mongosh >/dev/null 2>&1 || { echo "❌ mongosh not found. Install MongoDB Shell."; exit 1; }
+	@echo "   🗑️  Clearing previous demo seed tracking..."
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db.getSiblingDB("appetite_order")._seeds.deleteOne({_id: "demo_orders_v1"});' >/dev/null 2>&1 || true
+	@mongosh "$(MONGO_URL)" --quiet --eval 'db.getSiblingDB("appetite_kitchen")._seeds.deleteOne({_id: "demo_tickets_v1"});' >/dev/null 2>&1 || true
+	@echo "   🚀 Restarting services with seed.demo.enabled=true..."
+	@$(MAKE) stop-all >/dev/null 2>&1 || true
+	@SEED_DEMO_ENABLED=true $(MAKE) run-all
+	@echo ""
+	@echo "✅ Demo data seeded! Sample test data now available."
+	@echo "📋 Check /orders and /kitchen for demo content"
+	@echo "💡 Tip: Run 'make db-reset-dev' to clear all data and start fresh"

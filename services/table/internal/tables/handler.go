@@ -19,42 +19,50 @@ import (
 const MaxBodyBytes = 1 << 20
 
 type Handler struct {
+	config          *aqm.Config
+	logger          aqm.Logger
+	tlm             *telemetry.HTTP
 	tableRepo       TableRepo
 	groupRepo       GroupRepo
 	orderRepo       OrderRepo
 	orderItemRepo   OrderItemRepo
 	reservationRepo ReservationRepo
-	logger          aqm.Logger
-	config          *aqm.Config
-	tlm             *telemetry.HTTP
 	publisher       events.Publisher
+}
+
+type Repos struct {
+	TableRepo       TableRepo
+	GroupRepo       GroupRepo
+	OrderRepo       OrderRepo
+	OrderItemRepo   OrderItemRepo
+	ReservationRepo ReservationRepo
+}
+
+type HandlerDeps struct {
+	Repos     Repos
+	Publisher events.Publisher
 }
 
 const tableEventSource = "table-service"
 
 func NewHandler(
-	tableRepo TableRepo,
-	groupRepo GroupRepo,
-	orderRepo OrderRepo,
-	orderItemRepo OrderItemRepo,
-	reservationRepo ReservationRepo,
-	logger aqm.Logger,
+	hd HandlerDeps,
 	config *aqm.Config,
-	publisher events.Publisher,
+	logger aqm.Logger,
 ) *Handler {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
 	}
 	return &Handler{
-		tableRepo:       tableRepo,
-		groupRepo:       groupRepo,
-		orderRepo:       orderRepo,
-		orderItemRepo:   orderItemRepo,
-		reservationRepo: reservationRepo,
-		logger:          logger,
 		config:          config,
+		logger:          logger,
 		tlm:             telemetry.NewHTTP(),
-		publisher:       publisher,
+		tableRepo:       hd.Repos.TableRepo,
+		groupRepo:       hd.Repos.GroupRepo,
+		orderRepo:       hd.Repos.OrderRepo,
+		orderItemRepo:   hd.Repos.OrderItemRepo,
+		reservationRepo: hd.Repos.ReservationRepo,
+		publisher:       hd.Publisher,
 	}
 }
 

@@ -21,12 +21,12 @@ import (
 const MaxBodyBytes = 1 << 20
 
 type Handler struct {
-	orderRepo      OrderRepo
-	orderItemRepo  OrderItemRepo
-	orderGroupRepo OrderGroupRepo
 	logger         aqm.Logger
 	config         *aqm.Config
 	tlm            *telemetry.HTTP
+	orderRepo      OrderRepo
+	orderItemRepo  OrderItemRepo
+	orderGroupRepo OrderGroupRepo
 	tableClient    *aqm.ServiceClient
 	tableStates    *TableStateCache
 	kitchenClient  *aqm.ServiceClient
@@ -34,17 +34,21 @@ type Handler struct {
 	streamServer   *OrderEventStreamServer
 }
 
-func NewHandler(
-	orderRepo OrderRepo,
-	orderItemRepo OrderItemRepo,
-	orderGroupRepo OrderGroupRepo,
-	logger aqm.Logger,
-	config *aqm.Config,
-	tableStates *TableStateCache,
-	kitchenClient *aqm.ServiceClient,
-	publisher events.Publisher,
-	streamServer *OrderEventStreamServer,
-) *Handler {
+type HandlerDeps struct {
+	Repos             Repos
+	TableStatesCache  *TableStateCache
+	KitchenClient     *aqm.ServiceClient
+	Publisher         events.Publisher
+	OrderStreamServer *OrderEventStreamServer
+}
+
+type Repos struct {
+	OrderRepo      OrderRepo
+	OrderItemRepo  OrderItemRepo
+	OrderGroupRepo OrderGroupRepo
+}
+
+func NewHandler(hd HandlerDeps, config *aqm.Config, logger aqm.Logger) *Handler {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
 	}
@@ -54,17 +58,17 @@ func NewHandler(
 	tableClient := aqm.NewServiceClient(tableURL)
 
 	return &Handler{
-		orderRepo:      orderRepo,
-		orderItemRepo:  orderItemRepo,
-		orderGroupRepo: orderGroupRepo,
-		logger:         logger,
 		config:         config,
+		logger:         logger,
 		tlm:            telemetry.NewHTTP(),
+		orderRepo:      hd.Repos.OrderRepo,
+		orderItemRepo:  hd.Repos.OrderItemRepo,
+		orderGroupRepo: hd.Repos.OrderGroupRepo,
 		tableClient:    tableClient,
-		tableStates:    tableStates,
-		kitchenClient:  kitchenClient,
-		publisher:      publisher,
-		streamServer:   streamServer,
+		tableStates:    hd.TableStatesCache,
+		kitchenClient:  hd.KitchenClient,
+		publisher:      hd.Publisher,
+		streamServer:   hd.OrderStreamServer,
 	}
 }
 
@@ -334,6 +338,13 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 	item.MenuItemID = req.MenuItemID
 	item.ProductionStation = req.ProductionStation
 	item.RequiresProduction = req.RequiresProduction
+
+	// Direct service items (no production required) start as ready for immediate delivery
+	// NOTE: Future enhancement may involve stock service integration for availability checks
+	if !req.RequiresProduction {
+		item.Status = "ready"
+	}
+
 	item.BeforeCreate()
 
 	if err := h.orderItemRepo.Create(ctx, item); err != nil {
@@ -556,11 +567,6 @@ func (h *Handler) ListOrderGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 // Helper methods
-
-func (h *Handler) log(r *http.Request) aqm.Logger {
-	return h.logger.With("request_id", r.Context().Value("request_id"))
-}
-
 func (h *Handler) parseIDParam(w http.ResponseWriter, r *http.Request, log aqm.Logger) (uuid.UUID, bool) {
 	idStr := chi.URLParam(r, "id")
 	if idStr == "" {
@@ -831,7 +837,7 @@ func (h *Handler) publishOrderItemCreated(ctx context.Context, item *OrderItem, 
 		Quantity:           item.Quantity,
 		Notes:              item.Notes,
 		RequiresProduction: item.RequiresProduction,
-		MenuItemName:       item.DishName,  // Use DishName as menu_item_name
+		MenuItemName:       item.DishName, // Use DishName as menu_item_name
 		TableNumber:        tableNumber,
 		StationName:        stationName,
 	}
@@ -992,4 +998,8 @@ func (h *Handler) updateKitchenTicketStatus(ctx context.Context, orderItemID uui
 			}
 		}
 	}
+}
+
+func (h *Handler) log(r *http.Request) aqm.Logger {
+	return h.logger.With("request_id", r.Context().Value("request_id"))
 }

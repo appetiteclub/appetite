@@ -30,7 +30,7 @@ var assetsFS embed.FS
 func main() {
 	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
-		log.Fatalf("Cannot setup %s(%s): %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
@@ -50,17 +50,17 @@ func main() {
 
 	userRepo, err := admin.NewAPIUserRepo(config, logger)
 	if err != nil {
-		log.Fatalf("cannot initialize user repo: %v", err)
+		log.Fatalf("%s(%s) cannot initialize user repo: %v", appName, appVersion, err)
 	}
 
 	propertyRepo, err := admin.NewAPIPropertyRepo(config, logger)
 	if err != nil {
-		log.Fatalf("cannot initialize property repo: %v", err)
+		log.Fatalf("%s(%s) cannot initialize property repo: %v", appName, appVersion, err)
 	}
 
 	dictRepo, err := admin.NewAPIDictionaryRepo(config, logger)
 	if err != nil {
-		log.Fatalf("cannot initialize dictionary repository: %v", err)
+		log.Fatalf("%s(%s) cannot initialize dictionary repository: %v", appName, appVersion, err)
 	}
 
 	roleRepo := admin.NewFakeRoleRepo()
@@ -80,7 +80,7 @@ func main() {
 
 	adminHandler, err := admin.NewHandler(tmplMgr, adminService, dictRepo, config, logger)
 	if err != nil {
-		log.Fatalf("cannot initialize admin handler: %v", err)
+		log.Fatalf("%s(%s) cannot initialize admin handler: %v", appName, appVersion, err)
 	}
 
 	stack := aqmmw.DefaultStack(aqmmw.StackOptions{
@@ -104,7 +104,7 @@ func main() {
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {
-		log.Fatalf("%s(%s) stopped with error: %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) stopped: %v", appName, appVersion, err)
 	}
 
 	logger.Infof("%s(%s) stopped", appName, appVersion)

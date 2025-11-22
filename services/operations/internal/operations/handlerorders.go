@@ -1200,19 +1200,22 @@ func routingLabel(value string) string {
 func (h *Handler) getStationIDByName(ctx context.Context, stationName string) (string, error) {
 	stationName = strings.ToLower(strings.TrimSpace(stationName))
 
-	// Validate against known stations
+	// Known stations from enum
 	knownStations := map[string]bool{
 		"kitchen": true,
+		"dessert": true,
 		"bar":     true,
 		"coffee":  true,
-		"dessert": true,
+		"other":   true,
 	}
 
-	if !knownStations[stationName] {
-		return "", fmt.Errorf("unknown station: %s", stationName)
+	// If station is known, return it
+	if knownStations[stationName] {
+		return stationName, nil
 	}
 
-	return stationName, nil
+	// Map unknown/invalid stations to "other"
+	return "other", nil
 }
 
 func defaultMenuSelection(options []menuItemOption) string {

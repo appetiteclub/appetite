@@ -23,7 +23,7 @@ const (
 func main() {
 	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
-		log.Fatalf("Cannot setup %s(%s): %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) cannot setup with error: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
@@ -43,14 +43,20 @@ func main() {
 	menuRepo := mongo.NewMenuRepo(itemRepo, logger)
 
 	// Initialize dictionary client
-	dictURL, _ := config.GetString("services.dictionary.url")
-	if dictURL == "" {
-		dictURL = "http://localhost:8085"
-	}
+	dictURL := config.GetStringOrDef("services.dictionary.url", "http://localhost:8084")
 	dictClient := dictionary.NewHTTPClient(dictURL)
 
+	hd := menu.HandlerDeps{
+		ItemRepo:   itemRepo,
+		MenuRepo:   menuRepo,
+		DictClient: dictClient,
+	}
+
 	// Initialize handler
-	handler := menu.NewHandler(itemRepo, menuRepo, dictClient, config, logger)
+	handler, err := menu.NewHandler(hd, config, logger)
+	if err != nil {
+		log.Fatalf("Cannot create handler %s(%s): %v", appName, appVersion, err)
+	}
 
 	// Setup seeding hooks
 	seedHooks := aqm.LifecycleHooks{

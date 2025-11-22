@@ -1,18 +1,19 @@
 go 1.24.7
 
 use (
+	.
+	./cmd/utils
+	./pkg
 	./services/admin
 	./services/authn
 	./services/authz
 	./services/dictionary
 	./services/kitchen
-	./services/menu
-	./services/order
-	./services/operations
-	./services/table
 	./services/media
-	.
-	../aqm
+	./services/menu
+	./services/operations
+	./services/order
+	./services/table
 )
 
 replace github.com/aquamarinepk/aqm v0.0.0 => ../aqm

@@ -2,6 +2,7 @@ package menu
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -16,30 +17,39 @@ const MaxBodyBytes = 2 << 20 // 2 MB (larger for menu items with images)
 
 // Handler handles HTTP requests for the Menu service
 type Handler struct {
+	config     *aqm.Config
+	logger     aqm.Logger
+	tlm        *telemetry.HTTP
 	itemRepo   MenuItemRepo
 	menuRepo   MenuRepo
 	dictClient dictionary.Client
-	logger     aqm.Logger
-	config     *aqm.Config
-	tlm        *telemetry.HTTP
+}
+
+type HandlerDeps struct {
+	ItemRepo   MenuItemRepo
+	MenuRepo   MenuRepo
+	DictClient dictionary.Client
 }
 
 // NewHandler creates a new Handler for Menu operations
-func NewHandler(itemRepo MenuItemRepo, menuRepo MenuRepo, dictClient dictionary.Client, config *aqm.Config, logger aqm.Logger) *Handler {
+// Fails fast and returns an error if the dictionary client is not provided (no Noop fallback).
+func NewHandler(hd HandlerDeps, config *aqm.Config, logger aqm.Logger) (*Handler, error) {
 	if logger == nil {
 		logger = aqm.NewNoopLogger()
 	}
-	if dictClient == nil {
-		dictClient = dictionary.NewNoopClient()
+
+	if hd.DictClient == nil {
+		return nil, fmt.Errorf("dictionary service unavailable")
 	}
+
 	return &Handler{
-		itemRepo:   itemRepo,
-		menuRepo:   menuRepo,
-		dictClient: dictClient,
-		logger:     logger,
 		config:     config,
+		logger:     logger,
 		tlm:        telemetry.NewHTTP(),
-	}
+		itemRepo:   hd.ItemRepo,
+		menuRepo:   hd.MenuRepo,
+		dictClient: hd.DictClient,
+	}, nil
 }
 
 // RegisterRoutes registers all routes for the menu service
@@ -456,7 +466,7 @@ func (h *Handler) parseIDParam(w http.ResponseWriter, r *http.Request, log aqm.L
 
 func (h *Handler) decodeMenuItemPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (*MenuItem, bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -477,7 +487,7 @@ func (h *Handler) decodeMenuItemPayload(w http.ResponseWriter, r *http.Request, 
 
 func (h *Handler) decodeMenuPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (*Menu, bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -499,8 +509,10 @@ func (h *Handler) decodeMenuPayload(w http.ResponseWriter, r *http.Request, log 
 func (h *Handler) respondValidationErrors(w http.ResponseWriter, errors []ValidationError) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"error":  "Validation failed",
 		"errors": errors,
-	})
+	}); err != nil {
+		h.logger.Debug("failed to encode validation errors", "error", err)
+	}
 }

@@ -20,23 +20,26 @@ func (s Station) Label() string {
 
 type Enum struct {
 	Kitchen Station
+	Dessert Station
 	Bar     Station
 	Coffee  Station
-	Dessert Station
+	Other   Station
 }
 
 var Stations = Enum{
 	Kitchen: Station{Name: "kitchen"},
+	Dessert: Station{Name: "dessert"},
 	Bar:     Station{Name: "bar"},
 	Coffee:  Station{Name: "coffee"},
-	Dessert: Station{Name: "dessert"},
+	Other:   Station{Name: "other"},
 }
 
 var All = []Station{
 	Stations.Kitchen,
+	Stations.Dessert,
 	Stations.Bar,
 	Stations.Coffee,
-	Stations.Dessert,
+	Stations.Other,
 }
 
 // ByName returns the station for a given name, or nil if not found

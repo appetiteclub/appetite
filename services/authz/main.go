@@ -75,7 +75,7 @@ func main() {
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {
-		log.Fatalf("%s(%s) stopped with error: %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) stopped: %v", appName, appVersion, err)
 	}
 
 	logger.Infof("%s(%s) stopped", appName, appVersion)

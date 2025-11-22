@@ -24,7 +24,7 @@ const (
 func main() {
 	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
-		log.Fatalf("cannot setup %s(%s): %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
@@ -41,7 +41,7 @@ func main() {
 
 	storageBackend, err := storage.FromProperties(config)
 	if err != nil {
-		log.Fatalf("cannot configure storage backend: %v", err)
+		log.Fatalf("%s(%s) cannot configure storage backend: %v", appName, appVersion, err)
 	}
 
 	repo := media.NewInMemoryRepository()
@@ -80,13 +80,13 @@ func main() {
 
 	// Register HTTP server with handler
 	if err := aqm.WithHTTPServerModules("web.port", handler)(ms); err != nil {
-		log.Fatalf("cannot register HTTP modules: %v", err)
+		log.Fatalf("%s(%s) cannot register HTTP modules: %v", appName, appVersion, err)
 	}
 
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {
-		log.Fatalf("%s(%s) stopped with error: %v", appName, appVersion, err)
+		log.Fatalf("%s(%s) stopped: %v", appName, appVersion, err)
 	}
 
 	logger.Infof("%s(%s) stopped", appName, appVersion)
