@@ -40,6 +40,9 @@ func main() {
 	)
 	defer stop()
 
+	seedCtx, cancelSeeds := context.WithCancel(ctx)
+	defer cancelSeeds()
+
 	baseRepo := mongo.NewBaseRepo(config, logger)
 	err = baseRepo.Start(ctx)
 	if err != nil {
@@ -114,6 +117,20 @@ func main() {
 
 	handler := order.NewHandler(hd, config, logger)
 
+	// Setup demo seeding if enabled
+	demoEnabled, _ := config.GetString("seeding.demo")
+	var seedHooks aqm.LifecycleHooks
+	if demoEnabled == "true" {
+		logger.Info("Demo seeding enabled for order service")
+		seedHooks = aqm.LifecycleHooks{
+			OnStart: order.DemoSeedingFunc(seedCtx, repos, db, logger),
+			OnStop: func(context.Context) error {
+				cancelSeeds()
+				return nil
+			},
+		}
+	}
+
 	stack := middleware.DefaultStack(middleware.StackOptions{
 		Logger:      logger,
 		DisableCORS: true, // Internal API service
@@ -123,13 +140,25 @@ func main() {
 	// This complements (does not replace) network policies at the infrastructure level.
 	stack = append(stack, middleware.InternalOnly())
 
+	// Build lifecycle hooks
+	lifecycles := []interface{}{
+		aqm.LifecycleHooks{OnStop: baseRepo.Stop},
+		tableStatusSub,
+		kitchenSub,
+		publisherLifecycle,
+		subLifecycle,
+	}
+	if demoEnabled == "true" {
+		lifecycles = append(lifecycles, seedHooks)
+	}
+
 	options := []aqm.Option{
 		aqm.WithConfig(config),
 		aqm.WithLogger(logger),
 		aqm.WithHTTPMiddleware(stack...),
 		aqm.WithHTTPServerModules("web.port", handler),
 		aqm.WithGRPCServerModules("grpc.port", orderEvents),
-		aqm.WithLifecycle(aqm.LifecycleHooks{OnStop: baseRepo.Stop}, tableStatusSub, kitchenSub, publisherLifecycle, subLifecycle),
+		aqm.WithLifecycle(lifecycles...),
 		aqm.WithHealthChecks(appName),
 	}
 

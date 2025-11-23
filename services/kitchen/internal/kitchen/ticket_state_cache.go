@@ -77,6 +77,12 @@ func (c *TicketStateCache) Warm(ctx context.Context) error {
 	return c.warmFromRepo(ctx)
 }
 
+// WarmFromRepo loads tickets directly from MongoDB repository, bypassing event stream.
+// This is useful after seeding data directly to the database without publishing events.
+func (c *TicketStateCache) WarmFromRepo(ctx context.Context) error {
+	return c.warmFromRepo(ctx)
+}
+
 // warmFromStream replays events from the persistent stream to rebuild cache state.
 func (c *TicketStateCache) warmFromStream(ctx context.Context) error {
 	// Protect against panics from nil pointer dereferences in stream implementations
