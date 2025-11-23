@@ -14,9 +14,9 @@
 - Update table service to delegate order operations to order service.
 
 ## Conversational Interface
-- ✅ Create `agent@system` user to act as mediator in conversational sessions.
-- ✅ Add auto-generated `PIN` field to `User` for transient authentication.
-- ✅ Implement PIN generation with collision detection.
+- Create `agent@system` user to act as mediator in conversational sessions.
+- Add auto-generated `PIN` field to `User` for transient authentication.
+- Implement PIN generation with collision detection.
 - Implement deterministic command parser for structured operations.
 - Create command handlers for basic table and order operations.
 - Bind user identity to chat session via PIN authentication.
@@ -25,4 +25,4 @@
 ## Future Enhancements
 - Integrate locally hosted, fine-tuned LLM for natural language understanding.
 - Add voice interaction capabilities to conversational mode.
-- Implement comprehensive order workflow in conversational interface.  
+- Implement comprehensive order workflow in conversational interface.

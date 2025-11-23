@@ -416,9 +416,53 @@ run-all:
 	@echo "   📦 Starting Media on :8090..."
 	@cd services/media && nohup ./media > media.log 2>&1 & echo $$! > media.pid; sleep 2
 	@echo "   📦 Starting Kitchen on :8089..."
-	@cd services/kitchen && nohup ./kitchen > kitchen.log 2>&1 & echo $$! > kitchen.pid; sleep 2
+	@cd services/kitchen && KITCHEN_NATS_STREAM_ENABLED=true nohup ./kitchen > kitchen.log 2>&1 & echo $$! > kitchen.pid; sleep 2
 	@echo ""
 	@echo "🎉 All Appetite services started!"
+	@echo "📡 Services running:"
+	@echo "   • Operations: http://localhost:8080 (restaurant operations + chat)"
+	@echo "   • Admin:      http://localhost:8081 (business admin)"
+	@echo "   • AuthN:      http://localhost:8082 (authentication)"
+	@echo "   • AuthZ:      http://localhost:8083 (authorization)"
+	@echo "   • Dictionary: http://localhost:8085 (dictionary)"
+	@echo "   • Order:      http://localhost:8086 (order management)"
+	@echo "   • Table:      http://localhost:8087 (restaurant tables)"
+	@echo "   • Menu:       http://localhost:8088 (menu management)"
+	@echo "   • Kitchen:    http://localhost:8089 (kitchen tickets)"
+	@echo "   • Media:      http://localhost:8090 (media assets)"
+	@echo ""
+	@echo "🛑 To stop all services: make stop-all"
+
+run-demo:
+	@echo "🎭 Starting Appetite environment with DEMO seeding..."
+	@$(MAKE) stop-all
+	@$(MAKE) db-reset-dev
+	@$(MAKE) build-all
+	@echo "🚀 Starting NATS..."
+	@$(MAKE) run-nats
+	@echo "🚀 Starting services with seeding.demo=true..."
+	@echo "   📦 Starting Admin on :8081..."
+	@cd services/admin && nohup ./admin > admin.log 2>&1 & echo $$! > admin.pid; sleep 2
+	@echo "   📦 Starting AuthN on :8082..."
+	@cd services/authn && nohup ./authn > authn.log 2>&1 & echo $$! > authn.pid; sleep 2
+	@echo "   📦 Starting AuthZ on :8083..."
+	@cd services/authz && nohup ./authz > authz.log 2>&1 & echo $$! > authz.pid; sleep 2
+	@echo "   📦 Starting Dictionary on :8085..."
+	@cd services/dictionary && nohup ./dictionary > dictionary.log 2>&1 & echo $$! > dictionary.pid; sleep 2
+	@echo "   📦 Starting Menu on :8088..."
+	@cd services/menu && nohup ./menu > menu.log 2>&1 & echo $$! > menu.pid; sleep 2
+	@echo "   📦 Starting Table on :8087 (with demo seeding)..."
+	@cd services/table && TABLE_SEEDING_DEMO=true nohup ./table > table.log 2>&1 & echo $$! > table.pid; sleep 3
+	@echo "   📦 Starting Order on :8086 (with demo seeding)..."
+	@cd services/order && ORDER_SEEDING_DEMO=true nohup ./order > order.log 2>&1 & echo $$! > order.pid; sleep 3
+	@echo "   📦 Starting Kitchen on :8089 (with demo seeding)..."
+	@cd services/kitchen && KITCHEN_SEEDING_DEMO=true KITCHEN_NATS_STREAM_ENABLED=true nohup ./kitchen > kitchen.log 2>&1 & echo $$! > kitchen.pid; sleep 3
+	@echo "   📦 Starting Operations on :8080..."
+	@cd services/operations && nohup ./operations > operations.log 2>&1 & echo $$! > operations.pid; sleep 2
+	@echo "   📦 Starting Media on :8090..."
+	@cd services/media && nohup ./media > media.log 2>&1 & echo $$! > media.pid; sleep 2
+	@echo ""
+	@echo "🎉 All Appetite services started with DEMO data!"
 	@echo "📡 Services running:"
 	@echo "   • Operations: http://localhost:8080 (restaurant operations + chat)"
 	@echo "   • Admin:      http://localhost:8081 (business admin)"

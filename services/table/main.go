@@ -47,15 +47,13 @@ func main() {
 	seedCtx, cancelSeeds := context.WithCancel(ctx)
 	defer cancelSeeds()
 
-	var lifecycle []aqm.LifecycleHooks
+	lifecycle := []interface{}{}
 
 	tableRepo := mongo.NewTableRepo(config, logger)
 	err = tableRepo.Start(ctx)
 	if err != nil {
 		log.Fatalf("%s(%s) cannot start table repositoryr: %v", appName, appVersion, err)
 	}
-
-	lifecycle = append(lifecycle, aqm.LifecycleHooks{})
 
 	db := tableRepo.GetDatabase()
 	if db == nil {
@@ -101,8 +99,18 @@ func main() {
 		logger,
 	)
 
+	// Choose seeding strategy based on config
+	demoEnabled, _ := config.GetString("seeding.demo")
+	var seedingFunc func(ctx context.Context) error
+	if demoEnabled == "true" {
+		logger.Info("Demo seeding enabled for table service")
+		seedingFunc = tables.DemoSeedingFunc(seedCtx, tableRepo, seedFS, logger)
+	} else {
+		seedingFunc = tables.SeedingFunc(seedCtx, tableRepo, seedFS, logger)
+	}
+
 	seedHooks := aqm.LifecycleHooks{
-		OnStart: tables.SeedingFunc(seedCtx, tableRepo, seedFS, logger),
+		OnStart: seedingFunc,
 		OnStop:  tables.StopFunc(cancelSeeds),
 	}
 	lifecycle = append(lifecycle, seedHooks)
@@ -120,7 +128,7 @@ func main() {
 		aqm.WithLogger(logger),
 		aqm.WithHTTPMiddleware(stack...),
 		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(lifecycle),
+		aqm.WithLifecycle(lifecycle...),
 		aqm.WithHealthChecks(appName),
 	}
 

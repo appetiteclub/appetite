@@ -128,6 +128,31 @@ func main() {
 	}
 	lifecycles = append(lifecycles, cacheLifecycle)
 
+	// Setup demo seeding if enabled
+	demoEnabled, _ := config.GetString("seeding.demo")
+	if demoEnabled == "true" {
+		logger.Info("Demo seeding enabled for kitchen service")
+		seedCtx, cancelSeeds := context.WithCancel(ctx)
+		defer cancelSeeds()
+
+		// Note: db will be available when OnStart runs (after ticketRepo lifecycle starts)
+		seedHooks := aqm.LifecycleHooks{
+			OnStart: func(startCtx context.Context) error {
+				db := ticketRepo.GetDatabase()
+				if db == nil {
+					logger.Info("Cannot run demo seeding: database not available")
+					return nil
+				}
+				return kitchen.DemoSeedingFunc(seedCtx, ticketRepo, ticketCache, db, logger)(startCtx)
+			},
+			OnStop: func(context.Context) error {
+				cancelSeeds()
+				return nil
+			},
+		}
+		lifecycles = append(lifecycles, seedHooks)
+	}
+
 	if kitchenStream != nil {
 		streamLifecycle := aqm.LifecycleHooks{
 			OnStop: func(context.Context) error {
