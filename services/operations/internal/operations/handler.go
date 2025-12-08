@@ -164,6 +164,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/add-table", h.CreateTable)
 		r.Post("/update-table/{id}", h.UpdateTable)
 		r.Post("/delete-table/{id}", h.DeleteTable)
+		r.Post("/release-table/{id}", h.ReleaseTable)
 		r.Get("/orders", h.Orders)
 		r.Get("/add-order", h.NewOrderForm)
 		r.Post("/add-order", h.CreateOrder)
@@ -188,10 +189,11 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 			})
 		}
 
-		// API routes for Order items
+		// API routes for Order items and orders
 		r.Route("/api/order", func(r chi.Router) {
 			r.Patch("/items/{id}/deliver", h.MarkOrderItemDelivered)
 			r.Patch("/items/{id}/cancel", h.CancelOrderItem)
+			r.Post("/{id}/close", h.CloseOrder)
 		})
 	})
 }

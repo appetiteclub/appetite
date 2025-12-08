@@ -102,6 +102,21 @@ func (t *Table) Close() {
 	t.UpdatedAt = time.Now()
 }
 
+// SetClearing marks the table as clearing (order closed but pending items for takeaway)
+func (t *Table) SetClearing() {
+	t.Status = "clearing"
+	t.UpdatedAt = time.Now()
+}
+
+// Release releases a clearing table back to available
+func (t *Table) Release() {
+	t.Status = "available"
+	t.GuestCount = 0
+	t.AssignedTo = nil
+	t.CurrentBill = nil
+	t.UpdatedAt = time.Now()
+}
+
 func (t *Table) UpdateBill(subtotal, tax, tip float64) {
 	t.CurrentBill = &Bill{
 		Subtotal: subtotal,

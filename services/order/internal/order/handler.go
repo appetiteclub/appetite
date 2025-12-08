@@ -79,6 +79,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{id}", h.GetOrder)
 		r.Put("/{id}", h.UpdateOrderStatus)
 		r.Delete("/{id}", h.DeleteOrder)
+		r.Post("/{id}/close", h.CloseOrder)
 
 		r.Route("/{orderID}/items", func(r chi.Router) {
 			r.Post("/", h.CreateOrderItem)
@@ -962,7 +963,7 @@ func (h *Handler) CancelItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("order item cancelled", "item_id", itemID)
-	w.WriteHeader(http.StatusOK)
+	aqm.Respond(w, http.StatusOK, item, nil)
 }
 
 // updateKitchenTicketStatus updates the kitchen ticket status via Kitchen service
@@ -998,6 +999,136 @@ func (h *Handler) updateKitchenTicketStatus(ctx context.Context, orderItemID uui
 			}
 		}
 	}
+}
+
+// CloseOrder closes an order, optionally auto-processing pending/ready/preparing items
+// Query params:
+//   - force=true: auto-process pending (cancel) and ready (deliver) items
+//   - takeaway=true: treat preparing items as takeaway (mark delivered, table goes to clearing)
+func (h *Handler) CloseOrder(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.CloseOrder")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	id, ok := h.parseIDParam(w, r, log)
+	if !ok {
+		return
+	}
+
+	order, err := h.orderRepo.Get(ctx, id)
+	if err != nil || order == nil {
+		log.Error("order not found", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	if order.Status == "closed" {
+		aqm.RespondError(w, http.StatusBadRequest, "Order is already closed")
+		return
+	}
+
+	// Get all items for this order
+	items, err := h.orderItemRepo.ListByOrder(ctx, id)
+	if err != nil {
+		log.Error("cannot list order items", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve order items")
+		return
+	}
+
+	// Check for flags
+	force := r.URL.Query().Get("force") == "true"
+	takeaway := r.URL.Query().Get("takeaway") == "true"
+
+	// Categorize items by status
+	var pendingItems, readyItems, preparingItems []*OrderItem
+	for _, item := range items {
+		switch item.Status {
+		case "pending":
+			pendingItems = append(pendingItems, item)
+		case "ready":
+			readyItems = append(readyItems, item)
+		case "preparing", "started":
+			preparingItems = append(preparingItems, item)
+		// delivered, cancelled are ok
+		}
+	}
+
+	// If there are items being prepared and no takeaway flag, check what to do
+	if len(preparingItems) > 0 && !takeaway {
+		// Return info for confirmation with preparing items
+		response := map[string]interface{}{
+			"requires_confirmation": true,
+			"pending_count":         len(pendingItems),
+			"ready_count":           len(readyItems),
+			"preparing_count":       len(preparingItems),
+			"message":               fmt.Sprintf("Order has %d preparing, %d pending and %d ready items", len(preparingItems), len(pendingItems), len(readyItems)),
+		}
+		aqm.Respond(w, http.StatusOK, response, nil)
+		return
+	}
+
+	// If not forcing and there are pending/ready items (but no preparing), return info for confirmation
+	if !force && (len(pendingItems) > 0 || len(readyItems) > 0) {
+		response := map[string]interface{}{
+			"requires_confirmation": true,
+			"pending_count":         len(pendingItems),
+			"ready_count":           len(readyItems),
+			"preparing_count":       0,
+			"message":               fmt.Sprintf("Order has %d pending and %d ready items", len(pendingItems), len(readyItems)),
+		}
+		aqm.Respond(w, http.StatusOK, response, nil)
+		return
+	}
+
+	// Auto-cancel pending items
+	for _, item := range pendingItems {
+		item.Cancel()
+		if err := h.orderItemRepo.Save(ctx, item); err != nil {
+			log.Error("cannot cancel pending item", "error", err, "item_id", item.ID)
+		}
+	}
+
+	// Auto-deliver ready items
+	for _, item := range readyItems {
+		item.MarkAsDelivered()
+		if err := h.orderItemRepo.Save(ctx, item); err != nil {
+			log.Error("cannot deliver ready item", "error", err, "item_id", item.ID)
+		}
+	}
+
+	// Handle preparing items as takeaway (mark as delivered)
+	hasTakeaway := false
+	if takeaway && len(preparingItems) > 0 {
+		hasTakeaway = true
+		for _, item := range preparingItems {
+			item.MarkAsDelivered()
+			if err := h.orderItemRepo.Save(ctx, item); err != nil {
+				log.Error("cannot mark preparing item as delivered (takeaway)", "error", err, "item_id", item.ID)
+			}
+		}
+	}
+
+	// Close the order
+	order.Close()
+	if err := h.orderRepo.Save(ctx, order); err != nil {
+		log.Error("cannot close order", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not close order")
+		return
+	}
+
+	log.Info("order closed", "order_id", id, "cancelled_items", len(pendingItems), "delivered_items", len(readyItems), "takeaway_items", len(preparingItems))
+
+	response := map[string]interface{}{
+		"order":           order,
+		"cancelled_count": len(pendingItems),
+		"delivered_count": len(readyItems),
+		"takeaway_count":  len(preparingItems),
+		"has_takeaway":    hasTakeaway,
+		"table_id":        order.TableID,
+	}
+	aqm.Respond(w, http.StatusOK, response, nil)
 }
 
 func (h *Handler) log(r *http.Request) aqm.Logger {

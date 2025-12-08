@@ -46,6 +46,7 @@
 
         <div class="order-card-details order-modal-content">
             <div class="order-detail-actions">
+                {{if ne .Order.Status "closed"}}
                 <button type="button"
                         class="order-action-btn"
                         hx-get="/orders/{{.Order.ID}}/items/new"
@@ -60,6 +61,26 @@
                         hx-swap="innerHTML">
                     🧾 New Group
                 </button>
+                <button type="button"
+                        class="order-action-btn order-action-close"
+                        onclick="closeOrder('{{.Order.ID}}')">
+                    ✓ Close Order
+                </button>
+                {{else if eq .Order.TableStatus "clearing"}}
+                <div class="order-closed-notice">
+                    <span class="status-badge status-closed">Order Closed</span>
+                    <span class="clearing-notice">Table pending release (takeaway items)</span>
+                </div>
+                <button type="button"
+                        class="order-action-btn order-action-release"
+                        onclick="releaseTable('{{.Order.TableID}}')">
+                    ✓ Release Table
+                </button>
+                {{else}}
+                <div class="order-closed-notice">
+                    <span class="status-badge status-closed">Order Closed</span>
+                </div>
+                {{end}}
             </div>
 
             {{if .Order.Groups}}
@@ -262,6 +283,109 @@
     background: #fee2e2;
     color: #991b1b;
 }
+
+.order-action-close {
+    background: #059669 !important;
+    color: white !important;
+    margin-left: auto;
+}
+
+.order-action-close:hover {
+    background: #047857 !important;
+}
+
+/* Close confirmation modal */
+.close-confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.close-confirm-dialog {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+}
+
+.close-confirm-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.close-confirm-message {
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.close-confirm-warning {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 16px 0;
+    font-size: 14px;
+}
+
+.close-confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.close-confirm-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.close-confirm-btn-cancel {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.close-confirm-btn-confirm {
+    background: #059669;
+    color: white;
+}
+
+/* Order closed notice */
+.order-closed-notice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    flex: 1;
+}
+
+.clearing-notice {
+    color: #92400e;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.order-action-release {
+    background: #10b981 !important;
+    color: white !important;
+}
+
+.order-action-release:hover {
+    background: #059669 !important;
+}
 </style>
 
 <script>
@@ -335,6 +459,186 @@ function cancelOrderItem(itemID) {
     .catch(err => {
         console.error('Error canceling item:', err);
         alert('Failed to cancel item. Please try again.');
+    });
+}
+
+function closeOrder(orderID) {
+    // First, check if confirmation is needed
+    fetch(`/api/order/${orderID}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json().then(data => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+        if (!ok) {
+            // Handle error response
+            alert(data.error || 'Failed to close order');
+            return;
+        }
+        // Check if the response indicates we need confirmation
+        if (data.data && data.data.requires_confirmation) {
+            showCloseConfirmation(
+                orderID,
+                data.data.pending_count || 0,
+                data.data.ready_count || 0,
+                data.data.preparing_count || 0
+            );
+        } else if (data.data && data.data.order) {
+            // Order was closed successfully
+            onOrderClosed(orderID, data.data.has_takeaway);
+        } else if (data.error) {
+            alert(data.error);
+        }
+    })
+    .catch(err => {
+        console.error('Error closing order:', err);
+        alert('Failed to close order. Please try again.');
+    });
+}
+
+function showCloseConfirmation(orderID, pendingCount, readyCount, preparingCount) {
+    preparingCount = preparingCount || 0;
+
+    // Build warning message
+    let warningParts = [];
+    if (preparingCount > 0) {
+        warningParts.push(`<strong>${preparingCount}</strong> item(s) are being prepared`);
+    }
+    if (pendingCount > 0) {
+        warningParts.push(`<strong>${pendingCount}</strong> pending item(s) will be cancelled`);
+    }
+    if (readyCount > 0) {
+        warningParts.push(`<strong>${readyCount}</strong> ready item(s) will be marked as delivered`);
+    }
+
+    // If there are preparing items, show special dialog with Takeaway option
+    const hasPreparing = preparingCount > 0;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'close-confirm-overlay';
+    overlay.id = 'close-confirm-overlay';
+
+    if (hasPreparing) {
+        overlay.innerHTML = `
+            <div class="close-confirm-dialog">
+                <div class="close-confirm-title">Items Being Prepared</div>
+                <div class="close-confirm-message">There are items currently being prepared in the kitchen.</div>
+                <div class="close-confirm-warning">
+                    ${warningParts.join('<br>')}
+                </div>
+                <div class="close-confirm-message" style="margin-top: 12px;">
+                    How do you want to handle the preparing items?
+                </div>
+                <div class="close-confirm-actions" style="flex-direction: column; gap: 8px;">
+                    <button class="close-confirm-btn close-confirm-btn-takeaway" onclick="confirmCloseOrder('${orderID}', true)" style="width: 100%; background: #f59e0b;">
+                        Takeaway - Customer takes food when ready
+                    </button>
+                    <button class="close-confirm-btn close-confirm-btn-cancel" onclick="dismissCloseConfirmation()" style="width: 100%;">
+                        Go Back
+                    </button>
+                </div>
+            </div>
+        `;
+    } else {
+        overlay.innerHTML = `
+            <div class="close-confirm-dialog">
+                <div class="close-confirm-title">Close Order?</div>
+                <div class="close-confirm-message">This will finalize the order and release the table.</div>
+                <div class="close-confirm-warning">
+                    ${warningParts.join('<br>')}
+                </div>
+                <div class="close-confirm-actions">
+                    <button class="close-confirm-btn close-confirm-btn-cancel" onclick="dismissCloseConfirmation()">
+                        Cancel
+                    </button>
+                    <button class="close-confirm-btn close-confirm-btn-confirm" onclick="confirmCloseOrder('${orderID}', false)">
+                        Close Order
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    document.body.appendChild(overlay);
+}
+
+function dismissCloseConfirmation() {
+    const overlay = document.getElementById('close-confirm-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+function confirmCloseOrder(orderID, takeaway) {
+    dismissCloseConfirmation();
+
+    let url = `/api/order/${orderID}/close?force=true`;
+    if (takeaway) {
+        url += '&takeaway=true';
+    }
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.data && data.data.order) {
+            onOrderClosed(orderID, data.data.has_takeaway);
+        } else if (data.error) {
+            alert(data.error);
+        }
+    })
+    .catch(err => {
+        console.error('Error closing order:', err);
+        alert('Failed to close order. Please try again.');
+    });
+}
+
+function onOrderClosed(orderID, hasTakeaway) {
+    // Close the modal
+    const modal = document.querySelector('.order-modal');
+    if (modal) {
+        modal.remove();
+    }
+
+    // Show message if takeaway
+    if (hasTakeaway) {
+        alert('Order closed. Table is in "clearing" state - release it when takeaway items are delivered.');
+    }
+
+    // Refresh the orders page
+    if (window.location.pathname.includes('/orders')) {
+        location.reload();
+    }
+}
+
+function releaseTable(tableID) {
+    if (!confirm('Release this table? This will mark the table as available.')) {
+        return;
+    }
+
+    fetch(`/release-table/${tableID}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'HX-Request': 'true'
+        }
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        // Close the modal
+        const modal = document.querySelector('.order-modal');
+        if (modal) {
+            modal.remove();
+        }
+        // Refresh the page
+        location.reload();
+    })
+    .catch(err => {
+        console.error('Error releasing table:', err);
+        alert('Failed to release table. Please try again.');
     });
 }
 
