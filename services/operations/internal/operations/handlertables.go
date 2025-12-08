@@ -220,6 +220,33 @@ func (h *Handler) DeleteTable(w http.ResponseWriter, r *http.Request) {
 	aqm.RedirectOrHeader(w, r, "/list-tables?deleted=1")
 }
 
+// ReleaseTable releases a clearing table back to available status.
+func (h *Handler) ReleaseTable(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.http.Start(w, r, "Handler.ReleaseTable")
+	defer finish()
+
+	if !h.requirePermission(w, r, "tables:write") {
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		h.renderTablesPage(w, r, tablesPageState{Error: "Invalid table identifier."})
+		return
+	}
+
+	// Call table service to release the table
+	path := fmt.Sprintf("/tables/%s/release", id)
+	_, err := h.tableClient.Request(r.Context(), "POST", path, nil)
+	if err != nil {
+		h.log().Error("table service release failed", "error", err, "table_id", id)
+		h.renderTablesPage(w, r, tablesPageState{Error: "Could not release the table right now."})
+		return
+	}
+
+	aqm.RedirectOrHeader(w, r, "/list-tables?released=1")
+}
+
 // NewTableForm serves the create form via HTMX.
 func (h *Handler) NewTableForm(w http.ResponseWriter, r *http.Request) {
 	w, r, finish := h.http.Start(w, r, "Handler.NewTableForm")
@@ -382,6 +409,7 @@ var statusLabels = map[string]string{
 	"open":           "Open",
 	"reserved":       "Reserved",
 	"cleaning":       "Cleaning",
+	"clearing":       "Clearing",
 	"out_of_service": "Out of Service",
 }
 

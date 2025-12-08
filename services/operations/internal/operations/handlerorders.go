@@ -184,6 +184,7 @@ var orderStatusLabels = map[string]string{
 	"ready":     "Ready",
 	"delivered": "Delivered",
 	"cancelled": "Cancelled",
+	"closed":    "Closed",
 }
 
 var orderStatusClasses = map[string]string{
@@ -192,6 +193,7 @@ var orderStatusClasses = map[string]string{
 	"ready":     "status-ready",
 	"delivered": "status-delivered",
 	"cancelled": "status-cancelled",
+	"closed":    "status-closed",
 }
 
 var orderItemStatusClasses = map[string]string{
@@ -213,6 +215,7 @@ var allowedTableStatuses = map[string]bool{
 	"available": true,
 	"open":      true,
 	"reserved":  true,
+	"clearing":  true,
 }
 
 // Orders renders the management interface replicating the tables page experience.
@@ -333,6 +336,13 @@ func (h *Handler) fetchOrderCards(ctx context.Context) ([]orderCardView, error) 
 	cards := make([]orderCardView, 0, len(orders))
 
 	for _, order := range orders {
+		// Skip closed orders unless the table is in "clearing" status (takeaway scenario)
+		if strings.ToLower(order.Status) == "closed" {
+			table := tableMap[order.TableID]
+			if table == nil || strings.ToLower(table.Status) != "clearing" {
+				continue
+			}
+		}
 		items, itemErr := h.fetchOrderItems(ctx, order.ID)
 		if itemErr != nil {
 			h.log().Error("cannot load order items", "order_id", order.ID, "error", itemErr)

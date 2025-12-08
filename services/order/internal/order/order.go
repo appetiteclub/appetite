@@ -71,3 +71,8 @@ func (o *Order) Cancel() {
 	o.Status = "cancelled"
 	o.UpdatedAt = time.Now()
 }
+
+func (o *Order) Close() {
+	o.Status = "closed"
+	o.UpdatedAt = time.Now()
+}

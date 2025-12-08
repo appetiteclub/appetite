@@ -15,7 +15,7 @@ db:
   mongo:
     # MongoDB connection string.
     # Env: ORDER_DB_MONGO_URL
-    url: "mongodb://localhost:27017"
+    url: "mongodb://admin:password@localhost:27017/?authSource=admin"
 
     # MongoDB database name.
     # Env: ORDER_DB_MONGO_NAME

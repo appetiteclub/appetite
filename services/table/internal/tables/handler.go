@@ -76,6 +76,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		r.Post("/{id}/open", h.OpenTable)
 		r.Post("/{id}/close", h.CloseTable)
+		r.Post("/{id}/clearing", h.SetTableClearing)
+		r.Post("/{id}/release", h.ReleaseTable)
 
 		r.Route("/{tableID}/groups", func(r chi.Router) {
 			r.Post("/", h.CreateGroup)
@@ -367,6 +369,74 @@ func (h *Handler) CloseTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.publishTableStatusChanged(ctx, table, previousStatus, "table.closed")
+
+	links := aqm.RESTfulLinksFor(table)
+	aqm.RespondSuccess(w, table, links...)
+}
+
+func (h *Handler) SetTableClearing(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.SetTableClearing")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	id, ok := h.parseIDParam(w, r, log)
+	if !ok {
+		return
+	}
+
+	table, err := h.tableRepo.Get(ctx, id)
+	if err != nil || table == nil {
+		log.Error("table not found", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusNotFound, "Table not found")
+		return
+	}
+
+	previousStatus := table.Status
+	table.SetClearing()
+
+	if err := h.tableRepo.Save(ctx, table); err != nil {
+		log.Error("cannot set table to clearing", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not update table")
+		return
+	}
+
+	h.publishTableStatusChanged(ctx, table, previousStatus, "table.clearing")
+
+	links := aqm.RESTfulLinksFor(table)
+	aqm.RespondSuccess(w, table, links...)
+}
+
+func (h *Handler) ReleaseTable(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.tlm.Start(w, r, "Handler.ReleaseTable")
+	defer finish()
+
+	log := h.log(r)
+	ctx := r.Context()
+
+	id, ok := h.parseIDParam(w, r, log)
+	if !ok {
+		return
+	}
+
+	table, err := h.tableRepo.Get(ctx, id)
+	if err != nil || table == nil {
+		log.Error("table not found", "error", err, "id", id.String())
+		aqm.RespondError(w, http.StatusNotFound, "Table not found")
+		return
+	}
+
+	previousStatus := table.Status
+	table.Release()
+
+	if err := h.tableRepo.Save(ctx, table); err != nil {
+		log.Error("cannot release table", "error", err)
+		aqm.RespondError(w, http.StatusInternalServerError, "Could not release table")
+		return
+	}
+
+	h.publishTableStatusChanged(ctx, table, previousStatus, "table.released")
 
 	links := aqm.RESTfulLinksFor(table)
 	aqm.RespondSuccess(w, table, links...)

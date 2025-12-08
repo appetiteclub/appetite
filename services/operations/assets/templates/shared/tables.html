@@ -54,6 +54,15 @@
             </div>
 
             <div class="table-card-actions">
+                {{if eq .Status "clearing"}}
+                <button type="button"
+                        class="table-action-btn table-action-release"
+                        hx-post="/release-table/{{.ID}}"
+                        hx-confirm="Release table {{.Number}}? Make sure all takeaway items have been delivered."
+                        hx-target="body">
+                    Release
+                </button>
+                {{end}}
                 <button type="button"
                         class="table-action-btn table-action-edit"
                         hx-get="/edit-table/{{.ID}}"
