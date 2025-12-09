@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOWORK: off
+      GOPROXY: direct
+      GOSUMDB: off
     steps:
       - uses: actions/checkout@v4
 
@@ -31,8 +33,6 @@ jobs:
           done
           echo "=== Coverage files ==="
           ls -la coverage/
-          echo "=== Sample coverage content ==="
-          head -20 coverage/order.txt 2>/dev/null || true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -41,4 +41,3 @@ jobs:
           slug: appetiteclub/appetite
           directory: coverage
           fail_ci_if_error: false
-          verbose: true

@@ -3,7 +3,6 @@ go 1.24.7
 use (
 	.
 	./cmd/utils
-	./pkg
 	./services/admin
 	./services/authn
 	./services/authz
@@ -16,4 +15,7 @@ use (
 	./services/table
 )
 
-replace github.com/aquamarinepk/aqm v0.0.1 => ../aqm
+replace (
+	github.com/appetiteclub/appetite v0.0.1 => .
+	github.com/aquamarinepk/aqm v0.0.1 => ../aqm
+)
