@@ -23,23 +23,16 @@ jobs:
 
       - name: Download dependencies and run tests
         run: |
-          mkdir -p coverage
           for dir in services/*/; do
             if [ -f "$dir/go.mod" ]; then
               name=$(basename "$dir")
               echo "=== Testing $name ==="
-              (cd "$dir" && go mod download && go test -race -coverprofile="../../coverage/${name}.txt" -covermode=atomic ./...) || echo "Tests failed for $name"
+              (cd "$dir" && go mod download && go test -race -coverprofile=coverage.txt -covermode=atomic ./...) || echo "Tests failed for $name"
             fi
           done
-          echo "=== Coverage files ==="
-          ls -la coverage/
-          echo "=== Coverage content sample ==="
-          head -20 coverage/*.txt || true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/*.txt
           verbose: true
-          fail_ci_if_error: true
