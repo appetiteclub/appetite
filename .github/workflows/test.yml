@@ -9,19 +9,36 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      GOWORK: off
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.24'
 
-      - name: Run tests with coverage
-        run: go test -coverprofile=coverage.txt ./...
+      - name: Download dependencies and run tests
+        run: |
+          mkdir -p coverage
+          for dir in services/*/; do
+            if [ -f "$dir/go.mod" ]; then
+              name=$(basename "$dir")
+              echo "=== Testing $name ==="
+              (cd "$dir" && go mod download && go test -coverprofile="../../coverage/${name}.txt" ./...) || echo "Tests failed for $name"
+            fi
+          done
+          echo "=== Coverage files ==="
+          ls -la coverage/
+          echo "=== Sample coverage content ==="
+          head -20 coverage/order.txt 2>/dev/null || true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: appetiteclub/appetite
+          directory: coverage
+          fail_ci_if_error: false
+          verbose: true

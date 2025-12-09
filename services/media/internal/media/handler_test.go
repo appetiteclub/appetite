@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	cfaqmg "github.com/appetiteclub/appetite/services/media/internal/config"
 	"github.com/aquamarinepk/aqm"
 )
 
@@ -20,8 +19,8 @@ func setupHandler(t *testing.T) (*Handler, *stubDictionary, *stubStorage) {
 	dict := &stubDictionary{}
 	store := &stubStorage{path: "stored/http"}
 	service := NewService(NewInMemoryRepository(), store, dict, ServiceOptions{})
-	xparams := cfaqmg.NewXParams(aqm.NewNoopLogger(), cfaqmg.New())
-	return NewHandler(service, xparams), dict, store
+	deps := aqm.DefaultDeps()
+	return NewHandler(service, deps), dict, store
 }
 
 func TestHandlerFlow(t *testing.T) {
@@ -156,8 +155,8 @@ func TestHandlerUpdateInvalidCategory(t *testing.T) {
 	dict := &stubDictionary{failCat: true}
 	store := &stubStorage{}
 	svc := NewService(NewInMemoryRepository(), store, dict, ServiceOptions{})
-	xparams := cfaqmg.NewXParams(aqm.NewNoopLogger(), cfaqmg.New())
-	handler := NewHandler(svc, xparams)
+	deps := aqm.DefaultDeps()
+	handler := NewHandler(svc, deps)
 
 	router := chi.NewRouter()
 	handler.RegisterRoutes(router)

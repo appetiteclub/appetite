@@ -16,4 +16,4 @@ use (
 	./services/table
 )
 
-replace github.com/aquamarinepk/aqm v0.0.0 => ../aqm
+replace github.com/aquamarinepk/aqm v0.0.1 => ../aqm
