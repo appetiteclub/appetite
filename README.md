@@ -1,5 +1,8 @@
 # Appetite
 
+[![Tests](https://github.com/appetiteclub/appetite/actions/workflows/test.yml/badge.svg)](https://github.com/appetiteclub/appetite/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/appetiteclub/appetite/branch/main/graph/badge.svg)](https://codecov.io/gh/appetiteclub/appetite)
+
 ![Appetite Orders Board](docs/img/gallery/orders-board.png)
 <p align="right"><small><a href="docs/gallery/index.md">See more in the gallery</a></small></p>
 

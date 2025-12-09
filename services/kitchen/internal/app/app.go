@@ -39,11 +39,6 @@ func (a *App) Initialize(ctx context.Context) error {
 	// Initialize ticket repository
 	a.ticketRepo = mongo.NewTicketRepo(a.config, a.logger)
 
-	// Apply demo seeds if enabled
-	if err := kitchen.ApplyDemoSeeds(ctx, a.config, a.ticketRepo.GetDatabase, a.logger); err != nil {
-		a.logger.Errorf("Demo seeding failed (non-fatal): %v", err)
-	}
-
 	// Initialize NATS
 	natsURL, _ := a.config.GetString("nats.url")
 	if natsURL == "" {
@@ -93,18 +88,28 @@ func (a *App) Initialize(ctx context.Context) error {
 		}
 	}
 
-	// Initialize ticket cache
+	// Initialize ticket cache (with stream if available)
 	var streamForCache aqmevents.StreamConsumer
 	if kitchenStream != nil {
 		streamForCache = kitchenStream
 	}
 	ticketCache := kitchen.NewTicketStateCache(streamForCache, a.ticketRepo, a.logger)
 
+	// Apply demo seeds if enabled
+	if err := kitchen.ApplyDemoSeeds(ctx, a.ticketRepo, ticketCache, a.ticketRepo.GetDatabase(), a.logger); err != nil {
+		a.logger.Errorf("Demo seeding failed (non-fatal): %v", err)
+	}
+
 	// Initialize event subscriber
 	eventSubscriber := events.NewOrderItemSubscriber(orderSubscriber, a.ticketRepo, ticketCache, eventPublisher, a.logger)
 
 	// Initialize HTTP handler
-	handler := kitchen.NewHandler(a.ticketRepo, ticketCache, eventPublisher, a.config, a.logger)
+	handlerDeps := kitchen.HandlerDeps{
+		Repo:      a.ticketRepo,
+		Cache:     ticketCache,
+		Publisher: eventPublisher,
+	}
+	handler := kitchen.NewHandler(handlerDeps, a.config, a.logger)
 
 	// Initialize gRPC streaming server
 	grpcStreamServer := kitchen.NewEventStreamServer(ticketCache, a.logger)

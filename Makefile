@@ -229,10 +229,35 @@ fresh-start:
 	@echo "📜 Tailing consolidated logs (last $(FRESH_LOG_LINES) lines)..."
 	@TAIL_LINES=$(FRESH_LOG_LINES) $(MAKE) $(LOG_STREAM)
 
-# Test all components
+# Workspace modules for testing
+WORKSPACE_MODULES=. cmd/utils pkg services/admin services/authn services/authz services/dictionary services/kitchen services/media services/menu services/operations services/order services/table
+
+# Test all components with coverage summary
 test:
-	@echo "🧪 Running tests for all components..."
-	@$(GO_TEST) ./...
+	@echo "🧪 Running tests for all workspace modules..."
+	@rm -f coverage.out coverage.tmp
+	@echo "" > coverage.tmp
+	@echo ""
+	@echo "Coverage by module:"
+	@echo "┌────────────────────────────────────────────────────────┬──────────┐"
+	@echo "│ Module                                                 │ Coverage │"
+	@echo "├────────────────────────────────────────────────────────┼──────────┤"
+	@for mod in $(WORKSPACE_MODULES); do \
+		if [ -f "$$mod/go.mod" ]; then \
+			result=$$(go test -cover ./$$mod/... 2>&1); \
+			cov=$$(echo "$$result" | grep -oE '[0-9]+\.[0-9]+% of statements' | grep -v '^0\.0%' | tail -1 | grep -oE '[0-9]+\.[0-9]+%'); \
+			if [ -z "$$cov" ]; then \
+				if echo "$$result" | grep -qE '\[no test files\]|no test files'; then \
+					if echo "$$result" | grep -q '0\.0% of statements'; then cov="0.0%"; \
+					else cov="no test"; fi; \
+				elif echo "$$result" | grep -q "FAIL"; then cov="FAIL"; \
+				else cov="0.0%"; fi; \
+			fi; \
+			printf "│ %-54s │ %8s │\n" "$$mod" "$$cov"; \
+		fi; \
+	done
+	@echo "└────────────────────────────────────────────────────────┴──────────┘"
+	@rm -f coverage.tmp
 
 test-v:
 	@echo "🧪 Running tests with verbose output..."
