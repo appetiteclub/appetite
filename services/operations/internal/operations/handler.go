@@ -173,6 +173,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/orders/{id}/groups/new", h.NewOrderGroupForm)
 		r.Post("/orders/{id}/groups", h.CreateOrderGroup)
 		r.Get("/orders/{id}/modal", h.OrderModal)
+		r.Get("/tables/{tableID}/today-orders", h.TodayOrdersModal)
+		r.Get("/tables/{tableID}/card", h.TableCard)
 		r.Get("/orders/menu/match", h.OrderMenuMatch)
 		r.Get("/menu", h.Menu)
 		r.Get("/kitchen", h.KitchenKanban)

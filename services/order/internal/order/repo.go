@@ -11,6 +11,7 @@ type OrderRepo interface {
 	Get(ctx context.Context, id uuid.UUID) (*Order, error)
 	List(ctx context.Context) ([]*Order, error)
 	ListByTable(ctx context.Context, tableID uuid.UUID) ([]*Order, error)
+	ListByTableToday(ctx context.Context, tableID uuid.UUID) ([]*Order, error)
 	ListByStatus(ctx context.Context, status string) ([]*Order, error)
 	Save(ctx context.Context, order *Order) error
 	Delete(ctx context.Context, id uuid.UUID) error

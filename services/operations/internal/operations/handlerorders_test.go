@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -355,5 +356,650 @@ func TestOrderItemFormEnsureGroupSelection(t *testing.T) {
 	form2.ensureGroupSelection()
 	if form2.GroupID != "g3" {
 		t.Fatalf("expected fallback to first group, got %s", form2.GroupID)
+	}
+}
+
+func TestTodayOrdersModalViewFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		view        todayOrdersModalView
+		wantNumber  string
+		wantTableID string
+		wantCount   int
+	}{
+		{
+			name: "emptyView",
+			view: todayOrdersModalView{
+				TableNumber: "",
+				TableID:     "",
+				Orders:      nil,
+				OrderCount:  0,
+			},
+			wantNumber:  "",
+			wantTableID: "",
+			wantCount:   0,
+		},
+		{
+			name: "viewWithOrders",
+			view: todayOrdersModalView{
+				TableNumber: "T5",
+				TableID:     "table-123",
+				Orders: []orderCardView{
+					{ID: "order-1", ShortID: "O1"},
+					{ID: "order-2", ShortID: "O2"},
+				},
+				OrderCount: 2,
+			},
+			wantNumber:  "T5",
+			wantTableID: "table-123",
+			wantCount:   2,
+		},
+		{
+			name: "viewWithNoOrders",
+			view: todayOrdersModalView{
+				TableNumber: "T10",
+				TableID:     "table-456",
+				Orders:      []orderCardView{},
+				OrderCount:  0,
+			},
+			wantNumber:  "T10",
+			wantTableID: "table-456",
+			wantCount:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.view.TableNumber != tt.wantNumber {
+				t.Errorf("TableNumber = %q, want %q", tt.view.TableNumber, tt.wantNumber)
+			}
+			if tt.view.TableID != tt.wantTableID {
+				t.Errorf("TableID = %q, want %q", tt.view.TableID, tt.wantTableID)
+			}
+			if tt.view.OrderCount != tt.wantCount {
+				t.Errorf("OrderCount = %d, want %d", tt.view.OrderCount, tt.wantCount)
+			}
+			if len(tt.view.Orders) != tt.wantCount {
+				t.Errorf("len(Orders) = %d, want %d", len(tt.view.Orders), tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestDeriveStation(t *testing.T) {
+	tests := []struct {
+		name string
+		item *menuItemResource
+		want string
+	}{
+		{
+			name: "nilItem",
+			item: nil,
+			want: "kitchen",
+		},
+		{
+			name: "noTags",
+			item: &menuItemResource{
+				ID:   "item-1",
+				Tags: nil,
+			},
+			want: "kitchen",
+		},
+		{
+			name: "emptyTags",
+			item: &menuItemResource{
+				ID:   "item-2",
+				Tags: []string{},
+			},
+			want: "kitchen",
+		},
+		{
+			name: "barStation",
+			item: &menuItemResource{
+				ID:   "item-3",
+				Tags: []string{"station:bar"},
+			},
+			want: "bar",
+		},
+		{
+			name: "directStation",
+			item: &menuItemResource{
+				ID:   "item-4",
+				Tags: []string{"station:direct"},
+			},
+			want: "direct",
+		},
+		{
+			name: "mixedTags",
+			item: &menuItemResource{
+				ID:   "item-5",
+				Tags: []string{"category:beverage", "station:bar", "popular"},
+			},
+			want: "bar",
+		},
+		{
+			name: "noStationTag",
+			item: &menuItemResource{
+				ID:   "item-6",
+				Tags: []string{"spicy", "vegetarian"},
+			},
+			want: "kitchen",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := deriveStation(tt.item)
+			if got != tt.want {
+				t.Errorf("deriveStation() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPickMenuName(t *testing.T) {
+	tests := []struct {
+		name string
+		item *menuItemResource
+		want string
+	}{
+		{
+			name: "nilItem",
+			item: nil,
+			want: "",
+		},
+		{
+			name: "englishName",
+			item: &menuItemResource{
+				ID:   "item-1",
+				Name: map[string]string{"en": "Burger"},
+			},
+			want: "Burger",
+		},
+		{
+			name: "noEnglishFallbackToOther",
+			item: &menuItemResource{
+				ID:   "item-2",
+				Name: map[string]string{"es": "Hamburguesa"},
+			},
+			want: "Hamburguesa",
+		},
+		{
+			name: "emptyNameMap",
+			item: &menuItemResource{
+				ID:        "item-3",
+				Name:      map[string]string{},
+				ShortCode: "BRG",
+			},
+			want: "BRG",
+		},
+		{
+			name: "noNameNoShortCode",
+			item: &menuItemResource{
+				ID:   "item-4",
+				Name: map[string]string{},
+			},
+			want: "Menu Item",
+		},
+		{
+			name: "emptyEnglishFallbackToOther",
+			item: &menuItemResource{
+				ID:   "item-5",
+				Name: map[string]string{"en": "", "fr": "Baguette"},
+			},
+			want: "Baguette",
+		},
+		{
+			name: "preferEnglishOverOthers",
+			item: &menuItemResource{
+				ID:   "item-6",
+				Name: map[string]string{"en": "Pizza", "it": "Pizza Italiana"},
+			},
+			want: "Pizza",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := pickMenuName(tt.item)
+			if got != tt.want {
+				t.Errorf("pickMenuName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPickMenuPrice(t *testing.T) {
+	tests := []struct {
+		name string
+		item *menuItemResource
+		want float64
+	}{
+		{
+			name: "nilItem",
+			item: nil,
+			want: 0,
+		},
+		{
+			name: "noPrices",
+			item: &menuItemResource{
+				ID:     "item-1",
+				Prices: nil,
+			},
+			want: 0,
+		},
+		{
+			name: "emptyPrices",
+			item: &menuItemResource{
+				ID:     "item-2",
+				Prices: []menuPriceResource{},
+			},
+			want: 0,
+		},
+		{
+			name: "singlePrice",
+			item: &menuItemResource{
+				ID:     "item-3",
+				Prices: []menuPriceResource{{Amount: 15.99, CurrencyCode: "USD"}},
+			},
+			want: 15.99,
+		},
+		{
+			name: "multiplePricesReturnsFirst",
+			item: &menuItemResource{
+				ID: "item-4",
+				Prices: []menuPriceResource{
+					{Amount: 10.00, CurrencyCode: "USD"},
+					{Amount: 12.00, CurrencyCode: "EUR"},
+				},
+			},
+			want: 10.00,
+		},
+		{
+			name: "zeroPrice",
+			item: &menuItemResource{
+				ID:     "item-5",
+				Prices: []menuPriceResource{{Amount: 0, CurrencyCode: "USD"}},
+			},
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := pickMenuPrice(tt.item)
+			if got != tt.want {
+				t.Errorf("pickMenuPrice() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefaultMenuSelection(t *testing.T) {
+	tests := []struct {
+		name    string
+		options []menuItemOption
+		want    string
+	}{
+		{
+			name:    "nilOptions",
+			options: nil,
+			want:    "",
+		},
+		{
+			name:    "emptyOptions",
+			options: []menuItemOption{},
+			want:    "",
+		},
+		{
+			name: "withOptions",
+			options: []menuItemOption{
+				{ID: "item-1", Label: "Pizza"},
+				{ID: "item-2", Label: "Burger"},
+			},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := defaultMenuSelection(tt.options)
+			if got != tt.want {
+				t.Errorf("defaultMenuSelection() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMatchMenuOption(t *testing.T) {
+	options := []menuItemOption{
+		{ID: "item-1", Label: "Margherita Pizza ($12.00)", ShortCode: "PIZ"},
+		{ID: "item-2", Label: "Classic Burger ($15.00)", ShortCode: "BRG"},
+		{ID: "item-3", Label: "Caesar Salad ($10.00)", ShortCode: "SAL"},
+	}
+
+	tests := []struct {
+		name    string
+		query   string
+		options []menuItemOption
+		wantID  string
+	}{
+		{
+			name:    "emptyQuery",
+			query:   "",
+			options: options,
+			wantID:  "",
+		},
+		{
+			name:    "whitespaceQuery",
+			query:   "   ",
+			options: options,
+			wantID:  "",
+		},
+		{
+			name:    "exactShortCodeMatch",
+			query:   "PIZ",
+			options: options,
+			wantID:  "item-1",
+		},
+		{
+			name:    "shortCodeCaseInsensitive",
+			query:   "piz",
+			options: options,
+			wantID:  "item-1",
+		},
+		{
+			name:    "partialLabelMatch",
+			query:   "burger",
+			options: options,
+			wantID:  "item-2",
+		},
+		{
+			name:    "noMatch",
+			query:   "sushi",
+			options: options,
+			wantID:  "",
+		},
+		{
+			name:    "emptyOptions",
+			query:   "pizza",
+			options: []menuItemOption{},
+			wantID:  "",
+		},
+		{
+			name:    "nilOptions",
+			query:   "pizza",
+			options: nil,
+			wantID:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchMenuOption(tt.query, tt.options)
+			if got.ID != tt.wantID {
+				t.Errorf("matchMenuOption(%q) ID = %q, want %q", tt.query, got.ID, tt.wantID)
+			}
+		})
+	}
+}
+
+func TestPickMenuNameOption(t *testing.T) {
+	tests := []struct {
+		name  string
+		label string
+		want  string
+	}{
+		{
+			name:  "withDash",
+			label: "PIZ — Margherita Pizza ($12.00)",
+			want:  "PIZ",
+		},
+		{
+			name:  "withoutDash",
+			label: "Margherita Pizza ($12.00)",
+			want:  "Margherita Pizza ($12.00)",
+		},
+		{
+			name:  "emptyLabel",
+			label: "",
+			want:  "",
+		},
+		{
+			name:  "justDash",
+			label: "—",
+			want:  "",
+		},
+		{
+			name:  "multipleDashes",
+			label: "PIZ — Margherita — Special",
+			want:  "PIZ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := pickMenuNameOption(tt.label)
+			if got != tt.want {
+				t.Errorf("pickMenuNameOption(%q) = %q, want %q", tt.label, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTableOrderViewFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		view         tableOrderView
+		wantID       string
+		wantNumber   string
+		wantHasOrder bool
+		wantDisabled bool
+	}{
+		{
+			name: "emptyView",
+			view: tableOrderView{
+				ID:       "",
+				Number:   "",
+				HasOrder: false,
+				Disabled: false,
+			},
+			wantID:       "",
+			wantNumber:   "",
+			wantHasOrder: false,
+			wantDisabled: false,
+		},
+		{
+			name: "tableWithOrder",
+			view: tableOrderView{
+				ID:       "table-123",
+				Number:   "T5",
+				Status:   "occupied",
+				HasOrder: true,
+				Disabled: false,
+				Order: orderSummaryView{
+					ID:         "order-456",
+					ItemsCount: 3,
+					Total:      "$45.00",
+				},
+			},
+			wantID:       "table-123",
+			wantNumber:   "T5",
+			wantHasOrder: true,
+			wantDisabled: false,
+		},
+		{
+			name: "tableWithoutOrder",
+			view: tableOrderView{
+				ID:       "table-789",
+				Number:   "T10",
+				Status:   "available",
+				HasOrder: false,
+				Disabled: false,
+			},
+			wantID:       "table-789",
+			wantNumber:   "T10",
+			wantHasOrder: false,
+			wantDisabled: false,
+		},
+		{
+			name: "disabledTable",
+			view: tableOrderView{
+				ID:       "table-disabled",
+				Number:   "T99",
+				Status:   "reserved",
+				HasOrder: false,
+				Disabled: true,
+			},
+			wantID:       "table-disabled",
+			wantNumber:   "T99",
+			wantHasOrder: false,
+			wantDisabled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.view.ID != tt.wantID {
+				t.Errorf("ID = %q, want %q", tt.view.ID, tt.wantID)
+			}
+			if tt.view.Number != tt.wantNumber {
+				t.Errorf("Number = %q, want %q", tt.view.Number, tt.wantNumber)
+			}
+			if tt.view.HasOrder != tt.wantHasOrder {
+				t.Errorf("HasOrder = %v, want %v", tt.view.HasOrder, tt.wantHasOrder)
+			}
+			if tt.view.Disabled != tt.wantDisabled {
+				t.Errorf("Disabled = %v, want %v", tt.view.Disabled, tt.wantDisabled)
+			}
+		})
+	}
+}
+
+func TestTableOrderViewOrderSummary(t *testing.T) {
+	tests := []struct {
+		name           string
+		view           tableOrderView
+		wantOrderID    string
+		wantItemsCount int
+		wantTotal      string
+	}{
+		{
+			name: "orderWithItems",
+			view: tableOrderView{
+				HasOrder: true,
+				Order: orderSummaryView{
+					ID:          "order-123",
+					ItemsCount:  5,
+					Total:       "$75.50",
+					StatusLabel: "Preparing",
+					StatusClass: "status-preparing",
+					PrepSummary: "2 pending, 3 preparing",
+				},
+			},
+			wantOrderID:    "order-123",
+			wantItemsCount: 5,
+			wantTotal:      "$75.50",
+		},
+		{
+			name: "orderWithNoItems",
+			view: tableOrderView{
+				HasOrder: true,
+				Order: orderSummaryView{
+					ID:          "order-empty",
+					ItemsCount:  0,
+					Total:       "$0.00",
+					StatusLabel: "Pending",
+					StatusClass: "status-pending",
+				},
+			},
+			wantOrderID:    "order-empty",
+			wantItemsCount: 0,
+			wantTotal:      "$0.00",
+		},
+		{
+			name: "noOrder",
+			view: tableOrderView{
+				HasOrder: false,
+				Order:    orderSummaryView{},
+			},
+			wantOrderID:    "",
+			wantItemsCount: 0,
+			wantTotal:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.view.Order.ID != tt.wantOrderID {
+				t.Errorf("Order.ID = %q, want %q", tt.view.Order.ID, tt.wantOrderID)
+			}
+			if tt.view.Order.ItemsCount != tt.wantItemsCount {
+				t.Errorf("Order.ItemsCount = %d, want %d", tt.view.Order.ItemsCount, tt.wantItemsCount)
+			}
+			if tt.view.Order.Total != tt.wantTotal {
+				t.Errorf("Order.Total = %q, want %q", tt.view.Order.Total, tt.wantTotal)
+			}
+		})
+	}
+}
+
+func TestShouldIncludeOrderForTableCard(t *testing.T) {
+	tests := []struct {
+		name        string
+		orderStatus string
+		tableStatus string
+		sameTable   bool
+		wantInclude bool
+	}{
+		{
+			name:        "activeOrderSameTable",
+			orderStatus: "pending",
+			tableStatus: "occupied",
+			sameTable:   true,
+			wantInclude: true,
+		},
+		{
+			name:        "activeOrderDifferentTable",
+			orderStatus: "pending",
+			tableStatus: "occupied",
+			sameTable:   false,
+			wantInclude: false,
+		},
+		{
+			name:        "closedOrderTableNotClearing",
+			orderStatus: "closed",
+			tableStatus: "occupied",
+			sameTable:   true,
+			wantInclude: false,
+		},
+		{
+			name:        "closedOrderTableClearing",
+			orderStatus: "closed",
+			tableStatus: "clearing",
+			sameTable:   true,
+			wantInclude: true,
+		},
+		{
+			name:        "preparingOrderSameTable",
+			orderStatus: "preparing",
+			tableStatus: "occupied",
+			sameTable:   true,
+			wantInclude: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate the logic from TableCard handler
+			include := tt.sameTable
+			if include && strings.ToLower(tt.orderStatus) == "closed" {
+				include = strings.ToLower(tt.tableStatus) == "clearing"
+			}
+			if include != tt.wantInclude {
+				t.Errorf("include = %v, want %v (orderStatus=%q, tableStatus=%q, sameTable=%v)",
+					include, tt.wantInclude, tt.orderStatus, tt.tableStatus, tt.sameTable)
+			}
+		})
 	}
 }

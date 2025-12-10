@@ -1531,3 +1531,141 @@ func (h *Handler) defaultOrderGroupID(ctx context.Context, orderID string) strin
 	}
 	return ""
 }
+
+// todayOrdersModalView powers the today's orders modal template.
+type todayOrdersModalView struct {
+	TableNumber string
+	TableID     string
+	Orders      []orderCardView
+	OrderCount  int
+}
+
+// TodayOrdersModal renders a modal showing all orders for a table today.
+func (h *Handler) TodayOrdersModal(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.http.Start(w, r, "Handler.TodayOrdersModal")
+	defer finish()
+
+	if !h.requirePermission(w, r, "orders:read") {
+		return
+	}
+
+	tableID := chi.URLParam(r, "tableID")
+	if tableID == "" {
+		http.Error(w, "missing table id", http.StatusBadRequest)
+		return
+	}
+
+	table, err := h.fetchTable(r.Context(), tableID)
+	if err != nil || table == nil {
+		http.Error(w, "table not found", http.StatusNotFound)
+		return
+	}
+
+	orders, err := h.orderData.ListTodayOrdersByTable(r.Context(), tableID)
+	if err != nil {
+		h.log().Error("cannot load today's orders", "table_id", tableID, "error", err)
+		http.Error(w, "Could not load orders", http.StatusInternalServerError)
+		return
+	}
+
+	groupCache := map[string][]orderGroupResource{}
+	cards := make([]orderCardView, 0, len(orders))
+	for _, order := range orders {
+		items, _ := h.fetchOrderItems(r.Context(), order.ID)
+		groups, _ := h.fetchOrderGroups(r.Context(), order.ID, groupCache)
+		tickets, _ := h.fetchOrderTickets(r.Context(), order.ID)
+		card := h.buildOrderCard(order, table, items, groups, tickets)
+		cards = append(cards, card)
+	}
+
+	// Sort by creation time descending (newest first)
+	sort.Slice(cards, func(i, j int) bool {
+		return cards[i].CreatedAgo < cards[j].CreatedAgo
+	})
+
+	data := todayOrdersModalView{
+		TableNumber: table.Number,
+		TableID:     tableID,
+		Orders:      cards,
+		OrderCount:  len(cards),
+	}
+
+	h.renderTodayOrdersModal(w, data)
+}
+
+func (h *Handler) renderTodayOrdersModal(w http.ResponseWriter, data todayOrdersModalView) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	tmpl, err := h.tmplMgr.Get("today_orders_modal.html")
+	if err != nil {
+		h.log().Error("error loading today orders modal template", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpl.ExecuteTemplate(w, "today_orders_modal.html", data); err != nil {
+		h.log().Error("error rendering today orders modal", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+}
+
+// TableCard returns just the table card HTML for HTMX partial updates.
+func (h *Handler) TableCard(w http.ResponseWriter, r *http.Request) {
+	w, r, finish := h.http.Start(w, r, "Handler.TableCard")
+	defer finish()
+
+	if !h.requirePermission(w, r, "orders:read") {
+		return
+	}
+
+	tableID := chi.URLParam(r, "tableID")
+	if tableID == "" {
+		http.Error(w, "missing table id", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	table, err := h.fetchTable(ctx, tableID)
+	if err != nil || table == nil {
+		http.Error(w, "table not found", http.StatusNotFound)
+		return
+	}
+
+	// Find active order for this table
+	var card *orderCardView
+	orders, _ := h.orderData.ListOrders(ctx)
+	groupCache := make(map[string][]orderGroupResource)
+	for _, order := range orders {
+		if order.TableID != tableID {
+			continue
+		}
+		if strings.ToLower(order.Status) == "closed" {
+			if strings.ToLower(table.Status) != "clearing" {
+				continue
+			}
+		}
+		items, _ := h.fetchOrderItems(ctx, order.ID)
+		groups, _ := h.fetchOrderGroups(ctx, order.ID, groupCache)
+		built := h.buildOrderCard(order, table, items, groups, nil)
+		card = &built
+		break
+	}
+
+	view := h.buildTableOrderView(*table, card)
+
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+
+	tmpl, err := h.tmplMgr.Get("table_card.html")
+	if err != nil {
+		h.log().Error("error loading table card template", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpl.ExecuteTemplate(w, "table_card.html", view); err != nil {
+		h.log().Error("error rendering table card", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+}

@@ -1,16 +1,16 @@
 {{define "order_modal.html"}}
-<div class="modal modal-modern order-modal" hx-ext="sse" sse-connect="/kitchen/events" data-order-id="{{.Order.ID}}">
+<div class="modal modal-modern order-modal" hx-ext="sse" sse-connect="/kitchen/events" data-order-id="{{.Order.ID}}" data-table-id="{{.Order.TableID}}">
     <!-- SSE update target -->
     <div id="order-modal-sse-updates" sse-swap="order-item-update" hx-swap="beforeend" style="display:none;"></div>
 
-    <div class="modal-backdrop" onclick="this.closest('.modal').remove()"></div>
+    <div class="modal-backdrop" onclick="closeOrderModal()"></div>
     <div class="modal-dialog modal-dialog-modern order-modal-dialog">
         <div class="modal-header modal-header-modern">
             <div>
                 <h2 class="modal-title">Order {{.Order.ShortID}}</h2>
                 <p class="order-modal-subtitle">Table {{.Order.TableNumber}} · {{.Order.ItemsCount}} items</p>
             </div>
-            <button type="button" class="modal-close modal-close-modern" onclick="this.closest('.modal').remove()">
+            <button type="button" class="modal-close modal-close-modern" onclick="closeOrderModal()">
                 <span>&times;</span>
             </button>
         </div>
@@ -640,6 +640,31 @@ function releaseTable(tableID) {
         console.error('Error releasing table:', err);
         alert('Failed to release table. Please try again.');
     });
+}
+
+function closeOrderModal() {
+    const modal = document.querySelector('.order-modal');
+    if (!modal) return;
+
+    const tableID = modal.dataset.tableId;
+    modal.remove();
+
+    // Refresh only the affected table card via HTMX
+    if (tableID) {
+        const cardTarget = document.getElementById(`table-card-${tableID}`);
+        if (cardTarget) {
+            htmx.ajax('GET', `/tables/${tableID}/card`, {
+                target: cardTarget,
+                swap: 'outerHTML'
+            });
+            return;
+        }
+    }
+
+    // Fallback: reload if we can't find the card
+    if (window.location.pathname.includes('/orders')) {
+        location.reload();
+    }
 }
 
 // SSE handler for order modal updates - using HTMX events directly

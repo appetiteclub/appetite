@@ -1,0 +1,66 @@
+{{define "table_card.html"}}
+<div class="table-card" id="table-card-{{.ID}}">
+    <div class="table-card-header">
+        <div class="table-number-badge">{{.Number}}</div>
+        <div class="status-badge status-{{.Status}}">{{.StatusLabel}}</div>
+    </div>
+
+    <div class="table-card-body">
+        <div class="table-info-row">
+            <span class="table-info-label">Last event</span>
+            <span class="table-info-value">{{.LastEvent}}</span>
+        </div>
+        <div class="table-info-row">
+            <span class="table-info-label">When</span>
+            <span class="table-info-value table-time">{{.LastWhen}}</span>
+        </div>
+    </div>
+
+    <div class="table-card-actions">
+        {{if .HasOrder}}
+        <div class="table-order-summary">
+            <div class="table-order-line">
+                <span class="status-badge {{.Order.StatusClass}}">{{.Order.StatusLabel}}</span>
+                <span class="table-order-total">{{.Order.Total}}</span>
+            </div>
+            <div class="table-order-meta">{{.Order.ItemsCount}} items · {{.Order.PrepSummary}}</div>
+        </div>
+        <button type="button"
+                class="table-action-btn table-action-primary"
+                hx-get="/orders/{{.Order.ID}}/modal"
+                hx-target="#modal-root"
+                hx-swap="innerHTML">
+            Manage order
+        </button>
+        {{else if not .Disabled}}
+        <button type="button"
+                class="table-action-btn table-action-primary"
+                hx-post="/add-order"
+                hx-vals='{"table_id":"{{.ID}}"}'
+                hx-target="#modal-root"
+                hx-swap="innerHTML">
+            Open order
+        </button>
+        {{else}}
+        <div class="table-order-summary">
+            <div class="table-order-line">
+                <span class="status-badge status-{{.Status}}">{{.StatusLabel}}</span>
+                <span class="table-order-total">{{.Bill}}</span>
+            </div>
+            <div class="table-order-meta">Not accepting orders right now</div>
+        </div>
+        <button type="button" class="table-action-btn table-action-disabled" disabled>
+            Not available
+        </button>
+        {{end}}
+        <button type="button"
+                class="table-action-btn table-action-history"
+                hx-get="/tables/{{.ID}}/today-orders"
+                hx-target="#modal-root"
+                hx-swap="innerHTML"
+                title="View all orders for this table today">
+            Today's History
+        </button>
+    </div>
+</div>
+{{end}}

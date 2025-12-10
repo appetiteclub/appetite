@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -49,6 +50,29 @@ func (r *OrderRepo) ListByTable(ctx context.Context, tableID uuid.UUID) ([]*orde
 	cursor, err := r.collection.Find(ctx, bson.M{"table_id": tableID})
 	if err != nil {
 		return nil, fmt.Errorf("cannot list orders by table: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var result []*order.Order
+	if err := cursor.All(ctx, &result); err != nil {
+		return nil, fmt.Errorf("cannot decode orders: %w", err)
+	}
+
+	return result, nil
+}
+
+func (r *OrderRepo) ListByTableToday(ctx context.Context, tableID uuid.UUID) ([]*order.Order, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	filter := bson.M{
+		"table_id":   tableID,
+		"created_at": bson.M{"$gte": todayStart},
+	}
+
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("cannot list today's orders by table: %w", err)
 	}
 	defer cursor.Close(ctx)
 

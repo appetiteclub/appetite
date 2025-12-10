@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/aquamarinepk/aqm/events"
 	"github.com/google/uuid"
@@ -43,12 +44,13 @@ func (m *MockSubscriber) Subscribe(ctx context.Context, topic string, handler ev
 
 // MockOrderRepo is a mock implementation of OrderRepo for testing
 type MockOrderRepo struct {
-	mu      sync.RWMutex
-	orders  map[uuid.UUID]*Order
-	CreateFunc func(ctx context.Context, order *Order) error
-	GetFunc    func(ctx context.Context, id uuid.UUID) (*Order, error)
-	SaveFunc   func(ctx context.Context, order *Order) error
-	DeleteFunc func(ctx context.Context, id uuid.UUID) error
+	mu                   sync.RWMutex
+	orders               map[uuid.UUID]*Order
+	CreateFunc           func(ctx context.Context, order *Order) error
+	GetFunc              func(ctx context.Context, id uuid.UUID) (*Order, error)
+	SaveFunc             func(ctx context.Context, order *Order) error
+	DeleteFunc           func(ctx context.Context, id uuid.UUID) error
+	ListByTableTodayFunc func(ctx context.Context, tableID uuid.UUID) ([]*Order, error)
 }
 
 func NewMockOrderRepo() *MockOrderRepo {
@@ -96,6 +98,25 @@ func (m *MockOrderRepo) ListByTable(ctx context.Context, tableID uuid.UUID) ([]*
 	var result []*Order
 	for _, o := range m.orders {
 		if o.TableID == tableID {
+			result = append(result, o)
+		}
+	}
+	return result, nil
+}
+
+func (m *MockOrderRepo) ListByTableToday(ctx context.Context, tableID uuid.UUID) ([]*Order, error) {
+	if m.ListByTableTodayFunc != nil {
+		return m.ListByTableTodayFunc(ctx, tableID)
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	var result []*Order
+	for _, o := range m.orders {
+		if o.TableID == tableID && !o.CreatedAt.Before(todayStart) {
 			result = append(result, o)
 		}
 	}

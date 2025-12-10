@@ -30,7 +30,7 @@
     {{if .Tables}}
     <div class="tables-grid orders-tables-grid">
         {{range .Tables}}
-        <div class="table-card {{if .Disabled}}table-card-disabled{{end}}">
+        <div class="table-card" id="table-card-{{.ID}}">
             <div class="table-card-header">
                 <div class="table-number-badge">{{.Number}}</div>
                 <div class="status-badge status-{{.Status}}">{{.StatusLabel}}</div>
@@ -57,7 +57,7 @@
                     <div class="table-order-meta">{{.Order.ItemsCount}} items · {{.Order.PrepSummary}}</div>
                 </div>
                 <button type="button"
-                        class="table-action-btn"
+                        class="table-action-btn table-action-primary"
                         hx-get="/orders/{{.Order.ID}}/modal"
                         hx-target="#modal-root"
                         hx-swap="innerHTML">
@@ -65,7 +65,7 @@
                 </button>
                 {{else if not .Disabled}}
                 <button type="button"
-                        class="table-action-btn table-action-edit"
+                        class="table-action-btn table-action-primary"
                         hx-post="/add-order"
                         hx-vals='{"table_id":"{{.ID}}"}'
                         hx-target="#modal-root"
@@ -80,10 +80,18 @@
                     </div>
                     <div class="table-order-meta">Not accepting orders right now</div>
                 </div>
-                <button type="button" class="table-action-btn table-action-edit" disabled>
+                <button type="button" class="table-action-btn table-action-disabled" disabled>
                     Not available
                 </button>
                 {{end}}
+                <button type="button"
+                        class="table-action-btn table-action-history"
+                        hx-get="/tables/{{.ID}}/today-orders"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML"
+                        title="View all orders for this table today">
+                    Today's History
+                </button>
             </div>
         </div>
         {{end}}

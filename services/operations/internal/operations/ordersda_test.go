@@ -230,3 +230,40 @@ func TestCreateOrderRequestFields(t *testing.T) {
 		t.Errorf("TableID = %q, want %q", req.TableID, "table-5")
 	}
 }
+
+func TestOrderDataAccessListTodayOrdersByTable(t *testing.T) {
+	tests := []struct {
+		name    string
+		da      *OrderDataAccess
+		tableID string
+		wantErr bool
+	}{
+		{
+			name:    "nilClient",
+			da:      &OrderDataAccess{client: nil},
+			tableID: "table-1",
+			wantErr: true,
+		},
+		{
+			name:    "nilDA",
+			da:      nil,
+			tableID: "table-1",
+			wantErr: true,
+		},
+		{
+			name:    "emptyTableID",
+			da:      &OrderDataAccess{client: nil},
+			tableID: "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := tt.da.ListTodayOrdersByTable(context.Background(), tt.tableID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ListTodayOrdersByTable() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

@@ -190,9 +190,10 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	log := h.log(r)
 	ctx := r.Context()
 
-	// Support filtering by table_id and status via query params
+	// Support filtering by table_id, status, and today via query params
 	tableIDStr := r.URL.Query().Get("table_id")
 	status := r.URL.Query().Get("status")
+	today := r.URL.Query().Get("today") == "true"
 
 	var orders []*Order
 	var err error
@@ -204,7 +205,11 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			aqm.RespondError(w, http.StatusBadRequest, "Invalid table_id parameter")
 			return
 		}
-		orders, err = h.orderRepo.ListByTable(ctx, tableID)
+		if today {
+			orders, err = h.orderRepo.ListByTableToday(ctx, tableID)
+		} else {
+			orders, err = h.orderRepo.ListByTable(ctx, tableID)
+		}
 	} else if status != "" {
 		orders, err = h.orderRepo.ListByStatus(ctx, status)
 	} else {

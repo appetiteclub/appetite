@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/aquamarinepk/aqm"
 	"github.com/go-chi/chi/v5"
@@ -3772,6 +3773,128 @@ func TestHandlerEnsureTableAllowsOrderingEmptyStatus(t *testing.T) {
 	_, err := h.ensureTableAllowsOrdering(context.Background(), tableID)
 	if err == nil {
 		t.Error("ensureTableAllowsOrdering() with empty status should return error")
+	}
+}
+
+func TestHandlerListOrdersTodayFilter(t *testing.T) {
+	tableID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440970")
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	yesterday := todayStart.Add(-24 * time.Hour)
+
+	tests := []struct {
+		name           string
+		queryParams    string
+		setupRepo      func(*MockOrderRepo)
+		expectedStatus int
+	}{
+		{
+			name:        "todayFilterReturnsOnlyTodayOrders",
+			queryParams: "?table_id=" + tableID.String() + "&today=true",
+			setupRepo: func(repo *MockOrderRepo) {
+				orderToday := &Order{
+					ID:        uuid.New(),
+					TableID:   tableID,
+					Status:    "closed",
+					CreatedAt: todayStart.Add(2 * time.Hour),
+				}
+				orderYesterday := &Order{
+					ID:        uuid.New(),
+					TableID:   tableID,
+					Status:    "closed",
+					CreatedAt: yesterday.Add(12 * time.Hour),
+				}
+				repo.orders[orderToday.ID] = orderToday
+				repo.orders[orderYesterday.ID] = orderYesterday
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:        "todayFilterWithNoOrdersToday",
+			queryParams: "?table_id=" + tableID.String() + "&today=true",
+			setupRepo: func(repo *MockOrderRepo) {
+				orderYesterday := &Order{
+					ID:        uuid.New(),
+					TableID:   tableID,
+					Status:    "closed",
+					CreatedAt: yesterday.Add(12 * time.Hour),
+				}
+				repo.orders[orderYesterday.ID] = orderYesterday
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:        "todayFilterIgnoredWithoutTableID",
+			queryParams: "?today=true",
+			setupRepo:   func(repo *MockOrderRepo) {},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:        "todayFilterWithInvalidTableID",
+			queryParams: "?table_id=not-a-uuid&today=true",
+			setupRepo:   func(repo *MockOrderRepo) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "todayFilterIncludesAllStatuses",
+			queryParams: "?table_id=" + tableID.String() + "&today=true",
+			setupRepo: func(repo *MockOrderRepo) {
+				statuses := []string{"pending", "preparing", "closed", "cancelled"}
+				for i, status := range statuses {
+					order := &Order{
+						ID:        uuid.New(),
+						TableID:   tableID,
+						Status:    status,
+						CreatedAt: todayStart.Add(time.Duration(i) * time.Hour),
+					}
+					repo.orders[order.ID] = order
+				}
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:        "todayFilterWithTableIDWithoutTodayParam",
+			queryParams: "?table_id=" + tableID.String(),
+			setupRepo: func(repo *MockOrderRepo) {
+				orderToday := &Order{
+					ID:        uuid.New(),
+					TableID:   tableID,
+					Status:    "pending",
+					CreatedAt: todayStart.Add(1 * time.Hour),
+				}
+				orderYesterday := &Order{
+					ID:        uuid.New(),
+					TableID:   tableID,
+					Status:    "closed",
+					CreatedAt: yesterday.Add(12 * time.Hour),
+				}
+				repo.orders[orderToday.ID] = orderToday
+				repo.orders[orderYesterday.ID] = orderYesterday
+			},
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := NewMockOrderRepo()
+			tt.setupRepo(repo)
+
+			deps := HandlerDeps{
+				Repos: Repos{
+					OrderRepo: repo,
+				},
+			}
+			h := NewHandler(deps, aqm.NewConfig(), nil)
+
+			req := httptest.NewRequest(http.MethodGet, "/orders"+tt.queryParams, nil)
+			w := httptest.NewRecorder()
+			h.ListOrders(w, req)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("ListOrders() status = %d, want %d", w.Code, tt.expectedStatus)
+			}
+		})
 	}
 }
 

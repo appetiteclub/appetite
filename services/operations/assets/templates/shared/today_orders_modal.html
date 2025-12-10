@@ -1,0 +1,178 @@
+{{define "today_orders_modal.html"}}
+<div class="modal modal-modern today-orders-modal">
+    <div class="modal-backdrop" onclick="this.closest('.modal').remove()"></div>
+    <div class="modal-dialog modal-dialog-modern today-orders-dialog">
+        <div class="modal-header modal-header-modern">
+            <div>
+                <h2 class="modal-title">Today's Orders - Table {{.TableNumber}}</h2>
+                <p class="today-orders-subtitle">{{.OrderCount}} order(s) from today</p>
+            </div>
+            <button type="button" class="modal-close modal-close-modern" onclick="this.closest('.modal').remove()">
+                <span>&times;</span>
+            </button>
+        </div>
+
+        <div class="today-orders-content">
+            {{if .Orders}}
+            <div class="today-orders-list">
+                {{range .Orders}}
+                <div class="today-order-card">
+                    <div class="today-order-header">
+                        <div class="today-order-id">Order {{.ShortID}}</div>
+                        <span class="status-badge {{.StatusClass}}">{{.StatusLabel}}</span>
+                    </div>
+                    <div class="today-order-meta">
+                        <span>{{.CreatedAgo}}</span>
+                        <span>{{.ItemsCount}} items</span>
+                        <span class="today-order-total">{{.Total}}</span>
+                    </div>
+
+                    {{if .Items}}
+                    <div class="today-order-items">
+                        {{range .Items}}
+                        <div class="today-order-item">
+                            <span class="today-item-name">{{.DishName}}</span>
+                            <span class="today-item-qty">x{{.Quantity}}</span>
+                            <span class="status-badge {{.StatusClass}}">{{.StatusLabel}}</span>
+                            <span class="today-item-price">{{.Total}}</span>
+                        </div>
+                        {{end}}
+                    </div>
+                    {{end}}
+
+                    <div class="today-order-actions">
+                        <button type="button"
+                                class="btn-view-details"
+                                hx-get="/orders/{{.ID}}/modal"
+                                hx-target="#modal-root"
+                                hx-swap="innerHTML">
+                            View Details
+                        </button>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            {{else}}
+            <div class="today-orders-empty">
+                <p>No orders for this table today.</p>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+<style>
+.today-orders-modal {
+    z-index: 1000;
+}
+
+.today-orders-dialog {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.today-orders-subtitle {
+    color: #6b7280;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.today-orders-content {
+    padding: 16px;
+}
+
+.today-orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.today-order-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.today-order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.today-order-id {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.today-order-meta {
+    display: flex;
+    gap: 16px;
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.today-order-total {
+    font-weight: 600;
+    color: #111827;
+}
+
+.today-order-items {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 12px;
+    margin-bottom: 12px;
+}
+
+.today-order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 14px;
+    gap: 8px;
+}
+
+.today-item-name {
+    flex: 1;
+}
+
+.today-item-qty {
+    color: #6b7280;
+}
+
+.today-item-price {
+    font-weight: 500;
+    min-width: 60px;
+    text-align: right;
+}
+
+.today-order-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-view-details {
+    padding: 8px 16px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn-view-details:hover {
+    background: #2563eb;
+}
+
+.today-orders-empty {
+    text-align: center;
+    padding: 32px;
+    color: #6b7280;
+}
+</style>
+{{end}}

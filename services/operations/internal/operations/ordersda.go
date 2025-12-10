@@ -71,6 +71,28 @@ func (da *OrderDataAccess) ListOrders(ctx context.Context) ([]orderResource, err
 	return orders, nil
 }
 
+func (da *OrderDataAccess) ListTodayOrdersByTable(ctx context.Context, tableID string) ([]orderResource, error) {
+	if da == nil || da.client == nil {
+		return nil, fmt.Errorf("order client not configured")
+	}
+	if tableID == "" {
+		return nil, fmt.Errorf("missing table id")
+	}
+
+	path := fmt.Sprintf("/orders?table_id=%s&today=true", tableID)
+	resp, err := da.client.Request(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []orderResource
+	if err := decodeSuccessResponse(resp, &orders); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}
+
 func (da *OrderDataAccess) GetOrder(ctx context.Context, id string) (*orderResource, error) {
 	if da == nil || da.client == nil {
 		return nil, fmt.Errorf("order client not configured")
