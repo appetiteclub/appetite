@@ -4,25 +4,25 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt/telemetry"
 )
 
 // PolicyHandler handles policy evaluation HTTP requests
 type PolicyHandler struct {
 	policyEngine *PolicyEngine
-	logger       aqm.Logger
-	config       *aqm.Config
+	logger       apt.Logger
+	config       *apt.Config
 	tlm          *telemetry.HTTP
 }
 
 // NewPolicyHandler creates a new PolicyHandler
-func NewPolicyHandler(policyEngine *PolicyEngine, config *aqm.Config, logger aqm.Logger) *PolicyHandler {
+func NewPolicyHandler(policyEngine *PolicyEngine, config *apt.Config, logger apt.Logger) *PolicyHandler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &PolicyHandler{
 		policyEngine: policyEngine,
@@ -74,24 +74,24 @@ func (h *PolicyHandler) EvaluatePermission(w http.ResponseWriter, r *http.Reques
 	var req PermissionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Debug("invalid request payload", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid request payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
 	// Validate request
 	if req.UserID == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "User ID is required")
+		apt.RespondError(w, http.StatusBadRequest, "User ID is required")
 		return
 	}
 	if req.Permission == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "Permission is required")
+		apt.RespondError(w, http.StatusBadRequest, "Permission is required")
 		return
 	}
 
 	// Parse user ID
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid user ID format")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid user ID format")
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *PolicyHandler) EvaluatePermission(w http.ResponseWriter, r *http.Reques
 			"user_id", req.UserID,
 			"permission", req.Permission,
 			"scope", scope)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to evaluate permission")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to evaluate permission")
 		return
 	}
 
@@ -129,7 +129,7 @@ func (h *PolicyHandler) EvaluatePermission(w http.ResponseWriter, r *http.Reques
 	// The client should check the "allowed" field
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(aqm.SuccessResponse{Data: response})
+	json.NewEncoder(w).Encode(apt.SuccessResponse{Data: response})
 }
 
 // GetUserPermissions handles GET /authz/policy/users/{user_id}/permissions
@@ -144,7 +144,7 @@ func (h *PolicyHandler) GetUserPermissions(w http.ResponseWriter, r *http.Reques
 	userIDStr := chi.URLParam(r, "user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid user ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
@@ -165,7 +165,7 @@ func (h *PolicyHandler) GetUserPermissions(w http.ResponseWriter, r *http.Reques
 		log.Error("failed to get user permissions", "error", err,
 			"user_id", userIDStr,
 			"scope", scope)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to retrieve user permissions")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to retrieve user permissions")
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *PolicyHandler) GetUserPermissions(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Generate HATEOAS links
-	links := []aqm.Link{
+	links := []apt.Link{
 		{Rel: "self", Href: "/authz/policy/users/" + userIDStr + "/permissions"},
 		{Rel: "user", Href: "/users/" + userIDStr},
 		{Rel: "grants", Href: "/authz/grants/users/" + userIDStr},
@@ -185,17 +185,17 @@ func (h *PolicyHandler) GetUserPermissions(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(aqm.SuccessResponse{Data: response, Links: links})
+	json.NewEncoder(w).Encode(apt.SuccessResponse{Data: response, Links: links})
 }
 
 // Helper methods
 
-func (h *PolicyHandler) log(req ...*http.Request) aqm.Logger {
+func (h *PolicyHandler) log(req ...*http.Request) apt.Logger {
 	logger := h.logger
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)

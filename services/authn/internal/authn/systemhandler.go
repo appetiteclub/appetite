@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
+	"github.com/appetiteclub/apt/telemetry"
 	"github.com/go-chi/chi/v5"
 )
 
 // SystemHandler manages system-level operations like bootstrap
 type SystemHandler struct {
 	userRepo UserRepo
-	logger   aqm.Logger
-	config   *aqm.Config
+	logger   apt.Logger
+	config   *apt.Config
 	tlm      *telemetry.HTTP
 }
 
@@ -35,9 +35,9 @@ type BootstrapResponse struct {
 
 const SuperadminEmail = "superadmin@system"
 
-func NewSystemHandler(userRepo UserRepo, config *aqm.Config, logger aqm.Logger) *SystemHandler {
+func NewSystemHandler(userRepo UserRepo, config *apt.Config, logger apt.Logger) *SystemHandler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &SystemHandler{
 		userRepo: userRepo,
@@ -68,16 +68,16 @@ func (h *SystemHandler) GetBootstrapStatus(w http.ResponseWriter, r *http.Reques
 	superadmin, err := GenerateBootstrapStatus(r.Context(), h.userRepo, h.config)
 	if err != nil {
 		log.Error("failed to check superadmin user", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to check bootstrap state")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to check bootstrap state")
 		return
 	}
 
 	if superadmin == nil {
-		aqm.RespondSuccess(w, BootstrapStatusResponse{NeedsBootstrap: true})
+		apt.RespondSuccess(w, BootstrapStatusResponse{NeedsBootstrap: true})
 		return
 	}
 
-	aqm.RespondSuccess(w, BootstrapStatusResponse{
+	apt.RespondSuccess(w, BootstrapStatusResponse{
 		NeedsBootstrap: false,
 		SuperadminID:   superadmin.ID.String(),
 	})
@@ -93,7 +93,7 @@ func (h *SystemHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 	user, password, err := BootstrapSuperadmin(r.Context(), h.userRepo, h.config)
 	if err != nil {
 		log.Error("failed to bootstrap superadmin", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to bootstrap superadmin")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to bootstrap superadmin")
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *SystemHandler) GetUserIDByEmail(w http.ResponseWriter, r *http.Request)
 
 	email := chi.URLParam(r, "email")
 	if email == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "Email parameter is required")
+		apt.RespondError(w, http.StatusBadRequest, "Email parameter is required")
 		return
 	}
 
@@ -163,12 +163,12 @@ func (h *SystemHandler) GetUserIDByEmail(w http.ResponseWriter, r *http.Request)
 	user, err := h.userRepo.GetByEmailLookup(ctx, emailLookup)
 	if err != nil {
 		log.Error("failed to lookup user by email", "email", email, "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to lookup user")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to lookup user")
 		return
 	}
 
 	if user == nil {
-		aqm.RespondError(w, http.StatusNotFound, "User not found")
+		apt.RespondError(w, http.StatusNotFound, "User not found")
 		return
 	}
 
@@ -177,7 +177,7 @@ func (h *SystemHandler) GetUserIDByEmail(w http.ResponseWriter, r *http.Request)
 		Email  string `json:"email"`
 	}
 
-	aqm.RespondSuccess(w, userIDResponse{
+	apt.RespondSuccess(w, userIDResponse{
 		UserID: user.ID.String(),
 		Email:  email,
 	})
@@ -196,11 +196,11 @@ func generateSecurePassword(length int) string {
 	return string(b)
 }
 
-func (h *SystemHandler) log(req ...*http.Request) aqm.Logger {
+func (h *SystemHandler) log(req ...*http.Request) apt.Logger {
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return h.logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)

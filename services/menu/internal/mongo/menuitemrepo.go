@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/appetiteclub/appetite/services/menu/internal/menu"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,12 +18,12 @@ type MenuItemRepo struct {
 	client     *mongo.Client
 	db         *mongo.Database
 	collection *mongo.Collection
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
 // NewMenuItemRepo creates a new MongoDB menu item repository
-func NewMenuItemRepo(config *aqm.Config, logger aqm.Logger) *MenuItemRepo {
+func NewMenuItemRepo(config *apt.Config, logger apt.Logger) *MenuItemRepo {
 	return &MenuItemRepo{
 		logger: logger,
 		config: config,

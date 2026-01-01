@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,14 +20,14 @@ type OptionRepo struct {
 	db         *mongo.Database
 	collection *mongo.Collection
 	setRepo    *SetRepo
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
 // NewOptionRepo creates a new MongoDB repository for Option aggregates.
-func NewOptionRepo(setRepo *SetRepo, config *aqm.Config, logger aqm.Logger) *OptionRepo {
+func NewOptionRepo(setRepo *SetRepo, config *apt.Config, logger apt.Logger) *OptionRepo {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &OptionRepo{
 		setRepo: setRepo,

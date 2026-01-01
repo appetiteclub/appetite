@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 

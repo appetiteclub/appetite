@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -804,7 +804,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isHTMX := aqm.IsHTMX(r)
+	isHTMX := apt.IsHTMX(r)
 	if err := r.ParseForm(); err != nil {
 		if isHTMX {
 			http.Error(w, "Could not read the submitted form", http.StatusBadRequest)
@@ -861,7 +861,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aqm.RedirectOrHeader(w, r, "/orders?created=1")
+	apt.RedirectOrHeader(w, r, "/orders?created=1")
 }
 
 func (h *Handler) collectTableOptions(ctx context.Context) ([]tableOption, error) {
@@ -1060,12 +1060,12 @@ func (h *Handler) CreateOrderItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if aqm.IsHTMX(r) {
+	if apt.IsHTMX(r) {
 		h.renderOrderModalFor(r.Context(), orderID, w, r)
 		return
 	}
 
-	aqm.RedirectOrHeader(w, r, "/orders?item_added=1")
+	apt.RedirectOrHeader(w, r, "/orders?item_added=1")
 }
 
 func (h *Handler) renderOrderItemForm(w http.ResponseWriter, data orderItemFormModal) {
@@ -1402,12 +1402,12 @@ func (h *Handler) CreateOrderGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if aqm.IsHTMX(r) {
+	if apt.IsHTMX(r) {
 		h.renderOrderModalFor(r.Context(), order.ID, w, r)
 		return
 	}
 
-	aqm.RedirectOrHeader(w, r, "/orders?group_created=1")
+	apt.RedirectOrHeader(w, r, "/orders?group_created=1")
 }
 
 func (h *Handler) renderOrderGroupForm(w http.ResponseWriter, data orderGroupFormModal) {

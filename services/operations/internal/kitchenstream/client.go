@@ -7,7 +7,7 @@ import (
 	"time"
 
 	proto "github.com/appetiteclub/appetite/services/operations/internal/kitchenstream/proto"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -15,7 +15,7 @@ import (
 // Client manages connection to Kitchen gRPC stream and broadcasts to SSE subscribers
 type Client struct {
 	addr   string
-	logger aqm.Logger
+	logger apt.Logger
 
 	mu          sync.RWMutex
 	subscribers map[string]chan *proto.KitchenTicketEvent
@@ -26,7 +26,7 @@ type Client struct {
 }
 
 // NewClient creates a new Kitchen stream client
-func NewClient(addr string, logger aqm.Logger) *Client {
+func NewClient(addr string, logger apt.Logger) *Client {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Client{
 		addr:        addr,

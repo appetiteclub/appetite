@@ -4,27 +4,27 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
-	"github.com/aquamarinepk/aqm/telemetry"
-	aqmtemplate "github.com/aquamarinepk/aqm/template"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
+	"github.com/appetiteclub/apt/telemetry"
+	aqmtemplate "github.com/appetiteclub/apt/template"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
 	tmplMgr          *aqmtemplate.Manager
-	authnClient      *aqm.ServiceClient
-	tableClient      *aqm.ServiceClient
-	orderClient      *aqm.ServiceClient
-	menuClient       *aqm.ServiceClient
+	authnClient      *apt.ServiceClient
+	tableClient      *apt.ServiceClient
+	orderClient      *apt.ServiceClient
+	menuClient       *apt.ServiceClient
 	tableData        *TableDataAccess
 	orderData        *OrderDataAccess
 	kitchenData      *KitchenDataAccess
 	roleRepo         RoleRepo
 	grantRepo        GrantRepo
 	authzHelper      *authpkg.AuthzHelper
-	logger           aqm.Logger
-	config           *aqm.Config
+	logger           apt.Logger
+	config           *apt.Config
 	http             *telemetry.HTTP
 	sessionStore     *SessionStore
 	tokenStore       *TokenStore
@@ -38,28 +38,28 @@ func NewHandler(
 	roleRepo RoleRepo,
 	grantRepo GrantRepo,
 	kitchenDA *KitchenDataAccess,
-	config *aqm.Config,
-	logger aqm.Logger,
+	config *apt.Config,
+	logger apt.Logger,
 ) *Handler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	// Initialize service clients
 	authnURL, _ := config.GetString("services.authn.url")
-	authnClient := aqm.NewServiceClient(authnURL)
+	authnClient := apt.NewServiceClient(authnURL)
 
 	tableURL, _ := config.GetString("services.table.url")
-	tableClient := aqm.NewServiceClient(tableURL)
+	tableClient := apt.NewServiceClient(tableURL)
 
 	orderURL, _ := config.GetString("services.order.url")
-	orderClient := aqm.NewServiceClient(orderURL)
+	orderClient := apt.NewServiceClient(orderURL)
 
 	menuURL, _ := config.GetString("services.menu.url")
 	if menuURL == "" {
 		menuURL = "http://localhost:8088"
 	}
-	menuClient := aqm.NewServiceClient(menuURL)
+	menuClient := apt.NewServiceClient(menuURL)
 
 	authzHelper := newAuthzHelper(config, logger)
 
@@ -122,7 +122,7 @@ func (h *Handler) GetOrderDataAccess() *OrderDataAccess {
 	return h.orderData
 }
 
-func newAuthzHelper(config *aqm.Config, logger aqm.Logger) *authpkg.AuthzHelper {
+func newAuthzHelper(config *apt.Config, logger apt.Logger) *authpkg.AuthzHelper {
 	authzURL, _ := config.GetString("services.authz.url")
 	if authzURL == "" {
 		if logger != nil {
@@ -140,8 +140,8 @@ func newAuthzHelper(config *aqm.Config, logger aqm.Logger) *authpkg.AuthzHelper 
 		}
 	}
 
-	authzClient := aqm.NewAuthzClient(authzURL)
-	return aqm.NewAuthzHelper(authzClient, cacheTTL)
+	authzClient := apt.NewAuthzClient(authzURL)
+	return apt.NewAuthzHelper(authzClient, cacheTTL)
 }
 
 // RegisterRoutes registers all operations routes using Command/Query pattern
@@ -198,7 +198,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	})
 }
 
-func (h *Handler) log() aqm.Logger {
+func (h *Handler) log() apt.Logger {
 	return h.logger
 }
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	authpkg "github.com/appetiteclub/apt/auth"
 )
 
 // Simple in-memory repo implementations for testing

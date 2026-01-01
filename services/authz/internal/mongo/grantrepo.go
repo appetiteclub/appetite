@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/appetiteclub/appetite/services/authz/internal/authz"
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	authpkg "github.com/appetiteclub/apt/auth"
 )
 
 // GrantMongoRepo implements the GrantRepo interface using MongoDB
@@ -20,14 +20,14 @@ type GrantMongoRepo struct {
 	client     *mongo.Client
 	db         *mongo.Database
 	collection *mongo.Collection
-	logger     aqm.Logger
-	config      *aqm.Config
+	logger     apt.Logger
+	config      *apt.Config
 }
 
 // NewGrantMongoRepo creates a new MongoDB repository for Grant entities
-func NewGrantMongoRepo(logger aqm.Logger, config *aqm.Config) *GrantMongoRepo {
+func NewGrantMongoRepo(logger apt.Logger, config *apt.Config) *GrantMongoRepo {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &GrantMongoRepo{
 		logger: logger,
@@ -432,6 +432,6 @@ func (r *GrantMongoRepo) ListExpired(ctx context.Context) ([]*authz.Grant, error
 	return grants, nil
 }
 
-func (r *GrantMongoRepo) Log() aqm.Logger {
+func (r *GrantMongoRepo) Log() apt.Logger {
 	return r.logger
 }

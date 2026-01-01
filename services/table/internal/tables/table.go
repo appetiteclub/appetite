@@ -3,7 +3,7 @@ package tables
 import (
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -52,7 +52,7 @@ func (t *Table) SetID(id uuid.UUID) {
 
 func NewTable() *Table {
 	return &Table{
-		ID:     aqm.GenerateNewID(),
+		ID:     apt.GenerateNewID(),
 		Status: "available",
 		Notes:  []Note{},
 	}
@@ -60,7 +60,7 @@ func NewTable() *Table {
 
 func (t *Table) EnsureID() {
 	if t.ID == uuid.Nil {
-		t.ID = aqm.GenerateNewID()
+		t.ID = apt.GenerateNewID()
 	}
 }
 
@@ -79,7 +79,7 @@ func (t *Table) AddNote(content, createdBy string) {
 		t.Notes = []Note{}
 	}
 	note := Note{
-		ID:        aqm.GenerateNewID(),
+		ID:        apt.GenerateNewID(),
 		Content:   content,
 		CreatedAt: time.Now(),
 		CreatedBy: createdBy,

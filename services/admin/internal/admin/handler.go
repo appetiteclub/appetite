@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
-	"github.com/aquamarinepk/aqm/telemetry"
-	aqmtemplate "github.com/aquamarinepk/aqm/template"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
+	"github.com/appetiteclub/apt/telemetry"
+	aqmtemplate "github.com/appetiteclub/apt/template"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -19,10 +19,10 @@ type Handler struct {
 	tmplMgr     *aqmtemplate.Manager
 	service     Service
 	authZClt    authpkg.AuthzClient
-	authnClient *aqm.ServiceClient
+	authnClient *apt.ServiceClient
 	dictRepo    DictionaryRepo
-	logger      aqm.Logger
-	config       *aqm.Config
+	logger      apt.Logger
+	config       *apt.Config
 	http        *telemetry.HTTP
 
 	sessionValidator func(string) (string, error)
@@ -32,21 +32,21 @@ func NewHandler(
 	tmplMgr *aqmtemplate.Manager,
 	service Service,
 	dictRepo DictionaryRepo,
-	config *aqm.Config,
-	logger aqm.Logger,
+	config *apt.Config,
+	logger apt.Logger,
 ) (*Handler, error) {
 	authzURL, _ := config.GetString("services.authz.url")
 	if authzURL == "" {
 		return nil, fmt.Errorf("services.authz.url is required")
 	}
-	authZClient := aqm.NewAuthzClient(authzURL)
-	authZClt := aqm.NewAuthzHelper(authZClient, 5*time.Minute)
+	authZClient := apt.NewAuthzClient(authzURL)
+	authZClt := apt.NewAuthzHelper(authZClient, 5*time.Minute)
 
 	authnURL, _ := config.GetString("services.authn.url")
 	if authnURL == "" {
 		return nil, fmt.Errorf("services.authn.url is required")
 	}
-	authnClient := aqm.NewServiceClient(authnURL)
+	authnClient := apt.NewServiceClient(authnURL)
 
 	return &Handler{
 		tmplMgr:          tmplMgr,
@@ -277,7 +277,7 @@ func (h *Handler) renderSignInWithError(w http.ResponseWriter, r *http.Request, 
 }
 
 func (h *Handler) handleSignInError(w http.ResponseWriter, r *http.Request, err error) {
-	if httpErr, ok := err.(*aqm.HTTPError); ok {
+	if httpErr, ok := err.(*apt.HTTPError); ok {
 		h.log(r).Debug("authn signin failed", "status", httpErr.StatusCode, "message", httpErr.Message)
 
 		switch httpErr.StatusCode {
@@ -1143,11 +1143,11 @@ func (h *Handler) DeleteGrant(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handler) log(req ...*http.Request) aqm.Logger {
+func (h *Handler) log(req ...*http.Request) apt.Logger {
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return h.logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)

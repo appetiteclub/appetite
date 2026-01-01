@@ -11,13 +11,13 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/seed"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	authpkg "github.com/appetiteclub/apt/auth"
 )
 
 // BootstrapService handles the coordination of system bootstrap
@@ -26,8 +26,8 @@ type BootstrapService struct {
 	grantRepo  GrantRepo
 	httpClient *http.Client
 	seedFS     embed.FS
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
 // BootstrapStatusResponse matches AuthN response
@@ -43,9 +43,9 @@ type BootstrapResponse struct {
 	Password     string `json:"password"`
 }
 
-func NewBootstrapService(roleRepo RoleRepo, grantRepo GrantRepo, seedFS embed.FS, config *aqm.Config, logger aqm.Logger) *BootstrapService {
+func NewBootstrapService(roleRepo RoleRepo, grantRepo GrantRepo, seedFS embed.FS, config *apt.Config, logger apt.Logger) *BootstrapService {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &BootstrapService{
 		roleRepo:  roleRepo,
@@ -514,16 +514,16 @@ func seedIdentifier(value string) string {
 	return result
 }
 
-func (s *BootstrapService) log() aqm.Logger {
+func (s *BootstrapService) log() apt.Logger {
 	return s.logger
 }
 
-// BootstrapFunc returns a function suitable for aqm.LifecycleHooks.OnStart.
+// BootstrapFunc returns a function suitable for apt.LifecycleHooks.OnStart.
 // It wraps the Bootstrap method and performs logging so callers (like main)
 // can pass it directly to OnStart.
-func BootstrapFunc(s *BootstrapService, logger aqm.Logger) func(ctx context.Context) error {
+func BootstrapFunc(s *BootstrapService, logger apt.Logger) func(ctx context.Context) error {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	return func(ctx context.Context) error {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	authpkg "github.com/appetiteclub/apt/auth"
 	"github.com/google/uuid"
 )
 

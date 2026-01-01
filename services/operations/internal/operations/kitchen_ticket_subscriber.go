@@ -6,21 +6,21 @@ import (
 	"fmt"
 
 	"github.com/appetiteclub/appetite/pkg/event"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 )
 
 // KitchenTicketSubscriber listens to kitchen.tickets events and updates the cache.
 type KitchenTicketSubscriber struct {
 	subscriber events.Subscriber
 	cache      *TicketStateCache
-	logger     aqm.Logger
+	logger     apt.Logger
 }
 
 // NewKitchenTicketSubscriber creates a new subscriber for kitchen ticket events.
-func NewKitchenTicketSubscriber(subscriber events.Subscriber, cache *TicketStateCache, logger aqm.Logger) *KitchenTicketSubscriber {
+func NewKitchenTicketSubscriber(subscriber events.Subscriber, cache *TicketStateCache, logger apt.Logger) *KitchenTicketSubscriber {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &KitchenTicketSubscriber{
 		subscriber: subscriber,

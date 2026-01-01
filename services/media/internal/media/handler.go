@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -23,11 +23,11 @@ const maxBodyBytes = 5 << 20 // 5MB
 
 type Handler struct {
 	service *Service
-	deps    *aqm.Deps
+	deps    *apt.Deps
 	tlm     *telemetry.HTTP
 }
 
-func NewHandler(service *Service, deps *aqm.Deps) *Handler {
+func NewHandler(service *Service, deps *apt.Deps) *Handler {
 	return &Handler{
 		service: service,
 		deps:    deps,
@@ -111,23 +111,23 @@ func (h *Handler) createMedia(w http.ResponseWriter, r *http.Request) {
 	var payload createRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		log.Debug("invalid payload", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
 	resourceID, err := uuid.Parse(payload.ResourceID)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid resource_id")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid resource_id")
 		return
 	}
 	categoryID, err := uuid.Parse(payload.CategoryID)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid category_id")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid category_id")
 		return
 	}
 	tags, err := parseUUIDList(payload.Tags)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid tag value")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid tag value")
 		return
 	}
 
@@ -165,23 +165,23 @@ func (h *Handler) createMedia(w http.ResponseWriter, r *http.Request) {
 	media, err := h.service.CreateMedia(ctx, input)
 	if err != nil {
 		log.Error("cannot create media", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, err.Error())
+		apt.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	respondCreated(w, media)
 }
 
-func (h *Handler) createMediaMultipart(w http.ResponseWriter, r *http.Request, log aqm.Logger) {
+func (h *Handler) createMediaMultipart(w http.ResponseWriter, r *http.Request, log apt.Logger) {
 	if err := r.ParseMultipartForm(maxBodyBytes * 4); err != nil {
 		log.Debug("invalid multipart payload", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid multipart payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid multipart payload")
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "File is required")
+		apt.RespondError(w, http.StatusBadRequest, "File is required")
 		return
 	}
 	defer file.Close()
@@ -189,12 +189,12 @@ func (h *Handler) createMediaMultipart(w http.ResponseWriter, r *http.Request, l
 	buffer := &bytes.Buffer{}
 	if _, err := io.Copy(buffer, file); err != nil {
 		log.Error("cannot read uploaded file", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to read file")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to read file")
 		return
 	}
 
 	if buffer.Len() == 0 {
-		aqm.RespondError(w, http.StatusBadRequest, "Uploaded file is empty")
+		apt.RespondError(w, http.StatusBadRequest, "Uploaded file is empty")
 		return
 	}
 
@@ -209,12 +209,12 @@ func (h *Handler) createMediaMultipart(w http.ResponseWriter, r *http.Request, l
 	}
 	resourceID, err := uuid.Parse(strings.TrimSpace(r.FormValue("resource_id")))
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid resource_id")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid resource_id")
 		return
 	}
 	categoryID, err := uuid.Parse(strings.TrimSpace(r.FormValue("category_id")))
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid category_id")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid category_id")
 		return
 	}
 
@@ -230,7 +230,7 @@ func (h *Handler) createMediaMultipart(w http.ResponseWriter, r *http.Request, l
 			}
 		} else {
 			log.Error("cannot determine image dimensions", "error", err)
-			aqm.RespondError(w, http.StatusBadRequest, "Image dimensions could not be determined")
+			apt.RespondError(w, http.StatusBadRequest, "Image dimensions could not be determined")
 			return
 		}
 	}
@@ -288,7 +288,7 @@ func (h *Handler) createMediaMultipart(w http.ResponseWriter, r *http.Request, l
 	media, err := h.service.CreateMedia(r.Context(), input)
 	if err != nil {
 		log.Error("cannot create media", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, err.Error())
+		apt.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -308,16 +308,16 @@ func (h *Handler) getMedia(w http.ResponseWriter, r *http.Request) {
 	media, err := h.service.GetMedia(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			aqm.RespondError(w, http.StatusNotFound, "Media not found")
+			apt.RespondError(w, http.StatusNotFound, "Media not found")
 			return
 		}
 		log.Error("cannot load media", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not load media")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not load media")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(media)
-	aqm.RespondSuccess(w, media, links...)
+	links := apt.RESTfulLinksFor(media)
+	apt.RespondSuccess(w, media, links...)
 }
 
 func (h *Handler) listMedia(w http.ResponseWriter, r *http.Request) {
@@ -330,7 +330,7 @@ func (h *Handler) listMedia(w http.ResponseWriter, r *http.Request) {
 	if resourceIDStr != "" {
 		id, err := uuid.Parse(resourceIDStr)
 		if err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid resource_id")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid resource_id")
 			return
 		}
 		resourceID = id
@@ -339,11 +339,11 @@ func (h *Handler) listMedia(w http.ResponseWriter, r *http.Request) {
 	items, err := h.service.ListMedia(r.Context(), ListFilter{ResourceType: resourceType, ResourceID: resourceID})
 	if err != nil {
 		h.log(r).Error("cannot list media", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not list media")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not list media")
 		return
 	}
 
-	aqm.RespondSuccess(w, items)
+	apt.RespondSuccess(w, items)
 }
 
 func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) {
@@ -362,7 +362,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) {
 	var payload updateRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		log.Debug("invalid payload", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
@@ -379,7 +379,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) {
 	if payload.CategoryID != nil {
 		id, err := uuid.Parse(*payload.CategoryID)
 		if err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid category_id")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid category_id")
 			return
 		}
 		categoryID = &id
@@ -388,7 +388,7 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) {
 	if payload.Tags != nil {
 		parsed, err := parseUUIDList(*payload.Tags)
 		if err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid tag value")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid tag value")
 			return
 		}
 		tags = &parsed
@@ -425,16 +425,16 @@ func (h *Handler) updateMedia(w http.ResponseWriter, r *http.Request) {
 	media, err := h.service.UpdateMedia(r.Context(), input)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			aqm.RespondError(w, http.StatusNotFound, "Media not found")
+			apt.RespondError(w, http.StatusNotFound, "Media not found")
 			return
 		}
 		log.Error("cannot update media", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, err.Error())
+		apt.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(media)
-	aqm.RespondSuccess(w, media, links...)
+	links := apt.RESTfulLinksFor(media)
+	apt.RespondSuccess(w, media, links...)
 }
 
 func (h *Handler) deleteMedia(w http.ResponseWriter, r *http.Request) {
@@ -449,11 +449,11 @@ func (h *Handler) deleteMedia(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.service.DeleteMedia(r.Context(), id); err != nil {
 		if errors.Is(err, ErrNotFound) {
-			aqm.RespondError(w, http.StatusNotFound, "Media not found")
+			apt.RespondError(w, http.StatusNotFound, "Media not found")
 			return
 		}
 		log.Error("cannot delete media", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not delete media")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not delete media")
 		return
 	}
 
@@ -481,21 +481,21 @@ func (h *Handler) toggleMedia(w http.ResponseWriter, r *http.Request, enabled bo
 	media, err := h.service.SetMediaEnabled(r.Context(), id, enabled)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			aqm.RespondError(w, http.StatusNotFound, "Media not found")
+			apt.RespondError(w, http.StatusNotFound, "Media not found")
 			return
 		}
 		log.Error("cannot toggle media", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update media")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update media")
 		return
 	}
 
-	aqm.RespondSuccess(w, media, aqm.RESTfulLinksFor(media)...)
+	apt.RespondSuccess(w, media, apt.RESTfulLinksFor(media)...)
 }
 
-func (h *Handler) log(r *http.Request) aqm.Logger {
+func (h *Handler) log(r *http.Request) apt.Logger {
 	logger := h.deps.Logger
 	if logger == nil {
-		return aqm.NewNoopLogger()
+		return apt.NewNoopLogger()
 	}
 	if reqID, ok := r.Context().Value("request_id").(string); ok && reqID != "" {
 		return logger.With("request_id", reqID)
@@ -503,15 +503,15 @@ func (h *Handler) log(r *http.Request) aqm.Logger {
 	return logger
 }
 
-func (h *Handler) parseIDParam(w http.ResponseWriter, r *http.Request, log aqm.Logger) (uuid.UUID, bool) {
+func (h *Handler) parseIDParam(w http.ResponseWriter, r *http.Request, log apt.Logger) (uuid.UUID, bool) {
 	idStr := chi.URLParam(r, "id")
 	if idStr == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "Missing id parameter")
+		apt.RespondError(w, http.StatusBadRequest, "Missing id parameter")
 		return uuid.Nil, false
 	}
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid id parameter")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid id parameter")
 		return uuid.Nil, false
 	}
 	return id, true
@@ -564,9 +564,9 @@ func uniqUUIDs(ids []uuid.UUID) []uuid.UUID {
 }
 
 func respondCreated(w http.ResponseWriter, media *Media) {
-	resp := aqm.SuccessResponse{
+	resp := apt.SuccessResponse{
 		Data:  media,
-		Links: aqm.RESTfulLinksFor(media),
+		Links: apt.RESTfulLinksFor(media),
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

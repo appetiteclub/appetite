@@ -5,8 +5,8 @@ import (
 	"time"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/seed"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -1175,9 +1175,9 @@ func seedRestaurantDictionary(ctx context.Context, db *mongo.Database) error {
 // dbFn is a function that returns the mongo database; it's invoked at runtime so callers
 // (like main) can pass a closure that reads the database from a repo that is started
 // by the lifecycle before OnStart runs.
-func SeedingFunc(appName string, dbFn func() *mongo.Database, logger aqm.Logger) func(ctx context.Context) error {
+func SeedingFunc(appName string, dbFn func() *mongo.Database, logger apt.Logger) func(ctx context.Context) error {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	return func(ctx context.Context) error {

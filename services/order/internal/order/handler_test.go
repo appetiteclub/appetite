@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -26,7 +26,7 @@ func TestNewHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deps := HandlerDeps{}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			if h == nil {
 				t.Fatal("NewHandler() returned nil")
@@ -93,7 +93,7 @@ func TestHandlerEnsureTableAllowsOrdering(t *testing.T) {
 			deps := HandlerDeps{
 				TableStatesCache: cache,
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			_, err := h.ensureTableAllowsOrdering(context.Background(), tt.tableID)
 			if (err != nil) != tt.expectErr {
@@ -107,7 +107,7 @@ func TestHandlerEnsureTableAllowsOrderingNilCache(t *testing.T) {
 	deps := HandlerDeps{
 		TableStatesCache: nil,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	tableID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440045")
 	_, err := h.ensureTableAllowsOrdering(context.Background(), tableID)
@@ -121,7 +121,7 @@ func TestHandlerEnsureTableAllowsOrderingNilCache(t *testing.T) {
 func TestDecodeSuccessResponse(t *testing.T) {
 	tests := []struct {
 		name    string
-		resp    *aqm.SuccessResponse
+		resp    *apt.SuccessResponse
 		wantErr bool
 	}{
 		{
@@ -131,7 +131,7 @@ func TestDecodeSuccessResponse(t *testing.T) {
 		},
 		{
 			name: "validResponse",
-			resp: &aqm.SuccessResponse{
+			resp: &apt.SuccessResponse{
 				Data: map[string]interface{}{
 					"number": "T1",
 				},
@@ -200,7 +200,7 @@ func TestHandlerGetOrder(t *testing.T) {
 					OrderRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodGet, "/orders/"+tt.orderID, nil)
 			rctx := chi.NewRouteContext()
@@ -281,7 +281,7 @@ func TestHandlerListOrders(t *testing.T) {
 					OrderRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodGet, "/orders"+tt.queryParams, nil)
 			w := httptest.NewRecorder()
@@ -329,7 +329,7 @@ func TestHandlerDeleteOrder(t *testing.T) {
 					OrderRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodDelete, "/orders/"+tt.orderID, nil)
 			rctx := chi.NewRouteContext()
@@ -393,7 +393,7 @@ func TestHandlerCreateOrder(t *testing.T) {
 				},
 				TableStatesCache: cache,
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			var body []byte
 			if s, ok := tt.body.(string); ok {
@@ -488,7 +488,7 @@ func TestHandlerUpdateOrderStatus(t *testing.T) {
 					OrderRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			body, _ := json.Marshal(tt.body)
 			req := httptest.NewRequest(http.MethodPut, "/orders/"+tt.orderID, bytes.NewReader(body))
@@ -599,7 +599,7 @@ func TestHandlerCreateOrderItem(t *testing.T) {
 				},
 				TableStatesCache: cache,
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			var body []byte
 			if s, ok := tt.body.(string); ok {
@@ -671,7 +671,7 @@ func TestHandlerGetOrderItem(t *testing.T) {
 					OrderItemRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodGet, "/order-items/"+tt.itemID, nil)
 			rctx := chi.NewRouteContext()
@@ -736,7 +736,7 @@ func TestHandlerListOrderItems(t *testing.T) {
 					OrderItemRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodGet, "/orders/"+tt.orderID+"/items", nil)
 			rctx := chi.NewRouteContext()
@@ -861,7 +861,7 @@ func TestHandlerUpdateOrderItem(t *testing.T) {
 					OrderItemRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			body, _ := json.Marshal(tt.body)
 			req := httptest.NewRequest(http.MethodPut, "/order-items/"+tt.itemID, bytes.NewReader(body))
@@ -915,7 +915,7 @@ func TestHandlerDeleteOrderItem(t *testing.T) {
 					OrderItemRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodDelete, "/order-items/"+tt.itemID, nil)
 			rctx := chi.NewRouteContext()
@@ -1006,7 +1006,7 @@ func TestHandlerCreateOrderGroup(t *testing.T) {
 					OrderGroupRepo: groupRepo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			var body []byte
 			if s, ok := tt.body.(string); ok {
@@ -1075,7 +1075,7 @@ func TestHandlerListOrderGroups(t *testing.T) {
 					OrderGroupRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodGet, "/orders/"+tt.orderID+"/groups", nil)
 			rctx := chi.NewRouteContext()
@@ -1134,7 +1134,7 @@ func TestHandlerMarkItemDelivered(t *testing.T) {
 					OrderItemRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodPatch, "/items/"+tt.itemID+"/deliver", nil)
 			rctx := chi.NewRouteContext()
@@ -1193,7 +1193,7 @@ func TestHandlerCancelItem(t *testing.T) {
 					OrderItemRepo: repo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodPatch, "/items/"+tt.itemID+"/cancel", nil)
 			rctx := chi.NewRouteContext()
@@ -1268,7 +1268,7 @@ func TestHandlerCloseOrderWithReadyItems(t *testing.T) {
 					OrderItemRepo: itemRepo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodPost, "/orders/"+tt.orderID+"/close"+tt.queryParams, nil)
 			rctx := chi.NewRouteContext()
@@ -1287,7 +1287,7 @@ func TestHandlerCloseOrderWithReadyItems(t *testing.T) {
 
 func TestHandlerRegisterRoutes(t *testing.T) {
 	deps := HandlerDeps{}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	r := chi.NewRouter()
 	h.RegisterRoutes(r)
@@ -1320,7 +1320,7 @@ func TestHandlerPublishOrderTableRejection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deps := HandlerDeps{}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			// Should not panic when publisher is nil
 			h.publishOrderTableRejection(context.Background(), tableID, tt.orderID, "test_action", "test_reason", "test_status")
@@ -1332,7 +1332,7 @@ func TestHandlerFetchTableInfo(t *testing.T) {
 	tableID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440089")
 
 	deps := HandlerDeps{}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Should return error when tableClient is nil (which it will be since config doesn't have URL)
 	_, err := h.fetchTableInfo(context.Background(), tableID)
@@ -1382,7 +1382,7 @@ func TestHandlerCreateOrderItemRequiresProduction(t *testing.T) {
 				},
 				TableStatesCache: cache,
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			reqBody := OrderItemCreateRequest{
 				DishName:           "Test Dish",
@@ -1422,7 +1422,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/orders", nil)
 		w := httptest.NewRecorder()
@@ -1448,7 +1448,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 			},
 			TableStatesCache: cache,
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		body, _ := json.Marshal(OrderCreateRequest{TableID: tableID})
 		req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewReader(body))
@@ -1473,7 +1473,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		body, _ := json.Marshal(OrderUpdateRequest{Status: "preparing"})
 		req := httptest.NewRequest(http.MethodPut, "/orders/"+orderID.String(), bytes.NewReader(body))
@@ -1501,7 +1501,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodDelete, "/orders/"+orderID.String(), nil)
 		rctx := chi.NewRouteContext()
@@ -1535,7 +1535,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 			},
 			TableStatesCache: cache,
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		body, _ := json.Marshal(OrderItemCreateRequest{
 			DishName: "Pizza",
@@ -1567,7 +1567,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderItemRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		quantity := 5
 		body, _ := json.Marshal(OrderItemUpdateRequest{Quantity: &quantity})
@@ -1596,7 +1596,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderItemRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodDelete, "/order-items/"+itemID.String(), nil)
 		rctx := chi.NewRouteContext()
@@ -1623,7 +1623,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderItemRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodPatch, "/items/"+itemID.String()+"/deliver", nil)
 		rctx := chi.NewRouteContext()
@@ -1650,7 +1650,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderItemRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodPatch, "/items/"+itemID.String()+"/cancel", nil)
 		rctx := chi.NewRouteContext()
@@ -1680,7 +1680,7 @@ func TestHandlerRepoErrors(t *testing.T) {
 				OrderGroupRepo: groupRepo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		body, _ := json.Marshal(OrderGroupCreateRequest{Name: "Test Group"})
 		req := httptest.NewRequest(http.MethodPost, "/orders/"+orderID.String()+"/groups", bytes.NewReader(body))
@@ -1709,7 +1709,7 @@ func TestHandlerPayloadDecoders(t *testing.T) {
 				OrderRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodPut, "/orders/"+orderID.String(), bytes.NewReader([]byte("invalid json")))
 		req.Header.Set("Content-Type", "application/json")
@@ -1737,7 +1737,7 @@ func TestHandlerPayloadDecoders(t *testing.T) {
 				OrderItemRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodPut, "/order-items/"+itemID.String(), bytes.NewReader([]byte("invalid json")))
 		req.Header.Set("Content-Type", "application/json")
@@ -1768,7 +1768,7 @@ func TestHandlerGetOrderNilCheck(t *testing.T) {
 			OrderRepo: repo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String(), nil)
 	rctx := chi.NewRouteContext()
@@ -1797,7 +1797,7 @@ func TestHandlerGetOrderItemNilCheck(t *testing.T) {
 			OrderItemRepo: repo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/order-items/"+itemID.String(), nil)
 	rctx := chi.NewRouteContext()
@@ -1814,7 +1814,7 @@ func TestHandlerGetOrderItemNilCheck(t *testing.T) {
 
 func TestHandlerParseIDParamMissing(t *testing.T) {
 	deps := HandlerDeps{}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Test with missing id param
 	req := httptest.NewRequest(http.MethodGet, "/orders/", nil)
@@ -1849,7 +1849,7 @@ func TestHandlerCloseOrderRepoError(t *testing.T) {
 				OrderItemRepo: itemRepo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		req := httptest.NewRequest(http.MethodPost, "/orders/"+orderID.String()+"/close?force=true", nil)
 		rctx := chi.NewRouteContext()
@@ -1879,7 +1879,7 @@ func TestHandlerListOrdersRepoError(t *testing.T) {
 				OrderRepo: repo,
 			},
 		}
-		h := NewHandler(deps, aqm.NewConfig(), nil)
+		h := NewHandler(deps, apt.NewConfig(), nil)
 
 		// Test with status filter that returns empty list (OK case)
 		req := httptest.NewRequest(http.MethodGet, "/orders?status=pending", nil)
@@ -1903,7 +1903,7 @@ func TestHandlerListOrderItemsRepoError(t *testing.T) {
 			OrderItemRepo: repo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String()+"/items", nil)
 	rctx := chi.NewRouteContext()
@@ -1929,7 +1929,7 @@ func TestHandlerListOrderGroupsRepoError(t *testing.T) {
 			OrderGroupRepo: repo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String()+"/groups", nil)
 	rctx := chi.NewRouteContext()
@@ -1955,7 +1955,7 @@ func TestHandlerEnsureTableAllowsOrderingStatusUnavailable(t *testing.T) {
 	deps := HandlerDeps{
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	_, err := h.ensureTableAllowsOrdering(context.Background(), tableID)
 	if err == nil {
@@ -1980,7 +1980,7 @@ func TestHandlerUpdateOrderItemNoStatusChange(t *testing.T) {
 			OrderItemRepo: repo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Update only quantity, not status
 	quantity := 5
@@ -2023,7 +2023,7 @@ func TestHandlerMarkItemDeliveredWithRequiresProduction(t *testing.T) {
 		},
 		Publisher: NewMockPublisher(),
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/items/"+itemID.String()+"/deliver", nil)
 	rctx := chi.NewRouteContext()
@@ -2051,7 +2051,7 @@ func TestHandlerUpdateOrderNilCheck(t *testing.T) {
 			OrderRepo: repo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderUpdateRequest{Status: "preparing"})
 	req := httptest.NewRequest(http.MethodPut, "/orders/"+orderID.String(), bytes.NewReader(body))
@@ -2081,7 +2081,7 @@ func TestHandlerUpdateOrderItemNilCheck(t *testing.T) {
 			OrderItemRepo: repo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	quantity := 5
 	body, _ := json.Marshal(OrderItemUpdateRequest{Quantity: &quantity})
@@ -2199,7 +2199,7 @@ func TestHandlerCloseOrder(t *testing.T) {
 					OrderItemRepo: itemRepo,
 				},
 			}
-			h := NewHandler(deps, aqm.NewConfig(), nil)
+			h := NewHandler(deps, apt.NewConfig(), nil)
 
 			req := httptest.NewRequest(http.MethodPost, "/orders/"+tt.orderID+"/close"+tt.queryParams, nil)
 			rctx := chi.NewRouteContext()
@@ -2242,7 +2242,7 @@ func TestHandlerCreateOrderItemWithPublisher(t *testing.T) {
 		Publisher:        publisher,
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderItemCreateRequest{
 		DishName:           "Test Dish",
@@ -2294,7 +2294,7 @@ func TestHandlerCreateOrderItemTableRejection(t *testing.T) {
 		Publisher:        publisher,
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderItemCreateRequest{
 		DishName: "Test Dish",
@@ -2340,7 +2340,7 @@ func TestHandlerCreateOrderTableRejection(t *testing.T) {
 		Publisher:        publisher,
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderCreateRequest{
 		TableID: tableID,
@@ -2375,7 +2375,7 @@ func TestHandlerPublishOrderTableRejectionNilPublisher(t *testing.T) {
 		},
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderCreateRequest{
 		TableID: tableID,
@@ -2404,7 +2404,7 @@ func TestHandlerListOrdersTableFilter(t *testing.T) {
 			OrderRepo: orderRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders?table_id="+tableID.String(), nil)
 
@@ -2428,7 +2428,7 @@ func TestHandlerListOrdersStatusFilter(t *testing.T) {
 			OrderRepo: orderRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders?status=pending", nil)
 
@@ -2448,7 +2448,7 @@ func TestHandlerListOrdersTableInvalidUUID(t *testing.T) {
 			OrderRepo: orderRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders?table_id=invalid-uuid", nil)
 
@@ -2472,7 +2472,7 @@ func TestHandlerListOrdersAll(t *testing.T) {
 			OrderRepo: orderRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders", nil)
 
@@ -2496,7 +2496,7 @@ func TestHandlerListOrderItemsByOrder(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String()+"/items", nil)
 	rctx := chi.NewRouteContext()
@@ -2521,7 +2521,7 @@ func TestHandlerListOrderItemsEmpty(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String()+"/items", nil)
 	rctx := chi.NewRouteContext()
@@ -2544,7 +2544,7 @@ func TestHandlerListOrderItemsInvalidOrderID(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/invalid/items", nil)
 	rctx := chi.NewRouteContext()
@@ -2571,7 +2571,7 @@ func TestHandlerListOrderGroupsByOrder(t *testing.T) {
 			OrderGroupRepo: groupRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String()+"/groups", nil)
 	rctx := chi.NewRouteContext()
@@ -2594,7 +2594,7 @@ func TestHandlerListOrderGroupsInvalidOrderID(t *testing.T) {
 			OrderGroupRepo: groupRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/invalid/groups", nil)
 	rctx := chi.NewRouteContext()
@@ -2624,7 +2624,7 @@ func TestHandlerCreateOrderSuccess(t *testing.T) {
 		},
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderCreateRequest{
 		TableID: tableID,
@@ -2648,7 +2648,7 @@ func TestHandlerCreateOrderMissingTableID(t *testing.T) {
 			OrderRepo: orderRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderCreateRequest{})
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewReader(body))
@@ -2670,7 +2670,7 @@ func TestHandlerCreateOrderItemInvalidOrderID(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderItemCreateRequest{
 		DishName: "Test",
@@ -2712,7 +2712,7 @@ func TestHandlerCreateOrderItemRepoError(t *testing.T) {
 		},
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderItemCreateRequest{
 		DishName: "Test",
@@ -2750,7 +2750,7 @@ func TestHandlerCloseOrderSaveError(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/orders/"+orderID.String()+"/close?force=true", nil)
 	rctx := chi.NewRouteContext()
@@ -2790,7 +2790,7 @@ func TestHandlerCreateOrderRepoError(t *testing.T) {
 		},
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderCreateRequest{
 		TableID: tableID,
@@ -2824,7 +2824,7 @@ func TestHandlerCreateOrderGroupRepoError(t *testing.T) {
 			OrderGroupRepo: groupRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderGroupCreateRequest{
 		Name: "Appetizers",
@@ -2858,7 +2858,7 @@ func TestHandlerDeleteOrderRepoError(t *testing.T) {
 			OrderRepo: orderRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/orders/"+orderID.String(), nil)
 	rctx := chi.NewRouteContext()
@@ -2888,7 +2888,7 @@ func TestHandlerDeleteOrderItemRepoError(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/order-items/"+itemID.String(), nil)
 	rctx := chi.NewRouteContext()
@@ -2918,7 +2918,7 @@ func TestHandlerUpdateOrderStatusRepoError(t *testing.T) {
 			OrderRepo: orderRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	body, _ := json.Marshal(OrderUpdateRequest{Status: "preparing"})
 	req := httptest.NewRequest(http.MethodPut, "/orders/"+orderID.String(), bytes.NewReader(body))
@@ -2950,7 +2950,7 @@ func TestHandlerUpdateOrderItemRepoError(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	quantity := 5
 	body, _ := json.Marshal(OrderItemUpdateRequest{Quantity: &quantity})
@@ -2979,7 +2979,7 @@ func TestHandlerCancelItemNotFound(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/"+itemID.String()+"/cancel", nil)
 	rctx := chi.NewRouteContext()
@@ -3006,7 +3006,7 @@ func TestHandlerCancelItemSuccess(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/"+itemID.String()+"/cancel", nil)
 	rctx := chi.NewRouteContext()
@@ -3029,7 +3029,7 @@ func TestHandlerCancelItemInvalidID(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/invalid/cancel", nil)
 	rctx := chi.NewRouteContext()
@@ -3054,7 +3054,7 @@ func TestHandlerMarkItemDeliveredNotFound(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/"+itemID.String()+"/deliver", nil)
 	rctx := chi.NewRouteContext()
@@ -3077,7 +3077,7 @@ func TestHandlerMarkItemDeliveredInvalidID(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/invalid/deliver", nil)
 	rctx := chi.NewRouteContext()
@@ -3111,7 +3111,7 @@ func TestHandlerMarkItemDeliveredSaveError(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/"+itemID.String()+"/deliver", nil)
 	rctx := chi.NewRouteContext()
@@ -3145,7 +3145,7 @@ func TestHandlerCancelItemSaveError(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/"+itemID.String()+"/cancel", nil)
 	rctx := chi.NewRouteContext()
@@ -3170,7 +3170,7 @@ func TestHandlerCreateOrderInvalidJSON(t *testing.T) {
 		Repos:            Repos{OrderRepo: orderRepo},
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Invalid JSON body
 	body := []byte(`{invalid json}`)
@@ -3200,7 +3200,7 @@ func TestHandlerCreateOrderItemInvalidJSON(t *testing.T) {
 		Repos:            Repos{OrderRepo: orderRepo, OrderItemRepo: itemRepo},
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Invalid JSON body
 	body := []byte(`{invalid json}`)
@@ -3227,7 +3227,7 @@ func TestHandlerUpdateOrderStatusInvalidJSON(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderRepo: orderRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Invalid JSON body
 	body := []byte(`{invalid json}`)
@@ -3255,7 +3255,7 @@ func TestHandlerUpdateOrderItemInvalidJSON(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderItemRepo: itemRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Invalid JSON body
 	body := []byte(`{invalid json}`)
@@ -3284,7 +3284,7 @@ func TestHandlerCreateOrderGroupInvalidJSON(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderRepo: orderRepo, OrderGroupRepo: groupRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Invalid JSON body
 	body := []byte(`{invalid json}`)
@@ -3315,7 +3315,7 @@ func TestHandlerPublishOrderTableRejectionWithOrderID(t *testing.T) {
 	deps := HandlerDeps{
 		Publisher: publisher,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	h.publishOrderTableRejection(context.Background(), tableID, &orderID, "create", "table occupied", "occupied")
 
@@ -3334,7 +3334,7 @@ func TestHandlerPublishOrderTableRejectionPublishError(t *testing.T) {
 	deps := HandlerDeps{
 		Publisher: publisher,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Should not panic on publish error
 	h.publishOrderTableRejection(context.Background(), tableID, nil, "create", "table occupied", "occupied")
@@ -3351,7 +3351,7 @@ func TestHandlerPublishOrderItemCreatedWithMenuItemID(t *testing.T) {
 	deps := HandlerDeps{
 		Publisher: publisher,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	menuItemID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440790")
 	station := "grill"
@@ -3385,7 +3385,7 @@ func TestHandlerPublishOrderItemCreatedPublishError(t *testing.T) {
 	deps := HandlerDeps{
 		Publisher: publisher,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	item := &OrderItem{
 		ID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440800"),
@@ -3412,7 +3412,7 @@ func TestHandlerPublishOrderItemStatusChangePublishError(t *testing.T) {
 	deps := HandlerDeps{
 		Publisher: publisher,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	item := &OrderItem{
 		ID:                 uuid.MustParse("550e8400-e29b-41d4-a716-446655440810"),
@@ -3441,7 +3441,7 @@ func TestHandlerCloseOrderListItemsError(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/orders/"+orderID.String()+"/close?force=true", nil)
 	rctx := chi.NewRouteContext()
@@ -3469,7 +3469,7 @@ func TestHandlerMarkItemDeliveredWithGRPCBroadcast(t *testing.T) {
 	}
 	itemRepo.items[itemID] = item
 
-	streamServer := NewOrderEventStreamServer(nil, aqm.NewNoopLogger())
+	streamServer := NewOrderEventStreamServer(nil, apt.NewNoopLogger())
 
 	deps := HandlerDeps{
 		Repos: Repos{
@@ -3477,7 +3477,7 @@ func TestHandlerMarkItemDeliveredWithGRPCBroadcast(t *testing.T) {
 		},
 		OrderStreamServer: streamServer,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPatch, "/order-items/"+itemID.String()+"/deliver", nil)
 	rctx := chi.NewRouteContext()
@@ -3508,7 +3508,7 @@ func TestHandlerCloseOrderWithCancelledItems(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/orders/"+orderID.String()+"/close?force=true", nil)
 	rctx := chi.NewRouteContext()
@@ -3553,7 +3553,7 @@ func TestHandlerCloseOrderWithMixedItems(t *testing.T) {
 			OrderItemRepo: itemRepo,
 		},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	// Without force - should require confirmation
 	req := httptest.NewRequest(http.MethodPost, "/orders/"+orderID.String()+"/close", nil)
@@ -3595,7 +3595,7 @@ func TestHandlerPublishOrderItemCreatedSuccess(t *testing.T) {
 	deps := HandlerDeps{
 		Publisher: publisher,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	item := &OrderItem{
 		ID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440860"),
@@ -3651,7 +3651,7 @@ func TestHandlerListOrdersInvalidTableID(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderRepo: orderRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders?table_id=invalid", nil)
 	w := httptest.NewRecorder()
@@ -3671,7 +3671,7 @@ func TestHandlerListOrdersByTableSuccess(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderRepo: orderRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders?table_id="+tableID.String(), nil)
 	w := httptest.NewRecorder()
@@ -3691,7 +3691,7 @@ func TestHandlerListOrdersByStatusSuccess(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderRepo: orderRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders?status=open", nil)
 	w := httptest.NewRecorder()
@@ -3716,7 +3716,7 @@ func TestHandlerListOrderItemsByGroupSuccess(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderRepo: orderRepo, OrderItemRepo: itemRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String()+"/items?group_id="+groupID.String(), nil)
 	rctx := chi.NewRouteContext()
@@ -3744,7 +3744,7 @@ func TestHandlerListOrderGroupsSuccess(t *testing.T) {
 	deps := HandlerDeps{
 		Repos: Repos{OrderRepo: orderRepo, OrderGroupRepo: groupRepo},
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/orders/"+orderID.String()+"/groups", nil)
 	rctx := chi.NewRouteContext()
@@ -3767,7 +3767,7 @@ func TestHandlerEnsureTableAllowsOrderingEmptyStatus(t *testing.T) {
 	deps := HandlerDeps{
 		TableStatesCache: cache,
 	}
-	h := NewHandler(deps, aqm.NewConfig(), nil)
+	h := NewHandler(deps, apt.NewConfig(), nil)
 
 	_, err := h.ensureTableAllowsOrdering(context.Background(), tableID)
 	if err == nil {

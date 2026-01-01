@@ -5,26 +5,26 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt/telemetry"
 )
 
 // GrantHandler handles grant-related HTTP requests
 type GrantHandler struct {
 	grantRepo GrantRepo
 	roleRepo  RoleRepo
-	logger    aqm.Logger
-	config    *aqm.Config
+	logger    apt.Logger
+	config    *apt.Config
 	tlm       *telemetry.HTTP
 }
 
 // NewGrantHandler creates a new GrantHandler
-func NewGrantHandler(grantRepo GrantRepo, roleRepo RoleRepo, config *aqm.Config, logger aqm.Logger) *GrantHandler {
+func NewGrantHandler(grantRepo GrantRepo, roleRepo RoleRepo, config *apt.Config, logger apt.Logger) *GrantHandler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &GrantHandler{
 		grantRepo: grantRepo,
@@ -76,7 +76,7 @@ func (h *GrantHandler) ListGrants(w http.ResponseWriter, r *http.Request) {
 	if userID != "" {
 		uid, parseErr := uuid.Parse(userID)
 		if parseErr != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid user ID")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid user ID")
 			return
 		}
 		grants, err = h.grantRepo.ListByUserID(ctx, uid)
@@ -86,18 +86,18 @@ func (h *GrantHandler) ListGrants(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error("failed to list grants", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to retrieve grants")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to retrieve grants")
 		return
 	}
 
 	// Generate HATEOAS links
-	links := []aqm.Link{
+	links := []apt.Link{
 		{Rel: "self", Href: "/authz/grants"},
 		{Rel: "create", Href: "/authz/grants"},
 		{Rel: "expired", Href: "/authz/grants/expired"},
 	}
 
-	aqm.RespondSuccess(w, grants, links...)
+	apt.RespondSuccess(w, grants, links...)
 }
 
 // CreateGrant handles POST /authz/grants
@@ -111,24 +111,24 @@ func (h *GrantHandler) CreateGrant(w http.ResponseWriter, r *http.Request) {
 	var req GrantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Debug("invalid request payload", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid request payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
 	// Validate request
 	if req.UserID == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "User ID is required")
+		apt.RespondError(w, http.StatusBadRequest, "User ID is required")
 		return
 	}
 	if req.RoleName == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "Role name is required")
+		apt.RespondError(w, http.StatusBadRequest, "Role name is required")
 		return
 	}
 
 	// Parse user ID
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid user ID format")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid user ID format")
 		return
 	}
 
@@ -139,11 +139,11 @@ func (h *GrantHandler) CreateGrant(w http.ResponseWriter, r *http.Request) {
 	role, err := h.roleRepo.GetByName(ctx, req.RoleName)
 	if err != nil {
 		log.Error("failed to get role by name", "error", err, "role_name", req.RoleName)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to validate role")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to validate role")
 		return
 	}
 	if role == nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Role '"+req.RoleName+"' does not exist")
+		apt.RespondError(w, http.StatusBadRequest, "Role '"+req.RoleName+"' does not exist")
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *GrantHandler) CreateGrant(w http.ResponseWriter, r *http.Request) {
 	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
 		parsed, parseErr := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if parseErr != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid expiration date format. Use ISO8601/RFC3339")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid expiration date format. Use ISO8601/RFC3339")
 			return
 		}
 		expiresAt = &parsed
@@ -168,13 +168,13 @@ func (h *GrantHandler) CreateGrant(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.grantRepo.Create(ctx, grant); err != nil {
 		log.Error("failed to create grant", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to create grant")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to create grant")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(aqm.SuccessResponse{Data: grant})
+	json.NewEncoder(w).Encode(apt.SuccessResponse{Data: grant})
 }
 
 // GetGrant handles GET /authz/grants/{id}
@@ -188,25 +188,25 @@ func (h *GrantHandler) GetGrant(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid grant ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid grant ID")
 		return
 	}
 
 	grant, err := h.grantRepo.Get(ctx, id)
 	if err != nil {
 		log.Error("failed to get grant", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to retrieve grant")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to retrieve grant")
 		return
 	}
 
 	if grant == nil {
-		aqm.RespondError(w, http.StatusNotFound, "Grant not found")
+		apt.RespondError(w, http.StatusNotFound, "Grant not found")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(aqm.SuccessResponse{Data: grant})
+	json.NewEncoder(w).Encode(apt.SuccessResponse{Data: grant})
 }
 
 // RevokeGrant handles DELETE /authz/grants/{id}
@@ -220,13 +220,13 @@ func (h *GrantHandler) RevokeGrant(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid grant ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid grant ID")
 		return
 	}
 
 	if err := h.grantRepo.Delete(ctx, id); err != nil {
 		log.Error("failed to revoke grant", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to revoke grant")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to revoke grant")
 		return
 	}
 
@@ -244,30 +244,30 @@ func (h *GrantHandler) ListUserGrants(w http.ResponseWriter, r *http.Request) {
 	userIDStr := chi.URLParam(r, "user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid user ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
 	grants, err := h.grantRepo.ListByUserID(ctx, userID)
 	if err != nil {
 		log.Error("failed to list user grants", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to retrieve user grants")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to retrieve user grants")
 		return
 	}
 
 	// Generate HATEOAS links
-	links := []aqm.Link{
+	links := []apt.Link{
 		{Rel: "self", Href: "/authz/grants/users/" + userIDStr},
 		{Rel: "user", Href: "/users/" + userIDStr},
 		{Rel: "create", Href: "/authz/grants"},
 	}
 
-	response := aqm.SuccessResponse{
+	response := apt.SuccessResponse{
 		Data:  grants,
 		Links: links,
 	}
 
-	aqm.RespondSuccess(w, response.Data)
+	apt.RespondSuccess(w, response.Data)
 }
 
 // ListExpiredGrants handles GET /authz/grants/expired
@@ -281,32 +281,32 @@ func (h *GrantHandler) ListExpiredGrants(w http.ResponseWriter, r *http.Request)
 	grants, err := h.grantRepo.ListExpired(ctx)
 	if err != nil {
 		log.Error("failed to list expired grants", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to retrieve expired grants")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to retrieve expired grants")
 		return
 	}
 
 	// Generate HATEOAS links
-	links := []aqm.Link{
+	links := []apt.Link{
 		{Rel: "self", Href: "/authz/grants/expired"},
 		{Rel: "all", Href: "/authz/grants"},
 	}
 
-	response := aqm.SuccessResponse{
+	response := apt.SuccessResponse{
 		Data:  grants,
 		Links: links,
 	}
 
-	aqm.RespondSuccess(w, response.Data)
+	apt.RespondSuccess(w, response.Data)
 }
 
 // Helper methods
 
-func (h *GrantHandler) log(req ...*http.Request) aqm.Logger {
+func (h *GrantHandler) log(req ...*http.Request) apt.Logger {
 	logger := h.logger
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)

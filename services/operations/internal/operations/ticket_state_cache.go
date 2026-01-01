@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/appetiteclub/appetite/pkg/event"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 )
 
 // TicketStateCache maintains an in-memory cache of kitchen tickets,
@@ -23,13 +23,13 @@ type TicketStateCache struct {
 
 	stream    events.StreamConsumer // For event replay on startup
 	kitchenDA *KitchenDataAccess    // Fallback for HTTP-based warming
-	logger    aqm.Logger
+	logger    apt.Logger
 }
 
 // NewTicketStateCache creates a new ticket cache.
-func NewTicketStateCache(stream events.StreamConsumer, kitchenDA *KitchenDataAccess, logger aqm.Logger) *TicketStateCache {
+func NewTicketStateCache(stream events.StreamConsumer, kitchenDA *KitchenDataAccess, logger apt.Logger) *TicketStateCache {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &TicketStateCache{
 		tickets:   make(map[string]*kitchenTicketResource),

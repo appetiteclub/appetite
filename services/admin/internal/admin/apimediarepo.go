@@ -14,27 +14,27 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
 // APIMediaRepo implements MediaRepo using the media service HTTP API.
 type APIMediaRepo struct {
-	client     *aqm.ServiceClient
+	client     *apt.ServiceClient
 	baseURL    string
 	httpClient *http.Client
-	logger     aqm.Logger
+	logger     apt.Logger
 }
 
 // NewAPIMediaRepo creates a new media repository backed by the media service.
 // Returns nil if services.media.url is not configured (media service is optional).
-func NewAPIMediaRepo(config *aqm.Config, logger aqm.Logger) *APIMediaRepo {
+func NewAPIMediaRepo(config *apt.Config, logger apt.Logger) *APIMediaRepo {
 	mediaURL, _ := config.GetString("services.media.url")
 	if mediaURL == "" {
 		return nil
 	}
 
-	client := aqm.NewServiceClient(mediaURL)
+	client := apt.NewServiceClient(mediaURL)
 	if client == nil {
 		return nil
 	}
@@ -152,8 +152,8 @@ func (r *APIMediaRepo) Create(ctx context.Context, req CreateMediaRequest) (*Med
 	if req.MimeType != "" {
 		httpReq.Header.Set("X-File-Mime", req.MimeType)
 	}
-	if requestID := aqm.RequestIDFrom(ctx); requestID != "" {
-		httpReq.Header.Set(aqm.RequestIDHeader, requestID)
+	if requestID := apt.RequestIDFrom(ctx); requestID != "" {
+		httpReq.Header.Set(apt.RequestIDHeader, requestID)
 	}
 
 	resp, err := r.httpClient.Do(httpReq)
@@ -167,7 +167,7 @@ func (r *APIMediaRepo) Create(ctx context.Context, req CreateMediaRequest) (*Med
 		return nil, fmt.Errorf("media service error: %s", strings.TrimSpace(string(payload)))
 	}
 
-	var success aqm.SuccessResponse
+	var success apt.SuccessResponse
 	if err := json.NewDecoder(resp.Body).Decode(&success); err != nil {
 		return nil, fmt.Errorf("cannot decode media response: %w", err)
 	}

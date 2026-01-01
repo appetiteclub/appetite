@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 func TestApplyDemoSeedsNilDB(t *testing.T) {
 	repo := NewMockTicketRepository()
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
-	logger := aqm.NewNoopLogger()
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
+	logger := apt.NewNoopLogger()
 
 	err := ApplyDemoSeeds(context.Background(), repo, cache, nil, logger)
 	if err == nil {
@@ -73,11 +73,11 @@ func TestMapOrderItemStatusToKitchenStatus(t *testing.T) {
 func TestDemoSeedingFunc(t *testing.T) {
 	tests := []struct {
 		name   string
-		logger aqm.Logger
+		logger apt.Logger
 	}{
 		{
 			name:   "withLogger",
-			logger: aqm.NewNoopLogger(),
+			logger: apt.NewNoopLogger(),
 		},
 		{
 			name:   "withNilLogger",
@@ -88,7 +88,7 @@ func TestDemoSeedingFunc(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			ctx := context.Background()
 
 			fn := DemoSeedingFunc(ctx, repo, cache, nil, tt.logger)
@@ -107,7 +107,7 @@ func TestDemoSeedingFunc(t *testing.T) {
 
 func TestBuildDemoKitchenSeeds(t *testing.T) {
 	repo := NewMockTicketRepository()
-	logger := aqm.NewNoopLogger()
+	logger := apt.NewNoopLogger()
 
 	// With nil db, buildDemoKitchenSeeds should return a slice with one seed
 	seeds := buildDemoKitchenSeeds(repo, nil, logger)

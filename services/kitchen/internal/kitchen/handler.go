@@ -10,9 +10,9 @@ import (
 
 	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
 	"github.com/appetiteclub/appetite/pkg/event"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
+	"github.com/appetiteclub/apt/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -20,8 +20,8 @@ import (
 const MaxBodyBytes = 1 << 20
 
 type Handler struct {
-	config    *aqm.Config
-	logger    aqm.Logger
+	config    *apt.Config
+	logger    apt.Logger
 	tlm       *telemetry.HTTP
 	repo      TicketRepository
 	cache     *TicketStateCache
@@ -34,9 +34,9 @@ type HandlerDeps struct {
 	Publisher events.Publisher
 }
 
-func NewHandler(hd HandlerDeps, config *aqm.Config, logger aqm.Logger) *Handler {
+func NewHandler(hd HandlerDeps, config *apt.Config, logger apt.Logger) *Handler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &Handler{
 		config:    config,
@@ -69,8 +69,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	})
 }
 
-func (h *Handler) log(r *http.Request) aqm.Logger {
-	return h.logger.With("request_id", aqm.RequestIDFrom(r.Context()))
+func (h *Handler) log(r *http.Request) apt.Logger {
+	return h.logger.With("request_id", apt.RequestIDFrom(r.Context()))
 }
 
 func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +95,7 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 	if orderIDStr != "" {
 		orderID, err := uuid.Parse(orderIDStr)
 		if err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid order ID")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid order ID")
 			return
 		}
 
@@ -105,7 +105,7 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 	if orderItemIDStr := r.URL.Query().Get("order_item_id"); orderItemIDStr != "" {
 		orderItemID, err := uuid.Parse(orderItemIDStr)
 		if err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid order item ID")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid order item ID")
 			return
 		}
 
@@ -132,7 +132,7 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		repoTickets, err := h.repo.List(ctx, filter)
 		if err != nil {
 			log.Errorf("cannot list tickets: %v", err)
-			aqm.RespondError(w, http.StatusInternalServerError, "Could not list tickets")
+			apt.RespondError(w, http.StatusInternalServerError, "Could not list tickets")
 			return
 		}
 		// Convert []Ticket to []*Ticket
@@ -142,7 +142,7 @@ func (h *Handler) ListTickets(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	aqm.Respond(w, http.StatusOK, map[string]interface{}{
+	apt.Respond(w, http.StatusOK, map[string]interface{}{
 		"tickets": tickets,
 	}, nil)
 }
@@ -156,18 +156,18 @@ func (h *Handler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
 	ticket, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		log.Errorf("cannot find ticket: %v", err)
-		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		apt.RespondError(w, http.StatusNotFound, "Ticket not found")
 		return
 	}
 
-	aqm.Respond(w, http.StatusOK, ticket, nil)
+	apt.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) AcceptTicket(w http.ResponseWriter, r *http.Request) {
@@ -183,14 +183,14 @@ func (h *Handler) StartTicket(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
 	ticket, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		log.Errorf("cannot find ticket: %v", err)
-		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		apt.RespondError(w, http.StatusNotFound, "Ticket not found")
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *Handler) StartTicket(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Update(ctx, ticket); err != nil {
 		log.Errorf("cannot update ticket: %v", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
 		return
 	}
 
@@ -211,7 +211,7 @@ func (h *Handler) StartTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.publishStatusChange(ctx, ticket, previousStatus)
-	aqm.Respond(w, http.StatusOK, ticket, nil)
+	apt.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) ReadyTicket(w http.ResponseWriter, r *http.Request) {
@@ -223,14 +223,14 @@ func (h *Handler) ReadyTicket(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
 	ticket, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		log.Errorf("cannot find ticket: %v", err)
-		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		apt.RespondError(w, http.StatusNotFound, "Ticket not found")
 		return
 	}
 
@@ -241,7 +241,7 @@ func (h *Handler) ReadyTicket(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Update(ctx, ticket); err != nil {
 		log.Errorf("cannot update ticket: %v", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
 		return
 	}
 
@@ -251,7 +251,7 @@ func (h *Handler) ReadyTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.publishStatusChange(ctx, ticket, previousStatus)
-	aqm.Respond(w, http.StatusOK, ticket, nil)
+	apt.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) DeliverTicket(w http.ResponseWriter, r *http.Request) {
@@ -263,14 +263,14 @@ func (h *Handler) DeliverTicket(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
 	ticket, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		log.Errorf("cannot find ticket: %v", err)
-		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		apt.RespondError(w, http.StatusNotFound, "Ticket not found")
 		return
 	}
 
@@ -281,7 +281,7 @@ func (h *Handler) DeliverTicket(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Update(ctx, ticket); err != nil {
 		log.Errorf("cannot update ticket: %v", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
 		return
 	}
 
@@ -291,7 +291,7 @@ func (h *Handler) DeliverTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.publishStatusChange(ctx, ticket, previousStatus)
-	aqm.Respond(w, http.StatusOK, ticket, nil)
+	apt.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) StandbyTicket(w http.ResponseWriter, r *http.Request) {
@@ -307,14 +307,14 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 
 	if len(body) > 0 {
 		if err := json.Unmarshal(body, &payload); err != nil {
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
 			return
 		}
 	}
@@ -333,7 +333,7 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 	ticket, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		log.Errorf("cannot find ticket: %v", err)
-		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		apt.RespondError(w, http.StatusNotFound, "Ticket not found")
 		return
 	}
 
@@ -353,7 +353,7 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Update(ctx, ticket); err != nil {
 		log.Errorf("cannot update ticket: %v", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
 		return
 	}
 
@@ -363,7 +363,7 @@ func (h *Handler) BlockTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.publishStatusChange(ctx, ticket, previousStatus)
-	aqm.Respond(w, http.StatusOK, ticket, nil)
+	apt.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) RejectTicket(w http.ResponseWriter, r *http.Request) {
@@ -385,7 +385,7 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
@@ -393,33 +393,33 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 		Status string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid request body")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	if req.Status == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "Status is required")
+		apt.RespondError(w, http.StatusBadRequest, "Status is required")
 		return
 	}
 
 	ticket, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		log.Errorf("cannot find ticket: %v", err)
-		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		apt.RespondError(w, http.StatusNotFound, "Ticket not found")
 		return
 	}
 
 	// Prevent moving tickets that are already delivered or cancelled
 	terminalStatuses := []string{kitchenstatus.Statuses.Delivered.Code(), kitchenstatus.Statuses.Cancelled.Code()}
-	if aqm.IsInList(ticket.Status, terminalStatuses) {
-		aqm.RespondError(w, http.StatusBadRequest, "Cannot modify delivered or cancelled tickets")
+	if apt.IsInList(ticket.Status, terminalStatuses) {
+		apt.RespondError(w, http.StatusBadRequest, "Cannot modify delivered or cancelled tickets")
 		return
 	}
 
 	// Prevent chef from marking tickets as delivered (only waiters can do this from orders)
 	forbiddenFromReady := []string{kitchenstatus.Statuses.Delivered.Code()}
-	if ticket.Status == kitchenstatus.Statuses.Ready.Code() && aqm.IsInList(req.Status, forbiddenFromReady) {
-		aqm.RespondError(w, http.StatusBadRequest, "Cannot transition from ready to delivered. This must be done from the order by waitstaff.")
+	if ticket.Status == kitchenstatus.Statuses.Ready.Code() && apt.IsInList(req.Status, forbiddenFromReady) {
+		apt.RespondError(w, http.StatusBadRequest, "Cannot transition from ready to delivered. This must be done from the order by waitstaff.")
 		return
 	}
 
@@ -445,7 +445,7 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Update(ctx, ticket); err != nil {
 		log.Errorf("cannot update ticket: %v", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
 		return
 	}
 
@@ -455,7 +455,7 @@ func (h *Handler) UpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.publishStatusChange(ctx, ticket, previousStatus)
-	aqm.Respond(w, http.StatusOK, ticket, nil)
+	apt.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action string, newStatus string) {
@@ -467,14 +467,14 @@ func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action st
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid ticket ID")
 		return
 	}
 
 	ticket, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		log.Errorf("cannot find ticket: %v", err)
-		aqm.RespondError(w, http.StatusNotFound, "Ticket not found")
+		apt.RespondError(w, http.StatusNotFound, "Ticket not found")
 		return
 	}
 
@@ -483,7 +483,7 @@ func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action st
 
 	if err := h.repo.Update(ctx, ticket); err != nil {
 		log.Errorf("cannot update ticket: %v", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update ticket")
 		return
 	}
 
@@ -493,7 +493,7 @@ func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request, action st
 	}
 
 	h.publishStatusChange(ctx, ticket, previousStatus)
-	aqm.Respond(w, http.StatusOK, ticket, nil)
+	apt.Respond(w, http.StatusOK, ticket, nil)
 }
 
 func (h *Handler) publishStatusChange(ctx context.Context, ticket *Ticket, previousStatus string) {

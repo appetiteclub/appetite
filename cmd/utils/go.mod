@@ -3,7 +3,7 @@ module github.com/appetiteclub/appetite/cmd/utils
 go 1.24.7
 
 require (
-	github.com/aquamarinepk/aqm v0.0.1
+	github.com/appetiteclub/apt v0.1.0
 	github.com/google/uuid v1.6.0
 	go.mongodb.org/mongo-driver v1.17.6
 )

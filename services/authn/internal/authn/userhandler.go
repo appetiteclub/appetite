@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
+	"github.com/appetiteclub/apt/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -16,9 +16,9 @@ import (
 const UserMaxBodyBytes = 1 << 20
 
 // NewUserHandler creates a new UserHandler for the User aggregate.
-func NewUserHandler(repo UserRepo, config *aqm.Config, logger aqm.Logger) *UserHandler {
+func NewUserHandler(repo UserRepo, config *apt.Config, logger apt.Logger) *UserHandler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &UserHandler{
 		repo:   repo,
@@ -30,8 +30,8 @@ func NewUserHandler(repo UserRepo, config *aqm.Config, logger aqm.Logger) *UserH
 
 type UserHandler struct {
 	repo   UserRepo
-	logger aqm.Logger
-	config *aqm.Config
+	logger apt.Logger
+	config *apt.Config
 	tlm    *telemetry.HTTP
 }
 
@@ -60,7 +60,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	validationErrors := ValidateCreateUserRequest(ctx, req)
 	if len(validationErrors) > 0 {
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
@@ -70,15 +70,15 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Create(ctx, &user); err != nil {
 		log.Error("cannot create user", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not create user")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not create user")
 		return
 	}
 
 	// Standard links
-	links := aqm.RESTfulLinksFor(&user)
+	links := apt.RESTfulLinksFor(&user)
 
 	w.WriteHeader(http.StatusCreated)
-	aqm.RespondSuccess(w, user, links...)
+	apt.RespondSuccess(w, user, links...)
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
@@ -96,12 +96,12 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.repo.Get(ctx, id)
 	if err != nil {
 		log.Error("error loading user", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve user")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not retrieve user")
 		return
 	}
 
 	if user == nil {
-		aqm.RespondError(w, http.StatusNotFound, "User not found")
+		apt.RespondError(w, http.StatusNotFound, "User not found")
 		return
 	}
 
@@ -109,9 +109,9 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	userData := h.userToMap(user)
 
 	// Standard links
-	links := aqm.RESTfulLinksFor(user)
+	links := apt.RESTfulLinksFor(user)
 
-	aqm.RespondSuccess(w, userData, links...)
+	apt.RespondSuccess(w, userData, links...)
 }
 
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +124,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.repo.List(ctx)
 	if err != nil {
 		log.Error("error retrieving users", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not list all users")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not list all users")
 		return
 	}
 
@@ -135,7 +135,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Collection response
-	aqm.RespondCollection(w, usersData, "user")
+	apt.RespondCollection(w, usersData, "user")
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +157,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	validationErrors := ValidateUpdateUserRequest(ctx, id, req)
 	if len(validationErrors) > 0 {
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
@@ -167,14 +167,14 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Save(ctx, &user); err != nil {
 		log.Error("cannot save user", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update user")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update user")
 		return
 	}
 
 	// Standard links
-	links := aqm.RESTfulLinksFor(&user)
+	links := apt.RESTfulLinksFor(&user)
 
-	aqm.RespondSuccess(w, user, links...)
+	apt.RespondSuccess(w, user, links...)
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +191,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Delete(ctx, id); err != nil {
 		log.Error("error deleting user", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not delete user")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not delete user")
 		return
 	}
 
@@ -214,12 +214,12 @@ func (h *UserHandler) GeneratePIN(w http.ResponseWriter, r *http.Request) {
 	user, err := h.repo.Get(ctx, id)
 	if err != nil {
 		log.Error("error loading user", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve user")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not retrieve user")
 		return
 	}
 
 	if user == nil {
-		aqm.RespondError(w, http.StatusNotFound, "User not found")
+		apt.RespondError(w, http.StatusNotFound, "User not found")
 		return
 	}
 
@@ -227,7 +227,7 @@ func (h *UserHandler) GeneratePIN(w http.ResponseWriter, r *http.Request) {
 	pin, err := GeneratePINForUser(ctx, h.repo, h.config, user)
 	if err != nil {
 		log.Error("error generating PIN", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not generate PIN")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not generate PIN")
 		return
 	}
 
@@ -235,7 +235,7 @@ func (h *UserHandler) GeneratePIN(w http.ResponseWriter, r *http.Request) {
 	user.UpdatedBy = "pin:generation"
 	if err := h.repo.Save(ctx, user); err != nil {
 		log.Error("error saving user with PIN", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not save PIN")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not save PIN")
 		return
 	}
 
@@ -249,16 +249,16 @@ func (h *UserHandler) GeneratePIN(w http.ResponseWriter, r *http.Request) {
 		"message": "PIN generated successfully. This is the only time it will be displayed.",
 	}
 
-	aqm.RespondSuccess(w, response)
+	apt.RespondSuccess(w, response)
 }
 
 // Helper methods following same patterns as ListHandler
 
-func (h *UserHandler) log(req ...*http.Request) aqm.Logger {
+func (h *UserHandler) log(req ...*http.Request) apt.Logger {
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return h.logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)
@@ -269,13 +269,13 @@ func (h *UserHandler) log(req ...*http.Request) aqm.Logger {
 func (h *UserHandler) parseIDParam(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	idStr := chi.URLParam(r, "id")
 	if strings.TrimSpace(idStr) == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "Missing or invalid id")
+		apt.RespondError(w, http.StatusBadRequest, "Missing or invalid id")
 		return uuid.Nil, false
 	}
 
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid id format")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid id format")
 		return uuid.Nil, false
 	}
 
@@ -290,17 +290,17 @@ func (h *UserHandler) decodeUserCreatePayload(w http.ResponseWriter, r *http.Req
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return req, false
 	}
 
 	if len(strings.TrimSpace(string(body))) == 0 {
-		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		apt.RespondError(w, http.StatusBadRequest, "Request body is empty")
 		return req, false
 	}
 
 	if err := json.Unmarshal(body, &req); err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		apt.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
 		return req, false
 	}
 
@@ -315,17 +315,17 @@ func (h *UserHandler) decodeUserUpdatePayload(w http.ResponseWriter, r *http.Req
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return req, false
 	}
 
 	if len(strings.TrimSpace(string(body))) == 0 {
-		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		apt.RespondError(w, http.StatusBadRequest, "Request body is empty")
 		return req, false
 	}
 
 	if err := json.Unmarshal(body, &req); err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		apt.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
 		return req, false
 	}
 

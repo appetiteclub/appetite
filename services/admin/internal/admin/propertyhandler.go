@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -242,22 +242,22 @@ func (h *Handler) SuggestLocations(w http.ResponseWriter, r *http.Request) {
 
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "query parameter q is required")
+		apt.RespondError(w, http.StatusBadRequest, "query parameter q is required")
 		return
 	}
 
 	suggestions, err := h.service.SuggestLocations(r.Context(), query)
 	if err != nil {
 		if errors.Is(err, ErrLocationProviderUnavailable) {
-			aqm.RespondSuccess(w, []LocationSuggestion{})
+			apt.RespondSuccess(w, []LocationSuggestion{})
 			return
 		}
 		log.Error("error fetching location suggestions", "error", err)
-		aqm.RespondError(w, http.StatusBadGateway, "Could not fetch suggestions")
+		apt.RespondError(w, http.StatusBadGateway, "Could not fetch suggestions")
 		return
 	}
 
-	aqm.RespondSuccess(w, suggestions)
+	apt.RespondSuccess(w, suggestions)
 }
 
 // HTMXNormalizeLocation resolves and normalizes the selected location into form fields.
@@ -346,7 +346,7 @@ func parseLocationRaw(raw string) map[string]any {
 	return result
 }
 
-func emitLocationUpdateTrigger(w http.ResponseWriter, model LocationFormModel, log aqm.Logger) {
+func emitLocationUpdateTrigger(w http.ResponseWriter, model LocationFormModel, log apt.Logger) {
 	payload := map[string]string{
 		"search_value":  model.SearchValue,
 		"selected_text": model.SelectedText,

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt/events"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )

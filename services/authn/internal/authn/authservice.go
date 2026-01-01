@@ -10,8 +10,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
 	"github.com/google/uuid"
 )
 
@@ -22,7 +22,7 @@ var (
 	ErrInactiveAccount    = errors.New("account is not active")
 )
 
-func SignUpUser(ctx context.Context, repo UserRepo, config *aqm.Config, email, password, username, name string) (*User, error) {
+func SignUpUser(ctx context.Context, repo UserRepo, config *apt.Config, email, password, username, name string) (*User, error) {
 	if repo == nil {
 		return nil, errors.New("user repository is required")
 	}
@@ -88,7 +88,7 @@ func SignUpUser(ctx context.Context, repo UserRepo, config *aqm.Config, email, p
 	return user, nil
 }
 
-func SignInUser(ctx context.Context, repo UserRepo, config *aqm.Config, email, password string) (*User, string, error) {
+func SignInUser(ctx context.Context, repo UserRepo, config *apt.Config, email, password string) (*User, string, error) {
 	if repo == nil {
 		return nil, "", errors.New("user repository is required")
 	}
@@ -127,7 +127,7 @@ func SignInUser(ctx context.Context, repo UserRepo, config *aqm.Config, email, p
 
 // SignInByPIN authenticates a user using their PIN and returns the user.
 // This is designed for lightweight authentication in the conversational interface.
-func SignInByPIN(ctx context.Context, repo UserRepo, config *aqm.Config, pin string) (*User, error) {
+func SignInByPIN(ctx context.Context, repo UserRepo, config *apt.Config, pin string) (*User, error) {
 	if repo == nil {
 		return nil, errors.New("user repository is required")
 	}
@@ -159,7 +159,7 @@ func SignInByPIN(ctx context.Context, repo UserRepo, config *aqm.Config, pin str
 	return user, nil
 }
 
-func GenerateBootstrapStatus(ctx context.Context, repo UserRepo, config *aqm.Config) (*User, error) {
+func GenerateBootstrapStatus(ctx context.Context, repo UserRepo, config *apt.Config) (*User, error) {
 	if repo == nil {
 		return nil, errors.New("user repository is required")
 	}
@@ -175,7 +175,7 @@ func GenerateBootstrapStatus(ctx context.Context, repo UserRepo, config *aqm.Con
 	return repo.GetByEmailLookup(ctx, lookupHash)
 }
 
-func BootstrapSuperadmin(ctx context.Context, repo UserRepo, config *aqm.Config) (*User, string, error) {
+func BootstrapSuperadmin(ctx context.Context, repo UserRepo, config *apt.Config) (*User, string, error) {
 	if repo == nil {
 		return nil, "", errors.New("user repository is required")
 	}
@@ -234,7 +234,7 @@ func BootstrapSuperadmin(ctx context.Context, repo UserRepo, config *aqm.Config)
 
 // GeneratePINForUser generates a unique PIN for a user and stores it encrypted.
 // Returns the plain PIN (which should be shown only once) and updates the user.
-func GeneratePINForUser(ctx context.Context, repo UserRepo, config *aqm.Config, user *User) (string, error) {
+func GeneratePINForUser(ctx context.Context, repo UserRepo, config *apt.Config, user *User) (string, error) {
 	if repo == nil {
 		return "", errors.New("user repository is required")
 	}
@@ -283,7 +283,7 @@ func GeneratePINForUser(ctx context.Context, repo UserRepo, config *aqm.Config, 
 	return "", errors.New("failed to generate unique PIN after multiple attempts")
 }
 
-func generateSessionToken(config *aqm.Config, userID uuid.UUID) (string, error) {
+func generateSessionToken(config *apt.Config, userID uuid.UUID) (string, error) {
 	sessionTTLStr, _ := config.GetString("auth.session.ttl")
 	ttl, err := time.ParseDuration(sessionTTLStr)
 	if err != nil {

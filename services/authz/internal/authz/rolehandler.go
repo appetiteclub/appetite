@@ -5,25 +5,25 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt/telemetry"
 )
 
 // RoleHandler handles role-related HTTP requests
 type RoleHandler struct {
 	roleRepo RoleRepo
-	logger   aqm.Logger
-	config   *aqm.Config
+	logger   apt.Logger
+	config   *apt.Config
 	tlm      *telemetry.HTTP
 }
 
 // NewRoleHandler creates a new RoleHandler
-func NewRoleHandler(roleRepo RoleRepo, config *aqm.Config, logger aqm.Logger) *RoleHandler {
+func NewRoleHandler(roleRepo RoleRepo, config *apt.Config, logger apt.Logger) *RoleHandler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &RoleHandler{
 		roleRepo: roleRepo,
@@ -74,7 +74,7 @@ func (h *RoleHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error("failed to list roles", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to retrieve roles")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to retrieve roles")
 		return
 	}
 
@@ -86,17 +86,17 @@ func (h *RoleHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate HATEOAS links
-	links := []aqm.Link{
+	links := []apt.Link{
 		{Rel: "self", Href: "/authz/roles"},
 		{Rel: "create", Href: "/authz/roles"},
 	}
 
-	response := aqm.SuccessResponse{
+	response := apt.SuccessResponse{
 		Data:  roles,
 		Links: links,
 	}
 
-	aqm.RespondSuccess(w, response.Data)
+	apt.RespondSuccess(w, response.Data)
 }
 
 // CreateRole handles POST /authz/roles
@@ -110,13 +110,13 @@ func (h *RoleHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 	var req RoleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Debug("invalid request payload", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid request payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
 	// Validate request
 	if req.Name == "" {
-		aqm.RespondError(w, http.StatusBadRequest, "Role name is required")
+		apt.RespondError(w, http.StatusBadRequest, "Role name is required")
 		return
 	}
 
@@ -124,11 +124,11 @@ func (h *RoleHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 	existing, err := h.roleRepo.GetByName(ctx, req.Name)
 	if err != nil {
 		log.Error("error checking existing role", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to create role")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to create role")
 		return
 	}
 	if existing != nil {
-		aqm.RespondError(w, http.StatusConflict, "Role already exists")
+		apt.RespondError(w, http.StatusConflict, "Role already exists")
 		return
 	}
 
@@ -139,13 +139,13 @@ func (h *RoleHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.roleRepo.Create(ctx, role); err != nil {
 		log.Error("failed to create role", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to create role")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to create role")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(aqm.SuccessResponse{Data: role}); err != nil {
+	if err := json.NewEncoder(w).Encode(apt.SuccessResponse{Data: role}); err != nil {
 		log.Error("failed to encode response", "error", err)
 	}
 }
@@ -161,25 +161,25 @@ func (h *RoleHandler) GetRole(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid role ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid role ID")
 		return
 	}
 
 	role, err := h.roleRepo.Get(ctx, id)
 	if err != nil {
 		log.Error("failed to get role", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to retrieve role")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to retrieve role")
 		return
 	}
 
 	if role == nil {
-		aqm.RespondError(w, http.StatusNotFound, "Role not found")
+		apt.RespondError(w, http.StatusNotFound, "Role not found")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(aqm.SuccessResponse{Data: role}); err != nil {
+	if err := json.NewEncoder(w).Encode(apt.SuccessResponse{Data: role}); err != nil {
 		log.Error("failed to encode response", "error", err)
 	}
 }
@@ -195,13 +195,13 @@ func (h *RoleHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid role ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid role ID")
 		return
 	}
 
 	var req RoleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid request payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
@@ -209,12 +209,12 @@ func (h *RoleHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	role, err := h.roleRepo.Get(ctx, id)
 	if err != nil {
 		log.Error("failed to get role", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to update role")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to update role")
 		return
 	}
 
 	if role == nil {
-		aqm.RespondError(w, http.StatusNotFound, "Role not found")
+		apt.RespondError(w, http.StatusNotFound, "Role not found")
 		return
 	}
 
@@ -228,13 +228,13 @@ func (h *RoleHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.roleRepo.Save(ctx, role); err != nil {
 		log.Error("failed to save role", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to update role")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to update role")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(aqm.SuccessResponse{Data: role}); err != nil {
+	if err := json.NewEncoder(w).Encode(apt.SuccessResponse{Data: role}); err != nil {
 		log.Error("failed to encode response", "error", err)
 	}
 }
@@ -250,13 +250,13 @@ func (h *RoleHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid role ID")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid role ID")
 		return
 	}
 
 	if err := h.roleRepo.Delete(ctx, id); err != nil {
 		log.Error("failed to delete role", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Failed to delete role")
+		apt.RespondError(w, http.StatusInternalServerError, "Failed to delete role")
 		return
 	}
 
@@ -286,12 +286,12 @@ func (h *RoleHandler) paginateRoles(roles []*Role, page, limit int) []*Role {
 	return roles[start:end]
 }
 
-func (h *RoleHandler) log(req ...*http.Request) aqm.Logger {
+func (h *RoleHandler) log(req ...*http.Request) apt.Logger {
 	logger := h.logger
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)

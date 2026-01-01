@@ -10,8 +10,8 @@ import (
 
 	"github.com/appetiteclub/appetite/pkg/event"
 	proto "github.com/appetiteclub/appetite/services/kitchen/internal/kitchen/proto"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 
@@ -20,25 +20,25 @@ func TestNewTicketStateCache(t *testing.T) {
 		name   string
 		stream events.StreamConsumer
 		repo   TicketRepository
-		logger aqm.Logger
+		logger apt.Logger
 	}{
 		{
 			name:   "withAllDependencies",
 			stream: NewMockStreamConsumer(),
 			repo:   NewMockTicketRepository(),
-			logger: aqm.NewNoopLogger(),
+			logger: apt.NewNoopLogger(),
 		},
 		{
 			name:   "withNilStream",
 			stream: nil,
 			repo:   NewMockTicketRepository(),
-			logger: aqm.NewNoopLogger(),
+			logger: apt.NewNoopLogger(),
 		},
 		{
 			name:   "withNilRepo",
 			stream: NewMockStreamConsumer(),
 			repo:   nil,
-			logger: aqm.NewNoopLogger(),
+			logger: apt.NewNoopLogger(),
 		},
 		{
 			name:   "withNilLogger",
@@ -74,7 +74,7 @@ func TestNewTicketStateCache(t *testing.T) {
 }
 
 func TestTicketStateCacheSetAndGet(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticketID := uuid.New()
 	orderID := uuid.New()
@@ -104,7 +104,7 @@ func TestTicketStateCacheSetAndGet(t *testing.T) {
 }
 
 func TestTicketStateCacheSetNilTicket(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	// Should not panic
 	cache.Set(nil)
@@ -115,7 +115,7 @@ func TestTicketStateCacheSetNilTicket(t *testing.T) {
 }
 
 func TestTicketStateCacheUpdateExisting(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticketID := uuid.New()
 	ticket := &Ticket{
@@ -152,7 +152,7 @@ func TestTicketStateCacheUpdateExisting(t *testing.T) {
 }
 
 func TestTicketStateCacheGetByStationCode(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticket1 := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "created"}
 	ticket2 := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "started"}
@@ -179,7 +179,7 @@ func TestTicketStateCacheGetByStationCode(t *testing.T) {
 }
 
 func TestTicketStateCacheGetByStatusCode(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticket1 := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "created"}
 	ticket2 := &Ticket{ID: uuid.New(), Station: "bar", Status: "created"}
@@ -201,7 +201,7 @@ func TestTicketStateCacheGetByStatusCode(t *testing.T) {
 }
 
 func TestTicketStateCacheGetByStationAndStatusCode(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticket1 := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "created"}
 	ticket2 := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "started"}
@@ -223,7 +223,7 @@ func TestTicketStateCacheGetByStationAndStatusCode(t *testing.T) {
 }
 
 func TestTicketStateCacheGetAll(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticket1 := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "created"}
 	ticket2 := &Ticket{ID: uuid.New(), Station: "bar", Status: "started"}
@@ -238,7 +238,7 @@ func TestTicketStateCacheGetAll(t *testing.T) {
 }
 
 func TestTicketStateCacheRemove(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticketID := uuid.New()
 	ticket := &Ticket{ID: ticketID, Station: "kitchen", Status: "created"}
@@ -265,14 +265,14 @@ func TestTicketStateCacheRemove(t *testing.T) {
 }
 
 func TestTicketStateCacheRemoveNonexistent(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	// Should not panic
 	cache.Remove(uuid.New())
 }
 
 func TestTicketStateCacheCount(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	if cache.Count() != 0 {
 		t.Errorf("Empty cache Count() = %d, want 0", cache.Count())
@@ -290,9 +290,9 @@ func TestTicketStateCacheCount(t *testing.T) {
 }
 
 func TestTicketStateCacheSetStreamServer(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 	cache.SetStreamServer(server)
 
 	if cache.streamServer != server {
@@ -329,7 +329,7 @@ func TestTicketStateCacheWarmFromStream(t *testing.T) {
 	eventBytes, _ := json.Marshal(createdEvent)
 	mockStream.AddMessage(eventBytes)
 
-	cache := NewTicketStateCache(mockStream, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(mockStream, nil, apt.NewNoopLogger())
 
 	err := cache.Warm(context.Background())
 	if err != nil {
@@ -395,7 +395,7 @@ func TestTicketStateCacheWarmFromStreamWithStatusChange(t *testing.T) {
 	statusBytes, _ := json.Marshal(statusEvent)
 	mockStream.AddMessage(statusBytes)
 
-	cache := NewTicketStateCache(mockStream, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(mockStream, nil, apt.NewNoopLogger())
 	cache.Warm(context.Background())
 
 	ticket := cache.Get(ticketID)
@@ -441,7 +441,7 @@ func TestTicketStateCacheWarmFromStreamRemovesDelivered(t *testing.T) {
 	bytes2, _ := json.Marshal(createdEvent2)
 	mockStream.AddMessage(bytes2)
 
-	cache := NewTicketStateCache(mockStream, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(mockStream, nil, apt.NewNoopLogger())
 	cache.Warm(context.Background())
 
 	if cache.Count() != 1 {
@@ -472,7 +472,7 @@ func TestTicketStateCacheWarmFromRepo(t *testing.T) {
 	mockRepo.AddTicket(ticket1)
 	mockRepo.AddTicket(ticket2)
 
-	cache := NewTicketStateCache(nil, mockRepo, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, mockRepo, apt.NewNoopLogger())
 
 	err := cache.Warm(context.Background())
 	if err != nil {
@@ -495,7 +495,7 @@ func TestTicketStateCacheWarmFallbackToRepo(t *testing.T) {
 	ticket := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "created"}
 	mockRepo.AddTicket(ticket)
 
-	cache := NewTicketStateCache(mockStream, mockRepo, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(mockStream, mockRepo, apt.NewNoopLogger())
 
 	err := cache.Warm(context.Background())
 	if err != nil {
@@ -508,7 +508,7 @@ func TestTicketStateCacheWarmFallbackToRepo(t *testing.T) {
 }
 
 func TestTicketStateCacheWarmWithNeitherStreamNorRepo(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	err := cache.Warm(context.Background())
 	if err != nil {
@@ -526,7 +526,7 @@ func TestTicketStateCacheWarmFromRepoError(t *testing.T) {
 		return nil, errors.New("database error")
 	}
 
-	cache := NewTicketStateCache(nil, mockRepo, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, mockRepo, apt.NewNoopLogger())
 
 	// Should not return error - just leave cache empty
 	err := cache.Warm(context.Background())
@@ -544,7 +544,7 @@ func TestTicketStateCacheWarmFromRepoPublic(t *testing.T) {
 	ticket := &Ticket{ID: uuid.New(), Station: "kitchen", Status: "created"}
 	mockRepo.AddTicket(ticket)
 
-	cache := NewTicketStateCache(nil, mockRepo, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, mockRepo, apt.NewNoopLogger())
 
 	err := cache.WarmFromRepo(context.Background())
 	if err != nil {
@@ -557,7 +557,7 @@ func TestTicketStateCacheWarmFromRepoPublic(t *testing.T) {
 }
 
 func TestTicketStateCacheConcurrency(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	var wg sync.WaitGroup
 	numGoroutines := 100
@@ -596,7 +596,7 @@ func TestTicketStateCacheConcurrency(t *testing.T) {
 }
 
 func TestTicketStateCacheApplyEventUnknownType(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	unknownEvent := map[string]string{
 		"event_type": "unknown.event",
@@ -614,7 +614,7 @@ func TestTicketStateCacheApplyEventUnknownType(t *testing.T) {
 }
 
 func TestTicketStateCacheApplyEventInvalidJSON(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	// Should not panic
 	cache.mu.Lock()
@@ -627,7 +627,7 @@ func TestTicketStateCacheApplyEventInvalidJSON(t *testing.T) {
 }
 
 func TestTicketStateCacheStatusChangeForNonexistentTicket(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	// Status change for a ticket that doesn't exist in cache
 	ticketID := uuid.New()
@@ -669,7 +669,7 @@ func TestTicketStateCacheStatusChangeForNonexistentTicket(t *testing.T) {
 }
 
 func TestTicketStateCacheStatusChangeWithReasonCode(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	ticketID := uuid.New()
 	reasonCodeID := uuid.New()
@@ -704,10 +704,10 @@ func TestTicketStateCacheStatusChangeWithReasonCode(t *testing.T) {
 }
 
 func TestTicketStateCacheSetBroadcastsToStreamServer(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 
 	// Create a stream server and add a subscriber channel
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 	cache.SetStreamServer(server)
 
 	testChan := make(chan *proto.KitchenTicketEvent, 10)

@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/fileserver"
-	aqmmw "github.com/aquamarinepk/aqm/middleware"
-	"github.com/aquamarinepk/aqm/template"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/fileserver"
+	aqmmw "github.com/appetiteclub/apt/middleware"
+	"github.com/appetiteclub/apt/template"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 
@@ -28,13 +28,13 @@ const (
 var assetsFS embed.FS
 
 func main() {
-	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
+	config, err := apt.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
 		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -88,19 +88,19 @@ func main() {
 	})
 	stack = append(stack, chimw.NoCache)
 
-	options := []aqm.Option{
-		aqm.WithConfig(config),
-		aqm.WithLogger(logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithRouterConfigurator(func(mux *chi.Mux) {
-			aqm.RedirectNotFound(mux, "/")
+	options := []apt.Option{
+		apt.WithConfig(config),
+		apt.WithLogger(logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithRouterConfigurator(func(mux *chi.Mux) {
+			apt.RedirectNotFound(mux, "/")
 		}),
-		aqm.WithHTTPServerModules("web.port", fileServer, adminHandler),
-		aqm.WithLifecycle(tmplMgr),
-		aqm.WithHealthChecks(appName),
+		apt.WithHTTPServerModules("web.port", fileServer, adminHandler),
+		apt.WithLifecycle(tmplMgr),
+		apt.WithHealthChecks(appName),
 	}
 
-	ms := aqm.NewMicro(options...)
+	ms := apt.NewMicro(options...)
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 // decodeSuccessResponse copies the dynamic response payload into dest.
-func decodeSuccessResponse(resp *aqm.SuccessResponse, dest interface{}) error {
+func decodeSuccessResponse(resp *apt.SuccessResponse, dest interface{}) error {
 	if resp == nil {
 		return errors.New("nil success response")
 	}

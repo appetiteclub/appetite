@@ -6,14 +6,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/seed"
 )
 
 // ApplyDemoSeeds ensures demo tables exist with realistic states for demonstration.
 // It applies standard seeding first, then modifies some tables to "open" status
 // so they can have orders assigned to them.
-func ApplyDemoSeeds(ctx context.Context, repo TableRepo, seedFS embed.FS, logger aqm.Logger) error {
+func ApplyDemoSeeds(ctx context.Context, repo TableRepo, seedFS embed.FS, logger apt.Logger) error {
 	if repo == nil {
 		return errors.New("table repository is required")
 	}
@@ -43,7 +43,7 @@ func ApplyDemoSeeds(ctx context.Context, repo TableRepo, seedFS embed.FS, logger
 	return nil
 }
 
-func buildDemoTableSeeds(repo TableRepo, logger aqm.Logger) []seed.Seed {
+func buildDemoTableSeeds(repo TableRepo, logger apt.Logger) []seed.Seed {
 	// Tables to modify for demo: set to "open" status with guest counts
 	// This allows order seeding to assign orders to these tables
 	demoModifications := []struct {
@@ -79,7 +79,7 @@ func buildDemoTableSeeds(repo TableRepo, logger aqm.Logger) []seed.Seed {
 	return defs
 }
 
-func setTableToOpen(ctx context.Context, repo TableRepo, number string, guestCount int, logger aqm.Logger) error {
+func setTableToOpen(ctx context.Context, repo TableRepo, number string, guestCount int, logger apt.Logger) error {
 	// Find the table by number
 	tables, err := repo.List(ctx)
 	if err != nil {
@@ -115,9 +115,9 @@ func setTableToOpen(ctx context.Context, repo TableRepo, number string, guestCou
 
 // DemoSeedingFunc returns an aqm lifecycle OnStart-compatible function which
 // starts applying demo table seeds in the background.
-func DemoSeedingFunc(seedCtx context.Context, repo TableRepo, seedFS embed.FS, logger aqm.Logger) func(ctx context.Context) error {
+func DemoSeedingFunc(seedCtx context.Context, repo TableRepo, seedFS embed.FS, logger apt.Logger) func(ctx context.Context) error {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	return func(ctx context.Context) error {

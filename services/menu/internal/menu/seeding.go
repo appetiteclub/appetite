@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/seed"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -393,7 +393,7 @@ func seedSampleMenuItems(ctx context.Context, db *mongo.Database) error {
 }
 
 // SeedingFunc returns a function for running seeds during service startup
-func SeedingFunc(appName string, dbFn func() *mongo.Database, logger aqm.Logger) func(ctx context.Context) error {
+func SeedingFunc(appName string, dbFn func() *mongo.Database, logger apt.Logger) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 		logger.Info("Applying menu service database seeds...")
 		db := dbFn()

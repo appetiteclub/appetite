@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -18,15 +18,15 @@ const MaxBodyBytes = 1 << 20 // 1 MB
 type Handler struct {
 	setRepo    SetRepo
 	optionRepo OptionRepo
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 	tlm        *telemetry.HTTP
 }
 
 // NewHandler creates a new Handler for Dictionary operations.
-func NewHandler(setRepo SetRepo, optionRepo OptionRepo, config *aqm.Config, logger aqm.Logger) *Handler {
+func NewHandler(setRepo SetRepo, optionRepo OptionRepo, config *apt.Config, logger apt.Logger) *Handler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &Handler{
 		setRepo:    setRepo,
@@ -83,20 +83,20 @@ func (h *Handler) CreateSet(w http.ResponseWriter, r *http.Request) {
 	// Validation
 	if validationErrors := ValidateCreateSet(ctx, set); len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
 	// Create in repository
 	if err := h.setRepo.Create(ctx, set); err != nil {
 		log.Error("cannot create set", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not create set")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not create set")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(set)
+	links := apt.RESTfulLinksFor(set)
 	w.WriteHeader(http.StatusCreated)
-	aqm.RespondSuccess(w, set, links...)
+	apt.RespondSuccess(w, set, links...)
 }
 
 // GetSet handles GET /dictionary/sets/{id}
@@ -114,17 +114,17 @@ func (h *Handler) GetSet(w http.ResponseWriter, r *http.Request) {
 	set, err := h.setRepo.Get(ctx, id)
 	if err != nil {
 		log.Error("error loading set", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusNotFound, "Set not found")
+		apt.RespondError(w, http.StatusNotFound, "Set not found")
 		return
 	}
 
 	if set == nil {
-		aqm.RespondError(w, http.StatusNotFound, "Set not found")
+		apt.RespondError(w, http.StatusNotFound, "Set not found")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(set)
-	aqm.RespondSuccess(w, set, links...)
+	links := apt.RESTfulLinksFor(set)
+	apt.RespondSuccess(w, set, links...)
 }
 
 // GetSetByName handles GET /dictionary/sets/name/{name}
@@ -137,24 +137,24 @@ func (h *Handler) GetSetByName(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	if name == "" {
 		log.Debug("missing name parameter")
-		aqm.RespondError(w, http.StatusBadRequest, "Missing name parameter")
+		apt.RespondError(w, http.StatusBadRequest, "Missing name parameter")
 		return
 	}
 
 	set, err := h.setRepo.GetByName(ctx, name)
 	if err != nil {
 		log.Error("error loading set by name", "error", err, "name", name)
-		aqm.RespondError(w, http.StatusNotFound, "Set not found")
+		apt.RespondError(w, http.StatusNotFound, "Set not found")
 		return
 	}
 
 	if set == nil {
-		aqm.RespondError(w, http.StatusNotFound, "Set not found")
+		apt.RespondError(w, http.StatusNotFound, "Set not found")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(set)
-	aqm.RespondSuccess(w, set, links...)
+	links := apt.RESTfulLinksFor(set)
+	apt.RespondSuccess(w, set, links...)
 }
 
 // ListSets handles GET /dictionary/sets
@@ -178,11 +178,11 @@ func (h *Handler) ListSets(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error("error retrieving sets", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve sets")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not retrieve sets")
 		return
 	}
 
-	aqm.RespondCollection(w, sets, "dictionary/set")
+	apt.RespondCollection(w, sets, "dictionary/set")
 }
 
 // UpdateSet handles PUT /dictionary/sets/{id}
@@ -208,19 +208,19 @@ func (h *Handler) UpdateSet(w http.ResponseWriter, r *http.Request) {
 	// Validation
 	if validationErrors := ValidateUpdateSet(ctx, id, set); len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
 	// Update in repository
 	if err := h.setRepo.Save(ctx, set); err != nil {
 		log.Error("cannot update set", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update set")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update set")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(set)
-	aqm.RespondSuccess(w, set, links...)
+	links := apt.RESTfulLinksFor(set)
+	apt.RespondSuccess(w, set, links...)
 }
 
 // DeleteSet handles DELETE /dictionary/sets/{id}
@@ -237,13 +237,13 @@ func (h *Handler) DeleteSet(w http.ResponseWriter, r *http.Request) {
 
 	if validationErrors := ValidateDeleteSet(ctx, id); len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
 	if err := h.setRepo.Delete(ctx, id); err != nil {
 		log.Error("cannot delete set", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not delete set")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not delete set")
 		return
 	}
 
@@ -270,20 +270,20 @@ func (h *Handler) CreateOption(w http.ResponseWriter, r *http.Request) {
 	// Validation
 	if validationErrors := ValidateCreateOption(ctx, option); len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
 	// Create in repository
 	if err := h.optionRepo.Create(ctx, option); err != nil {
 		log.Error("cannot create option", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not create option")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not create option")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(option)
+	links := apt.RESTfulLinksFor(option)
 	w.WriteHeader(http.StatusCreated)
-	aqm.RespondSuccess(w, option, links...)
+	apt.RespondSuccess(w, option, links...)
 }
 
 // GetOption handles GET /dictionary/options/{id}
@@ -301,17 +301,17 @@ func (h *Handler) GetOption(w http.ResponseWriter, r *http.Request) {
 	option, err := h.optionRepo.Get(ctx, id)
 	if err != nil {
 		log.Error("error loading option", "error", err, "id", id.String())
-		aqm.RespondError(w, http.StatusNotFound, "Option not found")
+		apt.RespondError(w, http.StatusNotFound, "Option not found")
 		return
 	}
 
 	if option == nil {
-		aqm.RespondError(w, http.StatusNotFound, "Option not found")
+		apt.RespondError(w, http.StatusNotFound, "Option not found")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(option)
-	aqm.RespondSuccess(w, option, links...)
+	links := apt.RESTfulLinksFor(option)
+	apt.RespondSuccess(w, option, links...)
 }
 
 // ListOptions handles GET /dictionary/options
@@ -335,11 +335,11 @@ func (h *Handler) ListOptions(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error("error retrieving options", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve options")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not retrieve options")
 		return
 	}
 
-	aqm.RespondCollection(w, options, "dictionary/option")
+	apt.RespondCollection(w, options, "dictionary/option")
 }
 
 // ListOptionsBySetName handles GET /dictionary/options/set/{setName}
@@ -352,18 +352,18 @@ func (h *Handler) ListOptionsBySetName(w http.ResponseWriter, r *http.Request) {
 	setName := chi.URLParam(r, "setName")
 	if setName == "" {
 		log.Debug("missing setName parameter")
-		aqm.RespondError(w, http.StatusBadRequest, "Missing setName parameter")
+		apt.RespondError(w, http.StatusBadRequest, "Missing setName parameter")
 		return
 	}
 
 	options, err := h.optionRepo.ListBySetName(ctx, setName)
 	if err != nil {
 		log.Error("error retrieving options by set name", "error", err, "setName", setName)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve options")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not retrieve options")
 		return
 	}
 
-	aqm.RespondCollection(w, options, "dictionary/option")
+	apt.RespondCollection(w, options, "dictionary/option")
 }
 
 // ListOptionsBySetAndParent handles GET /dictionary/options/set/{setName}/parent/{parentID}
@@ -376,7 +376,7 @@ func (h *Handler) ListOptionsBySetAndParent(w http.ResponseWriter, r *http.Reque
 	setName := chi.URLParam(r, "setName")
 	if setName == "" {
 		log.Debug("missing setName parameter")
-		aqm.RespondError(w, http.StatusBadRequest, "Missing setName parameter")
+		apt.RespondError(w, http.StatusBadRequest, "Missing setName parameter")
 		return
 	}
 
@@ -386,7 +386,7 @@ func (h *Handler) ListOptionsBySetAndParent(w http.ResponseWriter, r *http.Reque
 		pid, err := uuid.Parse(parentIDStr)
 		if err != nil {
 			log.Debug("invalid parentID parameter", "parentID", parentIDStr, "error", err)
-			aqm.RespondError(w, http.StatusBadRequest, "Invalid parentID parameter")
+			apt.RespondError(w, http.StatusBadRequest, "Invalid parentID parameter")
 			return
 		}
 		parentID = &pid
@@ -395,11 +395,11 @@ func (h *Handler) ListOptionsBySetAndParent(w http.ResponseWriter, r *http.Reque
 	options, err := h.optionRepo.ListBySetAndParent(ctx, setName, parentID)
 	if err != nil {
 		log.Error("error retrieving options by set and parent", "error", err, "setName", setName, "parentID", parentIDStr)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not retrieve options")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not retrieve options")
 		return
 	}
 
-	aqm.RespondCollection(w, options, "dictionary/option")
+	apt.RespondCollection(w, options, "dictionary/option")
 }
 
 // UpdateOption handles PUT /dictionary/options/{id}
@@ -425,19 +425,19 @@ func (h *Handler) UpdateOption(w http.ResponseWriter, r *http.Request) {
 	// Validation
 	if validationErrors := ValidateUpdateOption(ctx, id, option); len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
 	// Update in repository
 	if err := h.optionRepo.Save(ctx, option); err != nil {
 		log.Error("cannot update option", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not update option")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not update option")
 		return
 	}
 
-	links := aqm.RESTfulLinksFor(option)
-	aqm.RespondSuccess(w, option, links...)
+	links := apt.RESTfulLinksFor(option)
+	apt.RespondSuccess(w, option, links...)
 }
 
 // DeleteOption handles DELETE /dictionary/options/{id}
@@ -454,13 +454,13 @@ func (h *Handler) DeleteOption(w http.ResponseWriter, r *http.Request) {
 
 	if validationErrors := ValidateDeleteOption(ctx, id); len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
 	if err := h.optionRepo.Delete(ctx, id); err != nil {
 		log.Error("cannot delete option", "error", err)
-		aqm.RespondError(w, http.StatusInternalServerError, "Could not delete option")
+		apt.RespondError(w, http.StatusInternalServerError, "Could not delete option")
 		return
 	}
 
@@ -469,64 +469,64 @@ func (h *Handler) DeleteOption(w http.ResponseWriter, r *http.Request) {
 
 // Helper methods
 
-func (h *Handler) log(r *http.Request) aqm.Logger {
+func (h *Handler) log(r *http.Request) apt.Logger {
 	return h.logger.With("request_id", r.Context().Value("request_id"))
 }
 
-func (h *Handler) parseIDParam(w http.ResponseWriter, r *http.Request, log aqm.Logger) (uuid.UUID, bool) {
+func (h *Handler) parseIDParam(w http.ResponseWriter, r *http.Request, log apt.Logger) (uuid.UUID, bool) {
 	idStr := chi.URLParam(r, "id")
 	if idStr == "" {
 		log.Debug("missing id parameter")
-		aqm.RespondError(w, http.StatusBadRequest, "Missing id parameter")
+		apt.RespondError(w, http.StatusBadRequest, "Missing id parameter")
 		return uuid.Nil, false
 	}
 
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		log.Debug("invalid id parameter", "id", idStr, "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid id parameter")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid id parameter")
 		return uuid.Nil, false
 	}
 
 	return id, true
 }
 
-func (h *Handler) decodeSetPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (*Set, bool) {
+func (h *Handler) decodeSetPayload(w http.ResponseWriter, r *http.Request, log apt.Logger) (*Set, bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Debug("error reading request body", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return nil, false
 	}
 
 	var set Set
 	if err := json.Unmarshal(body, &set); err != nil {
 		log.Debug("error decoding JSON", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
+		apt.RespondError(w, http.StatusBadRequest, "Invalid JSON payload")
 		return nil, false
 	}
 
 	return &set, true
 }
 
-func (h *Handler) decodeOptionPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (*Option, bool) {
+func (h *Handler) decodeOptionPayload(w http.ResponseWriter, r *http.Request, log apt.Logger) (*Option, bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Debug("error reading request body", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return nil, false
 	}
 
 	var option Option
 	if err := json.Unmarshal(body, &option); err != nil {
 		log.Debug("error decoding JSON", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON payload: %v", err))
+		apt.RespondError(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON payload: %v", err))
 		return nil, false
 	}
 

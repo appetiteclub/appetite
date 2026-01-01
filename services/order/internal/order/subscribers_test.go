@@ -10,8 +10,8 @@ import (
 	"github.com/appetiteclub/appetite/pkg"
 	"github.com/appetiteclub/appetite/pkg/event"
 	proto "github.com/appetiteclub/appetite/services/order/internal/order/proto"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 
@@ -535,7 +535,7 @@ func TestOrderEventStreamServerBroadcastOrderItemEvent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockOrderItemRepo()
-			logger := aqm.NewNoopLogger()
+			logger := apt.NewNoopLogger()
 			server := NewOrderEventStreamServer(repo, logger)
 
 			// BroadcastOrderItemEvent should not panic even with no subscribers
@@ -668,7 +668,7 @@ func TestKitchenTicketSubscriberHandleStatusChangeRepoSaveError(t *testing.T) {
 
 func TestOrderEventStreamServerBroadcastToSubscribers(t *testing.T) {
 	orderItemRepo := NewMockOrderItemRepo()
-	server := NewOrderEventStreamServer(orderItemRepo, aqm.NewNoopLogger())
+	server := NewOrderEventStreamServer(orderItemRepo, apt.NewNoopLogger())
 
 	// Add a subscriber with a buffer
 	testChan := make(chan *proto.OrderItemEvent, 10)
@@ -706,7 +706,7 @@ func TestOrderEventStreamServerBroadcastToSubscribers(t *testing.T) {
 
 func TestOrderEventStreamServerBroadcastChannelFull(t *testing.T) {
 	orderItemRepo := NewMockOrderItemRepo()
-	server := NewOrderEventStreamServer(orderItemRepo, aqm.NewNoopLogger())
+	server := NewOrderEventStreamServer(orderItemRepo, apt.NewNoopLogger())
 
 	// Add a subscriber with a buffer of 1, already full
 	fullChan := make(chan *proto.OrderItemEvent, 1)

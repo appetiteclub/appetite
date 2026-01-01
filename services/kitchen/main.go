@@ -13,9 +13,9 @@ import (
 	"github.com/appetiteclub/appetite/services/kitchen/internal/events"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/kitchen"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/mongo"
-	"github.com/aquamarinepk/aqm"
-	aqmevents "github.com/aquamarinepk/aqm/events"
-	"github.com/aquamarinepk/aqm/middleware"
+	"github.com/appetiteclub/apt"
+	aqmevents "github.com/appetiteclub/apt/events"
+	"github.com/appetiteclub/apt/middleware"
 )
 
 const (
@@ -25,13 +25,13 @@ const (
 )
 
 func main() {
-	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
+	config, err := apt.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
 		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -117,7 +117,7 @@ func main() {
 	lifecycles := []interface{}{ticketRepo, eventSubscriber}
 
 	// Warm cache after repo is started
-	cacheLifecycle := aqm.LifecycleHooks{
+	cacheLifecycle := apt.LifecycleHooks{
 		OnStart: func(ctx context.Context) error {
 			err := ticketCache.Warm(ctx)
 			if err != nil {
@@ -136,7 +136,7 @@ func main() {
 		defer cancelSeeds()
 
 		// Note: db will be available when OnStart runs (after ticketRepo lifecycle starts)
-		seedHooks := aqm.LifecycleHooks{
+		seedHooks := apt.LifecycleHooks{
 			OnStart: func(startCtx context.Context) error {
 				db := ticketRepo.GetDatabase()
 				if db == nil {
@@ -154,7 +154,7 @@ func main() {
 	}
 
 	if kitchenStream != nil {
-		streamLifecycle := aqm.LifecycleHooks{
+		streamLifecycle := apt.LifecycleHooks{
 			OnStop: func(context.Context) error {
 				return kitchenStream.Close()
 			},
@@ -163,7 +163,7 @@ func main() {
 	}
 
 	if orderSubscriber != nil {
-		subscriberLifecycle := aqm.LifecycleHooks{
+		subscriberLifecycle := apt.LifecycleHooks{
 			OnStop: func(context.Context) error {
 				return orderSubscriber.Close()
 			},
@@ -171,17 +171,17 @@ func main() {
 		lifecycles = append(lifecycles, subscriberLifecycle)
 	}
 
-	options := []aqm.Option{
-		aqm.WithConfig(config),
-		aqm.WithLogger(logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithGRPCServerModules("grpc.port", grpcStreamServer),
-		aqm.WithLifecycle(lifecycles...),
-		aqm.WithHealthChecks(appName),
+	options := []apt.Option{
+		apt.WithConfig(config),
+		apt.WithLogger(logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithHTTPServerModules("web.port", handler),
+		apt.WithGRPCServerModules("grpc.port", grpcStreamServer),
+		apt.WithLifecycle(lifecycles...),
+		apt.WithHealthChecks(appName),
 	}
 
-	ms := aqm.NewMicro(options...)
+	ms := apt.NewMicro(options...)
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {

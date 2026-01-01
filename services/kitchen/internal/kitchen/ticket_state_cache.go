@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/appetiteclub/appetite/pkg/event"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 
@@ -25,7 +25,7 @@ type TicketStateCache struct {
 
 	stream events.StreamConsumer // For event replay on startup
 	repo   TicketRepository       // Fallback to MongoDB if stream unavailable
-	logger aqm.Logger
+	logger apt.Logger
 
 	// gRPC stream server for broadcasting events to connected clients
 	streamServer *EventStreamServer
@@ -39,9 +39,9 @@ func (c *TicketStateCache) SetStreamServer(server *EventStreamServer) {
 }
 
 // NewTicketStateCache creates a new ticket cache.
-func NewTicketStateCache(stream events.StreamConsumer, repo TicketRepository, logger aqm.Logger) *TicketStateCache {
+func NewTicketStateCache(stream events.StreamConsumer, repo TicketRepository, logger apt.Logger) *TicketStateCache {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &TicketStateCache{
 		tickets:   make(map[uuid.UUID]*Ticket),

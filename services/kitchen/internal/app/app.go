@@ -8,9 +8,9 @@ import (
 	"github.com/appetiteclub/appetite/services/kitchen/internal/events"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/kitchen"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/mongo"
-	"github.com/aquamarinepk/aqm"
-	aqmevents "github.com/aquamarinepk/aqm/events"
-	"github.com/aquamarinepk/aqm/middleware"
+	"github.com/appetiteclub/apt"
+	aqmevents "github.com/appetiteclub/apt/events"
+	"github.com/appetiteclub/apt/middleware"
 )
 
 const (
@@ -20,14 +20,14 @@ const (
 
 // App encapsulates the kitchen service application
 type App struct {
-	config     *aqm.Config
-	logger     aqm.Logger
-	micro      *aqm.Micro
+	config     *apt.Config
+	logger     apt.Logger
+	micro      *apt.Micro
 	ticketRepo *mongo.TicketRepo
 }
 
 // New creates a new kitchen service application
-func New(config *aqm.Config, logger aqm.Logger) (*App, error) {
+func New(config *apt.Config, logger apt.Logger) (*App, error) {
 	return &App{
 		config: config,
 		logger: logger,
@@ -126,7 +126,7 @@ func (a *App) Initialize(ctx context.Context) error {
 	lifecycles := []interface{}{a.ticketRepo, eventSubscriber}
 
 	// Warm cache after repo is started
-	cacheLifecycle := aqm.LifecycleHooks{
+	cacheLifecycle := apt.LifecycleHooks{
 		OnStart: func(ctx context.Context) error {
 			if err := ticketCache.Warm(ctx); err != nil {
 				a.logger.Info("failed to warm ticket cache", "error", err)
@@ -137,30 +137,30 @@ func (a *App) Initialize(ctx context.Context) error {
 	lifecycles = append(lifecycles, cacheLifecycle)
 
 	if kitchenStream != nil {
-		streamLifecycle := aqm.LifecycleHooks{
+		streamLifecycle := apt.LifecycleHooks{
 			OnStop: func(context.Context) error { return kitchenStream.Close() },
 		}
 		lifecycles = append(lifecycles, streamLifecycle)
 	}
 	if orderSubscriber != nil {
-		subscriberLifecycle := aqm.LifecycleHooks{
+		subscriberLifecycle := apt.LifecycleHooks{
 			OnStop: func(context.Context) error { return orderSubscriber.Close() },
 		}
 		lifecycles = append(lifecycles, subscriberLifecycle)
 	}
 
 	// Build micro service
-	options := []aqm.Option{
-		aqm.WithConfig(a.config),
-		aqm.WithLogger(a.logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithGRPCServerModules("grpc.port", grpcStreamServer),
-		aqm.WithLifecycle(lifecycles...),
-		aqm.WithHealthChecks(AppName),
+	options := []apt.Option{
+		apt.WithConfig(a.config),
+		apt.WithLogger(a.logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithHTTPServerModules("web.port", handler),
+		apt.WithGRPCServerModules("grpc.port", grpcStreamServer),
+		apt.WithLifecycle(lifecycles...),
+		apt.WithHealthChecks(AppName),
 	}
 
-	a.micro = aqm.NewMicro(options...)
+	a.micro = apt.NewMicro(options...)
 	return nil
 }
 
@@ -176,6 +176,6 @@ func (a *App) Run(ctx context.Context) error {
 
 // Shutdown gracefully shuts down the application
 func (a *App) Shutdown(ctx context.Context) error {
-	// Lifecycle cleanup is handled by aqm.Micro
+	// Lifecycle cleanup is handled by apt.Micro
 	return nil
 }

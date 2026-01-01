@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 // tableResource mirrors the payload returned by the table service.
@@ -28,10 +28,10 @@ type tableBillResource struct {
 
 // TableDataAccess centralizes decoding of table service responses.
 type TableDataAccess struct {
-	client *aqm.ServiceClient
+	client *apt.ServiceClient
 }
 
-func NewTableDataAccess(client *aqm.ServiceClient) *TableDataAccess {
+func NewTableDataAccess(client *apt.ServiceClient) *TableDataAccess {
 	return &TableDataAccess{client: client}
 }
 

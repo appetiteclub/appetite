@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/middleware"
-	aqmtemplate "github.com/aquamarinepk/aqm/template"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/middleware"
+	aqmtemplate "github.com/appetiteclub/apt/template"
 
 	"github.com/appetiteclub/appetite/services/operations/internal/kitchenstream"
 	"github.com/appetiteclub/appetite/services/operations/internal/operations"
@@ -27,13 +27,13 @@ const (
 )
 
 func main() {
-	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
+	config, err := apt.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
 		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -62,7 +62,7 @@ func main() {
 	kitchenURL, _ := config.GetString("services.kitchen.url")
 	var kitchenDA *operations.KitchenDataAccess
 	if kitchenURL != "" {
-		kitchenClient := aqm.NewServiceClient(kitchenURL)
+		kitchenClient := apt.NewServiceClient(kitchenURL)
 		kitchenDA = operations.NewKitchenDataAccess(kitchenClient)
 	}
 
@@ -95,16 +95,16 @@ func main() {
 
 	lifecycles := []interface{}{tmplMgr, kitchenStreamClient, orderStreamClient}
 
-	options := []aqm.Option{
-		aqm.WithConfig(config),
-		aqm.WithLogger(logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(lifecycles...),
-		aqm.WithHealthChecks(appName),
+	options := []apt.Option{
+		apt.WithConfig(config),
+		apt.WithLogger(logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithHTTPServerModules("web.port", handler),
+		apt.WithLifecycle(lifecycles...),
+		apt.WithHealthChecks(appName),
 	}
 
-	ms := aqm.NewMicro(options...)
+	ms := apt.NewMicro(options...)
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {

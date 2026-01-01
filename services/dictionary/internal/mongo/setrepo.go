@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -19,14 +19,14 @@ type SetRepo struct {
 	client     *mongo.Client
 	db         *mongo.Database
 	collection *mongo.Collection
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
 // NewSetRepo creates a new MongoDB repository for Set aggregates.
-func NewSetRepo(config *aqm.Config, logger aqm.Logger) *SetRepo {
+func NewSetRepo(config *apt.Config, logger apt.Logger) *SetRepo {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &SetRepo{
 		logger: logger,

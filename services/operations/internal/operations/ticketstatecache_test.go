@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/appetiteclub/appetite/pkg/event"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt/events"
 )
 
 func TestNewTicketStateCache(t *testing.T) {

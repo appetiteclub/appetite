@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -15,16 +15,16 @@ import (
 type APIGrantRepo struct {
 	httpClient *http.Client
 	authzURL   string
-	logger     aqm.Logger
+	logger     apt.Logger
 }
 
 // NewAPIGrantRepo creates a new API-based grant repository
-func NewAPIGrantRepo(config *aqm.Config, logger aqm.Logger) (*APIGrantRepo, error) {
+func NewAPIGrantRepo(config *apt.Config, logger apt.Logger) (*APIGrantRepo, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	authzURL, _ := config.GetString("services.authz.url")

@@ -3,12 +3,12 @@ package storage
 import (
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
-// FromProperties builds the storage backend from aqm.Config.
+// FromProperties builds the storage backend from apt.Config.
 // NOTE: once aqm ships a storage binding primitive this can move there.
-func FromProperties(config *aqm.Config) (MediaStorage, error) {
+func FromProperties(config *apt.Config) (MediaStorage, error) {
 	if config == nil {
 		return nil, fmt.Errorf("storage: properties required")
 	}

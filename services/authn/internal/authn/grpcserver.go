@@ -10,8 +10,8 @@ import (
 	"time"
 
 	authnpb "github.com/appetiteclub/appetite/services/authn/internal/authn/proto"
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,17 +27,17 @@ type GRPCServer struct {
 	authnpb.UnimplementedSystemServer
 
 	repo   UserRepo
-	logger aqm.Logger
-	config  *aqm.Config
+	logger apt.Logger
+	config  *apt.Config
 
 	mu  sync.Mutex
 	srv *grpc.Server
 	lis net.Listener
 }
 
-func NewGRPCServer(repo UserRepo, logger aqm.Logger, config *aqm.Config) *GRPCServer {
+func NewGRPCServer(repo UserRepo, logger apt.Logger, config *apt.Config) *GRPCServer {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &GRPCServer{
 		repo:   repo,

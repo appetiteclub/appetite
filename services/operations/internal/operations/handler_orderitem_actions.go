@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -33,7 +33,7 @@ func (h *Handler) MarkOrderItemDelivered(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	client := aqm.NewServiceClient(orderServiceURL)
+	client := apt.NewServiceClient(orderServiceURL)
 	path := fmt.Sprintf("/items/%s/deliver", itemID)
 
 	_, err := client.Request(ctx, "PATCH", path, nil)
@@ -68,7 +68,7 @@ func (h *Handler) CancelOrderItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := aqm.NewServiceClient(orderServiceURL)
+	client := apt.NewServiceClient(orderServiceURL)
 	path := fmt.Sprintf("/items/%s/cancel", itemID)
 
 	_, err := client.Request(ctx, "PATCH", path, nil)
@@ -109,7 +109,7 @@ func (h *Handler) CloseOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := aqm.NewServiceClient(orderServiceURL)
+	client := apt.NewServiceClient(orderServiceURL)
 	path := fmt.Sprintf("/orders/%s/close", orderID)
 
 	// Build query params
@@ -155,18 +155,18 @@ func (h *Handler) CloseOrder(w http.ResponseWriter, r *http.Request) {
 
 	// Return the response from order service
 	w.Header().Set("Content-Type", "application/json")
-	aqm.RespondSuccess(w, resp.Data)
+	apt.RespondSuccess(w, resp.Data)
 }
 
 // updateTableStatus updates the table status after order close
-func (h *Handler) updateTableStatus(ctx context.Context, log aqm.Logger, tableID string, data map[string]interface{}) {
+func (h *Handler) updateTableStatus(ctx context.Context, log apt.Logger, tableID string, data map[string]interface{}) {
 	tableServiceURL, _ := h.config.GetString("services.table.url")
 	if tableServiceURL == "" {
 		log.Info("Table service URL not configured, skipping table update")
 		return
 	}
 
-	tableClient := aqm.NewServiceClient(tableServiceURL)
+	tableClient := apt.NewServiceClient(tableServiceURL)
 
 	// Check if has_takeaway is true -> set to clearing, otherwise close
 	hasTakeaway, _ := data["has_takeaway"].(bool)

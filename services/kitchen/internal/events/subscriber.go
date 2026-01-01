@@ -9,8 +9,8 @@ import (
 	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
 	"github.com/appetiteclub/appetite/pkg/event"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/kitchen"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 
@@ -20,7 +20,7 @@ type OrderItemSubscriber struct {
 	repo       kitchen.TicketRepository
 	cache      *kitchen.TicketStateCache
 	publisher  events.Publisher
-	logger     aqm.Logger
+	logger     apt.Logger
 }
 
 func NewOrderItemSubscriber(
@@ -28,7 +28,7 @@ func NewOrderItemSubscriber(
 	repo kitchen.TicketRepository,
 	cache *kitchen.TicketStateCache,
 	publisher events.Publisher,
-	logger aqm.Logger,
+	logger apt.Logger,
 ) *OrderItemSubscriber {
 	return &OrderItemSubscriber{
 		subscriber: subscriber,

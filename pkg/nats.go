@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt/events"
 	"github.com/nats-io/nats.go"
 )
 

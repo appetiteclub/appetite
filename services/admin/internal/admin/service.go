@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -54,8 +54,8 @@ type Service interface {
 type defaultService struct {
 	repos            Repos
 	locationProvider LocationProvider
-	logger           aqm.Logger
-	config           *aqm.Config
+	logger           apt.Logger
+	config           *apt.Config
 }
 
 type Repos struct {
@@ -66,7 +66,7 @@ type Repos struct {
 	MediaRepo    MediaRepo
 }
 
-func NewDefaultService(repos Repos, locationProvider LocationProvider, config *aqm.Config, logger aqm.Logger) *defaultService {
+func NewDefaultService(repos Repos, locationProvider LocationProvider, config *apt.Config, logger apt.Logger) *defaultService {
 	return &defaultService{
 		repos:            repos,
 		locationProvider: locationProvider,
@@ -279,6 +279,6 @@ func (s *defaultService) DisableMedia(ctx context.Context, id uuid.UUID) (*Media
 	return s.repos.MediaRepo.Disable(ctx, id)
 }
 
-func (s *defaultService) log() aqm.Logger {
+func (s *defaultService) log() apt.Logger {
 	return s.logger
 }

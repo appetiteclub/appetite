@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt/events"
 )
 
 // MockStreamConsumer implements events.StreamConsumer for testing

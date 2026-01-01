@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -24,7 +24,7 @@ var allDatabases = []string{
 }
 
 // ResetDB drops all Appetite databases - USE WITH CAUTION
-func ResetDB(ctx context.Context, config *aqm.Config, logger aqm.Logger) error {
+func ResetDB(ctx context.Context, config *apt.Config, logger apt.Logger) error {
 	logger.Infof("⚠️  DANGER: This will drop ALL Appetite databases!")
 	logger.Infof("⚠️  This action cannot be undone!")
 

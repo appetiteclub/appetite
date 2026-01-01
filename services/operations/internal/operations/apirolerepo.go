@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -15,16 +15,16 @@ import (
 type APIRoleRepo struct {
 	httpClient *http.Client
 	authzURL   string
-	logger     aqm.Logger
+	logger     apt.Logger
 }
 
 // NewAPIRoleRepo creates a new API-based role repository
-func NewAPIRoleRepo(config *aqm.Config, logger aqm.Logger) (*APIRoleRepo, error) {
+func NewAPIRoleRepo(config *apt.Config, logger apt.Logger) (*APIRoleRepo, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	authzURL, _ := config.GetString("services.authz.url")

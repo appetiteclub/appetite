@@ -3,7 +3,7 @@ package tables
 import (
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -38,14 +38,14 @@ func (oi *OrderItem) SetID(id uuid.UUID) {
 
 func NewOrderItem() *OrderItem {
 	return &OrderItem{
-		ID:     aqm.GenerateNewID(),
+		ID:     apt.GenerateNewID(),
 		Status: "pending",
 	}
 }
 
 func (oi *OrderItem) EnsureID() {
 	if oi.ID == uuid.Nil {
-		oi.ID = aqm.GenerateNewID()
+		oi.ID = apt.GenerateNewID()
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/appetiteclub/appetite/pkg/event"
 	proto "github.com/appetiteclub/appetite/services/kitchen/internal/kitchen/proto"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -14,17 +14,17 @@ func TestNewEventStreamServer(t *testing.T) {
 	tests := []struct {
 		name   string
 		cache  *TicketStateCache
-		logger aqm.Logger
+		logger apt.Logger
 	}{
 		{
 			name:   "withAllDependencies",
 			cache:  NewTicketStateCache(nil, nil, nil),
-			logger: aqm.NewNoopLogger(),
+			logger: apt.NewNoopLogger(),
 		},
 		{
 			name:   "withNilCache",
 			cache:  nil,
-			logger: aqm.NewNoopLogger(),
+			logger: apt.NewNoopLogger(),
 		},
 		{
 			name:   "withNilLogger",
@@ -47,8 +47,8 @@ func TestNewEventStreamServer(t *testing.T) {
 }
 
 func TestEventStreamServerBroadcastTicketEvent(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 
 	// Add a subscriber
 	testChan := make(chan *proto.KitchenTicketEvent, 10)
@@ -99,8 +99,8 @@ func TestEventStreamServerBroadcastTicketEvent(t *testing.T) {
 }
 
 func TestEventStreamServerBroadcastWithTimestamps(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 
 	testChan := make(chan *proto.KitchenTicketEvent, 10)
 	server.mu.Lock()
@@ -143,8 +143,8 @@ func TestEventStreamServerBroadcastWithTimestamps(t *testing.T) {
 }
 
 func TestEventStreamServerBroadcastChannelFull(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 
 	// Create a channel with 0 buffer that's already "full"
 	fullChan := make(chan *proto.KitchenTicketEvent)
@@ -176,8 +176,8 @@ func TestEventStreamServerBroadcastChannelFull(t *testing.T) {
 }
 
 func TestEventStreamServerBroadcastToMultipleSubscribers(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 
 	chan1 := make(chan *proto.KitchenTicketEvent, 10)
 	chan2 := make(chan *proto.KitchenTicketEvent, 10)
@@ -213,8 +213,8 @@ func TestEventStreamServerBroadcastToMultipleSubscribers(t *testing.T) {
 }
 
 func TestEventStreamServerBroadcastNoSubscribers(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 
 	evt := &event.KitchenTicketStatusChangedEvent{
 		KitchenTicketEventMetadata: event.KitchenTicketEventMetadata{
@@ -243,8 +243,8 @@ func TestGenerateSubscriberID(t *testing.T) {
 }
 
 func TestEventStreamServerSubscriberManagement(t *testing.T) {
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
-	server := NewEventStreamServer(cache, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
+	server := NewEventStreamServer(cache, apt.NewNoopLogger())
 
 	// Add subscribers
 	server.mu.Lock()

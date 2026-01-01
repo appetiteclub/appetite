@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	authpkg "github.com/appetiteclub/apt/auth"
 )
 
 

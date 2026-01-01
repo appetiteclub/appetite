@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // ClearDemo removes all demo data from order and kitchen databases
-func ClearDemo(ctx context.Context, config *aqm.Config, logger aqm.Logger) error {
+func ClearDemo(ctx context.Context, config *apt.Config, logger apt.Logger) error {
 	logger.Info("Starting demo data cleanup...")
 
 	// Connect to MongoDB
@@ -48,7 +48,7 @@ func ClearDemo(ctx context.Context, config *aqm.Config, logger aqm.Logger) error
 	return nil
 }
 
-func clearOrderDemo(ctx context.Context, db *mongo.Database, logger aqm.Logger) error {
+func clearOrderDemo(ctx context.Context, db *mongo.Database, logger apt.Logger) error {
 	logger.Info("Clearing order demo data...")
 
 	// Delete demo order items
@@ -86,7 +86,7 @@ func clearOrderDemo(ctx context.Context, db *mongo.Database, logger aqm.Logger) 
 	return nil
 }
 
-func clearKitchenDemo(ctx context.Context, db *mongo.Database, logger aqm.Logger) error {
+func clearKitchenDemo(ctx context.Context, db *mongo.Database, logger apt.Logger) error {
 	logger.Info("Clearing kitchen demo data...")
 
 	// Delete demo tickets

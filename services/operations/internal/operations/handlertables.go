@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -122,7 +122,7 @@ func (h *Handler) CreateTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aqm.RedirectOrHeader(w, r, "/list-tables?created=1")
+	apt.RedirectOrHeader(w, r, "/list-tables?created=1")
 }
 
 // UpdateTable applies changes to an existing table through table service.
@@ -193,7 +193,7 @@ func (h *Handler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aqm.RedirectOrHeader(w, r, "/list-tables?updated=1")
+	apt.RedirectOrHeader(w, r, "/list-tables?updated=1")
 }
 
 // DeleteTable removes a table via the table service.
@@ -217,7 +217,7 @@ func (h *Handler) DeleteTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aqm.RedirectOrHeader(w, r, "/list-tables?deleted=1")
+	apt.RedirectOrHeader(w, r, "/list-tables?deleted=1")
 }
 
 // ReleaseTable releases a clearing table back to available status.
@@ -244,7 +244,7 @@ func (h *Handler) ReleaseTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aqm.RedirectOrHeader(w, r, "/list-tables?released=1")
+	apt.RedirectOrHeader(w, r, "/list-tables?released=1")
 }
 
 // NewTableForm serves the create form via HTMX.
@@ -256,7 +256,7 @@ func (h *Handler) NewTableForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !aqm.IsHTMX(r) {
+	if !apt.IsHTMX(r) {
 		http.Redirect(w, r, "/list-tables", http.StatusSeeOther)
 		return
 	}
@@ -279,7 +279,7 @@ func (h *Handler) EditTableForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !aqm.IsHTMX(r) {
+	if !apt.IsHTMX(r) {
 		http.Redirect(w, r, "/list-tables", http.StatusSeeOther)
 		return
 	}
@@ -490,7 +490,7 @@ var tableStatuses = []string{
 }
 
 func (h *Handler) handleFormError(w http.ResponseWriter, r *http.Request, data tableFormModal, message string) {
-	if aqm.IsHTMX(r) {
+	if apt.IsHTMX(r) {
 		data.Error = message
 		h.renderTableForm(w, data)
 		return

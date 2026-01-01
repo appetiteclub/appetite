@@ -5,14 +5,14 @@ import (
 	"fmt"
 
 	"github.com/appetiteclub/appetite/cmd/utils/internal/seeding"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // SeedDemo applies demo seeding to order and kitchen databases
-func SeedDemo(ctx context.Context, config *aqm.Config, logger aqm.Logger) error {
+func SeedDemo(ctx context.Context, config *apt.Config, logger apt.Logger) error {
 	logger.Info("Starting demo seeding process...")
 
 	// Connect to MongoDB
@@ -49,7 +49,7 @@ func SeedDemo(ctx context.Context, config *aqm.Config, logger aqm.Logger) error 
 	return nil
 }
 
-func seedOrderDemo(ctx context.Context, db *mongo.Database, logger aqm.Logger) error {
+func seedOrderDemo(ctx context.Context, db *mongo.Database, logger apt.Logger) error {
 	// Check if already seeded
 	seedsCollection := db.Collection("_seeds")
 	count, err := seedsCollection.CountDocuments(ctx, bson.M{"_id": "demo_orders_v1"})
@@ -81,7 +81,7 @@ func seedOrderDemo(ctx context.Context, db *mongo.Database, logger aqm.Logger) e
 	return nil
 }
 
-func seedKitchenDemo(ctx context.Context, db *mongo.Database, logger aqm.Logger) error {
+func seedKitchenDemo(ctx context.Context, db *mongo.Database, logger apt.Logger) error {
 	// Check if already seeded
 	seedsCollection := db.Collection("_seeds")
 	count, err := seedsCollection.CountDocuments(ctx, bson.M{"_id": "demo_tickets_v1"})

@@ -6,7 +6,7 @@ import (
 
 	"github.com/appetiteclub/appetite/pkg/event"
 	proto "github.com/appetiteclub/appetite/services/kitchen/internal/kitchen/proto"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -15,20 +15,20 @@ import (
 type EventStreamServer struct {
 	proto.UnimplementedEventStreamServer
 	cache  *TicketStateCache
-	logger aqm.Logger
+	logger apt.Logger
 
 	// Manage active stream subscribers
 	mu          sync.RWMutex
 	subscribers map[string]chan *proto.KitchenTicketEvent
 }
 
-// RegisterGRPCService registers this service with the gRPC server (aqm.GRPCServiceRegistrar interface)
+// RegisterGRPCService registers this service with the gRPC server (apt.GRPCServiceRegistrar interface)
 func (s *EventStreamServer) RegisterGRPCService(server *grpc.Server) {
 	proto.RegisterEventStreamServer(server, s)
 }
 
 // NewEventStreamServer creates a new gRPC streaming server
-func NewEventStreamServer(cache *TicketStateCache, logger aqm.Logger) *EventStreamServer {
+func NewEventStreamServer(cache *TicketStateCache, logger apt.Logger) *EventStreamServer {
 	return &EventStreamServer{
 		cache:       cache,
 		logger:      logger,

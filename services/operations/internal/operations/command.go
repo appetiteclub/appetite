@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -22,15 +22,15 @@ type CommandResponse struct {
 
 // DeterministicParser implements CommandProcessor using pattern matching
 type DeterministicParser struct {
-	tableClient *aqm.ServiceClient
-	orderClient *aqm.ServiceClient
-	menuClient  *aqm.ServiceClient
+	tableClient *apt.ServiceClient
+	orderClient *apt.ServiceClient
+	menuClient  *apt.ServiceClient
 	handler     *Handler
 	registry    *CommandRegistry
 }
 
 // NewDeterministicParser creates a new deterministic command parser
-func NewDeterministicParser(tableClient, orderClient, menuClient *aqm.ServiceClient, handler *Handler) *DeterministicParser {
+func NewDeterministicParser(tableClient, orderClient, menuClient *apt.ServiceClient, handler *Handler) *DeterministicParser {
 	parser := &DeterministicParser{
 		tableClient: tableClient,
 		orderClient: orderClient,

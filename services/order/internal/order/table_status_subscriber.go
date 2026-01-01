@@ -6,20 +6,20 @@ import (
 	"fmt"
 
 	"github.com/appetiteclub/appetite/pkg"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 
 type TableStatusSubscriber struct {
 	subscriber events.Subscriber
 	cache      *TableStateCache
-	logger     aqm.Logger
+	logger     apt.Logger
 }
 
-func NewTableStatusSubscriber(sub events.Subscriber, cache *TableStateCache, logger aqm.Logger) *TableStatusSubscriber {
+func NewTableStatusSubscriber(sub events.Subscriber, cache *TableStateCache, logger apt.Logger) *TableStatusSubscriber {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &TableStatusSubscriber{
 		subscriber: sub,

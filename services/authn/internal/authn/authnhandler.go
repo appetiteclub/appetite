@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
-	"github.com/aquamarinepk/aqm/telemetry"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
+	"github.com/appetiteclub/apt/telemetry"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -49,9 +49,9 @@ type AuthResponse struct {
 }
 
 // NewAuthHandler creates a new AuthHandler for authentication operations.
-func NewAuthHandler(repo UserRepo, config *aqm.Config, logger aqm.Logger) *AuthHandler {
+func NewAuthHandler(repo UserRepo, config *apt.Config, logger apt.Logger) *AuthHandler {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &AuthHandler{
 		repo:   repo,
@@ -63,8 +63,8 @@ func NewAuthHandler(repo UserRepo, config *aqm.Config, logger aqm.Logger) *AuthH
 
 type AuthHandler struct {
 	repo   UserRepo
-	logger aqm.Logger
-	config *aqm.Config
+	logger apt.Logger
+	config *apt.Config
 	tlm    *telemetry.HTTP
 }
 
@@ -92,7 +92,7 @@ func (h *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	validationErrors := ValidateSignUpRequest(req.Email, req.Password, req.Username, req.Name)
 	if len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
@@ -106,19 +106,19 @@ func (h *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, ErrUserExists):
 			log.Debug("user already exists")
-			aqm.RespondError(w, http.StatusConflict, "User already exists")
+			apt.RespondError(w, http.StatusConflict, "User already exists")
 		case errors.Is(err, ErrUsernameExists):
 			log.Debug("username already taken")
-			aqm.RespondError(w, http.StatusConflict, "Username already exists")
+			apt.RespondError(w, http.StatusConflict, "Username already exists")
 		default:
 			log.Error("cannot create user", "error", err)
-			aqm.RespondError(w, http.StatusInternalServerError, "Could not create account")
+			apt.RespondError(w, http.StatusInternalServerError, "Could not create account")
 		}
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	aqm.RespondSuccess(w, AuthResponse{User: user})
+	apt.RespondSuccess(w, AuthResponse{User: user})
 }
 
 func (h *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +136,7 @@ func (h *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	validationErrors := ValidateSignInRequest(req.Email, req.Password)
 	if len(validationErrors) > 0 {
 		log.Debug("validation failed", "errors", validationErrors)
-		aqm.RespondError(w, http.StatusBadRequest, "Validation failed")
+		apt.RespondError(w, http.StatusBadRequest, "Validation failed")
 		return
 	}
 
@@ -145,18 +145,18 @@ func (h *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, ErrInvalidCredentials):
 			log.Debug("invalid credentials")
-			aqm.RespondError(w, http.StatusUnauthorized, "Invalid credentials")
+			apt.RespondError(w, http.StatusUnauthorized, "Invalid credentials")
 		case errors.Is(err, ErrInactiveAccount):
 			log.Debug("user not active")
-			aqm.RespondError(w, http.StatusForbidden, "Account is not active")
+			apt.RespondError(w, http.StatusForbidden, "Account is not active")
 		default:
 			log.Error("error signing in", "error", err)
-			aqm.RespondError(w, http.StatusInternalServerError, "Authentication failed")
+			apt.RespondError(w, http.StatusInternalServerError, "Authentication failed")
 		}
 		return
 	}
 
-	aqm.RespondSuccess(w, AuthResponse{User: user, Token: token})
+	apt.RespondSuccess(w, AuthResponse{User: user, Token: token})
 }
 
 func (h *AuthHandler) SignOut(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +172,7 @@ func (h *AuthHandler) SignOut(w http.ResponseWriter, r *http.Request) {
 }
 
 // Helper methods
-func (h *AuthHandler) decodeSignUpPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (SignUpRequest, bool) {
+func (h *AuthHandler) decodeSignUpPayload(w http.ResponseWriter, r *http.Request, log apt.Logger) (SignUpRequest, bool) {
 	var req SignUpRequest
 
 	r.Body = http.MaxBytesReader(w, r.Body, AuthMaxBodyBytes)
@@ -181,26 +181,26 @@ func (h *AuthHandler) decodeSignUpPayload(w http.ResponseWriter, r *http.Request
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Debug("cannot read request body", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return req, false
 	}
 
 	if len(strings.TrimSpace(string(body))) == 0 {
 		log.Debug("empty request body")
-		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		apt.RespondError(w, http.StatusBadRequest, "Request body is empty")
 		return req, false
 	}
 
 	if err := json.Unmarshal(body, &req); err != nil {
 		log.Debug("cannot decode JSON", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		apt.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
 		return req, false
 	}
 
 	return req, true
 }
 
-func (h *AuthHandler) decodeSignInPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (SignInRequest, bool) {
+func (h *AuthHandler) decodeSignInPayload(w http.ResponseWriter, r *http.Request, log apt.Logger) (SignInRequest, bool) {
 	var req SignInRequest
 
 	r.Body = http.MaxBytesReader(w, r.Body, AuthMaxBodyBytes)
@@ -209,19 +209,19 @@ func (h *AuthHandler) decodeSignInPayload(w http.ResponseWriter, r *http.Request
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Debug("cannot read request body", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return req, false
 	}
 
 	if len(strings.TrimSpace(string(body))) == 0 {
 		log.Debug("empty request body")
-		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		apt.RespondError(w, http.StatusBadRequest, "Request body is empty")
 		return req, false
 	}
 
 	if err := json.Unmarshal(body, &req); err != nil {
 		log.Debug("cannot decode JSON", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		apt.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
 		return req, false
 	}
 
@@ -242,7 +242,7 @@ func (h *AuthHandler) PINLogin(w http.ResponseWriter, r *http.Request) {
 
 	if req.PIN == "" {
 		log.Debug("empty PIN provided")
-		aqm.RespondError(w, http.StatusBadRequest, "PIN is required")
+		apt.RespondError(w, http.StatusBadRequest, "PIN is required")
 		return
 	}
 
@@ -251,13 +251,13 @@ func (h *AuthHandler) PINLogin(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, ErrInvalidCredentials):
 			log.Debug("invalid PIN")
-			aqm.RespondError(w, http.StatusUnauthorized, "Invalid PIN")
+			apt.RespondError(w, http.StatusUnauthorized, "Invalid PIN")
 		case errors.Is(err, ErrInactiveAccount):
 			log.Debug("inactive account")
-			aqm.RespondError(w, http.StatusForbidden, "Account is not active")
+			apt.RespondError(w, http.StatusForbidden, "Account is not active")
 		default:
 			log.Error("PIN authentication failed", "error", err)
-			aqm.RespondError(w, http.StatusInternalServerError, "Authentication failed")
+			apt.RespondError(w, http.StatusInternalServerError, "Authentication failed")
 		}
 		return
 	}
@@ -279,7 +279,7 @@ func (h *AuthHandler) PINLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	aqm.RespondSuccess(w, PINLoginResponse{
+	apt.RespondSuccess(w, PINLoginResponse{
 		UserID:   user.ID.String(),
 		Username: user.Username,
 		Name:     user.Name,
@@ -287,7 +287,7 @@ func (h *AuthHandler) PINLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AuthHandler) decodePINLoginPayload(w http.ResponseWriter, r *http.Request, log aqm.Logger) (PINLoginRequest, bool) {
+func (h *AuthHandler) decodePINLoginPayload(w http.ResponseWriter, r *http.Request, log apt.Logger) (PINLoginRequest, bool) {
 	var req PINLoginRequest
 
 	r.Body = http.MaxBytesReader(w, r.Body, AuthMaxBodyBytes)
@@ -296,30 +296,30 @@ func (h *AuthHandler) decodePINLoginPayload(w http.ResponseWriter, r *http.Reque
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Debug("cannot read request body", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not read request body")
+		apt.RespondError(w, http.StatusBadRequest, "Could not read request body")
 		return req, false
 	}
 
 	if len(strings.TrimSpace(string(body))) == 0 {
 		log.Debug("empty request body")
-		aqm.RespondError(w, http.StatusBadRequest, "Request body is empty")
+		apt.RespondError(w, http.StatusBadRequest, "Request body is empty")
 		return req, false
 	}
 
 	if err := json.Unmarshal(body, &req); err != nil {
 		log.Debug("cannot decode JSON", "error", err)
-		aqm.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
+		apt.RespondError(w, http.StatusBadRequest, "Could not parse JSON")
 		return req, false
 	}
 
 	return req, true
 }
 
-func (h *AuthHandler) log(req ...*http.Request) aqm.Logger {
+func (h *AuthHandler) log(req ...*http.Request) apt.Logger {
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return h.logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)

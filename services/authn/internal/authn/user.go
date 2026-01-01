@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
 	"github.com/google/uuid"
 )
 
@@ -50,7 +50,7 @@ func (u *User) SetID(id uuid.UUID) {
 // NewUser creates a new User with a generated ID.
 func NewUser() *User {
 	return &User{
-		ID:     aqm.GenerateNewID(),
+		ID:     apt.GenerateNewID(),
 		Status: authpkg.UserStatusActive,
 	}
 }
@@ -58,7 +58,7 @@ func NewUser() *User {
 // EnsureID ensures the aggregate root has a valid ID.
 func (u *User) EnsureID() {
 	if u.ID == uuid.Nil {
-		u.ID = aqm.GenerateNewID()
+		u.ID = apt.GenerateNewID()
 	}
 }
 

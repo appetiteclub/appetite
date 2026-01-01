@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/appetiteclub/appetite/pkg"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/middleware"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/middleware"
 
 	"github.com/appetiteclub/appetite/services/table/internal/mongo"
 	"github.com/appetiteclub/appetite/services/table/internal/tables"
@@ -27,13 +27,13 @@ const (
 )
 
 func main() {
-	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
+	config, err := apt.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
 		log.Fatalf("%s(%s) cannot setup with error: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -73,7 +73,7 @@ func main() {
 		log.Fatalf("%s(%s) cannot connect to NATS publisher: %v", appName, appVersion, err)
 	}
 
-	publisherLifecycle := aqm.LifecycleHooks{
+	publisherLifecycle := apt.LifecycleHooks{
 		OnStop: func(context.Context) error {
 			return publisher.Close()
 		},
@@ -109,7 +109,7 @@ func main() {
 		seedingFunc = tables.SeedingFunc(seedCtx, tableRepo, seedFS, logger)
 	}
 
-	seedHooks := aqm.LifecycleHooks{
+	seedHooks := apt.LifecycleHooks{
 		OnStart: seedingFunc,
 		OnStop:  tables.StopFunc(cancelSeeds),
 	}
@@ -123,16 +123,16 @@ func main() {
 	// This complements (does not replace) network policies at the infrastructure level.
 	stack = append(stack, middleware.InternalOnly())
 
-	options := []aqm.Option{
-		aqm.WithConfig(config),
-		aqm.WithLogger(logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(lifecycle...),
-		aqm.WithHealthChecks(appName),
+	options := []apt.Option{
+		apt.WithConfig(config),
+		apt.WithLogger(logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithHTTPServerModules("web.port", handler),
+		apt.WithLifecycle(lifecycle...),
+		apt.WithHealthChecks(appName),
 	}
 
-	ms := aqm.NewMicro(options...)
+	ms := apt.NewMicro(options...)
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {

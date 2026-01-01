@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 // LocationProvider defines the behavior required to integrate external geocoding providers.
@@ -44,7 +44,7 @@ const (
 
 // NewLocationProvider creates a LocationProvider from configuration properties.
 // Returns nil if the provider is disabled or configuration is missing.
-func NewLocationProvider(config *aqm.Config) LocationProvider {
+func NewLocationProvider(config *apt.Config) LocationProvider {
 	if config == nil {
 		return nil
 	}

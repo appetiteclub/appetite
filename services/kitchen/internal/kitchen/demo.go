@@ -8,8 +8,8 @@ import (
 
 	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
 	"github.com/appetiteclub/appetite/pkg/enums/station"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/seed"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,7 +18,7 @@ import (
 const kitchenDemoSeedApplication = "kitchen_demo"
 
 // ApplyDemoSeeds creates realistic demo kitchen tickets from order items.
-func ApplyDemoSeeds(ctx context.Context, repo TicketRepository, cache *TicketStateCache, db *mongo.Database, logger aqm.Logger) error {
+func ApplyDemoSeeds(ctx context.Context, repo TicketRepository, cache *TicketStateCache, db *mongo.Database, logger apt.Logger) error {
 	if db == nil {
 		return errors.New("database is required for demo seeding")
 	}
@@ -51,7 +51,7 @@ func ApplyDemoSeeds(ctx context.Context, repo TicketRepository, cache *TicketSta
 	return nil
 }
 
-func buildDemoKitchenSeeds(repo TicketRepository, db *mongo.Database, logger aqm.Logger) []seed.Seed {
+func buildDemoKitchenSeeds(repo TicketRepository, db *mongo.Database, logger apt.Logger) []seed.Seed {
 	return []seed.Seed{
 		{
 			ID:          "2024-11-23_demo_kitchen_tickets_v1",
@@ -77,7 +77,7 @@ type OrderItemForTicket struct {
 	UpdatedAt          time.Time `bson:"updated_at"`
 }
 
-func seedDemoKitchenTickets(ctx context.Context, repo TicketRepository, db *mongo.Database, logger aqm.Logger) error {
+func seedDemoKitchenTickets(ctx context.Context, repo TicketRepository, db *mongo.Database, logger apt.Logger) error {
 	// Fetch demo order items from the order database
 	orderDB := db.Client().Database("appetite_order")
 	itemsCollection := orderDB.Collection("order_items")
@@ -205,9 +205,9 @@ func mapOrderItemStatusToKitchenStatus(orderStatus string) string {
 }
 
 // DemoSeedingFunc returns an aqm lifecycle OnStart-compatible function for demo seeding.
-func DemoSeedingFunc(seedCtx context.Context, repo TicketRepository, cache *TicketStateCache, db *mongo.Database, logger aqm.Logger) func(ctx context.Context) error {
+func DemoSeedingFunc(seedCtx context.Context, repo TicketRepository, cache *TicketStateCache, db *mongo.Database, logger apt.Logger) func(ctx context.Context) error {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	return func(ctx context.Context) error {

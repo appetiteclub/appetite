@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -164,19 +164,19 @@ func (c *FakeDictionaryRepo) DeleteOption(ctx context.Context, id uuid.UUID) err
 
 // APIDictionaryRepo calls the real dictionary service via API.
 type APIDictionaryRepo struct {
-	client *aqm.ServiceClient
-	logger aqm.Logger
+	client *apt.ServiceClient
+	logger apt.Logger
 }
 
 // NewAPIDictionaryRepo creates a new API-based dictionary repo.
 // Returns an error if dictionary service URL is not configured.
-func NewAPIDictionaryRepo(config *aqm.Config, logger aqm.Logger) (*APIDictionaryRepo, error) {
+func NewAPIDictionaryRepo(config *apt.Config, logger apt.Logger) (*APIDictionaryRepo, error) {
 	dictURL, _ := config.GetString("services.dictionary.url")
 	if dictURL == "" {
 		return nil, fmt.Errorf("services.dictionary.url is required")
 	}
 
-	client := aqm.NewServiceClient(dictURL)
+	client := apt.NewServiceClient(dictURL)
 	if client == nil {
 		return nil, fmt.Errorf("failed to create dictionary service client")
 	}

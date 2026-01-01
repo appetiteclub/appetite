@@ -10,8 +10,8 @@ import (
 	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
 	"github.com/appetiteclub/appetite/pkg/event"
 	"github.com/appetiteclub/appetite/services/kitchen/internal/kitchen"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 
@@ -126,9 +126,9 @@ func (m *MockPublisher) Publish(ctx context.Context, topic string, data []byte) 
 func TestNewOrderItemSubscriber(t *testing.T) {
 	subscriber := &MockSubscriber{}
 	repo := NewMockTicketRepo()
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
-	logger := aqm.NewNoopLogger()
+	logger := apt.NewNoopLogger()
 
 	s := NewOrderItemSubscriber(subscriber, repo, cache, publisher, logger)
 	if s == nil {
@@ -165,10 +165,10 @@ func TestOrderItemSubscriberStart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			subscriber := &MockSubscriber{SubscribeFunc: tt.subscribeFunc}
 			repo := NewMockTicketRepo()
-			cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
-			s := NewOrderItemSubscriber(subscriber, repo, cache, publisher, aqm.NewNoopLogger())
+			s := NewOrderItemSubscriber(subscriber, repo, cache, publisher, apt.NewNoopLogger())
 			err := s.Start(context.Background())
 
 			if (err != nil) != tt.wantErr {
@@ -286,14 +286,14 @@ func TestOrderItemSubscriberHandleCreated(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepo()
-			cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
 				tt.setupRepo(repo)
 			}
 
-			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 			eventBytes, _ := json.Marshal(tt.evt)
 			err := s.handleEvent(context.Background(), eventBytes)
@@ -384,14 +384,14 @@ func TestOrderItemSubscriberHandleUpdated(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepo()
-			cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
 				tt.setupRepo(repo)
 			}
 
-			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 			eventBytes, _ := json.Marshal(tt.evt)
 			err := s.handleEvent(context.Background(), eventBytes)
@@ -453,14 +453,14 @@ func TestOrderItemSubscriberHandleCancelled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepo()
-			cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
 				tt.setupRepo(repo)
 			}
 
-			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 			eventBytes, _ := json.Marshal(tt.evt)
 			err := s.handleEvent(context.Background(), eventBytes)
@@ -549,14 +549,14 @@ func TestOrderItemSubscriberHandleStatusChanged(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepo()
-			cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
 				tt.setupRepo(repo)
 			}
 
-			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+			s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 			eventBytes, _ := json.Marshal(tt.evt)
 			s.handleEvent(context.Background(), eventBytes)
@@ -577,10 +577,10 @@ func TestOrderItemSubscriberHandleStatusChanged(t *testing.T) {
 
 func TestOrderItemSubscriberHandleUnknownEventType(t *testing.T) {
 	repo := NewMockTicketRepo()
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 	evt := event.OrderItemEvent{
 		EventType:          "unknown.event.type",
@@ -598,10 +598,10 @@ func TestOrderItemSubscriberHandleUnknownEventType(t *testing.T) {
 
 func TestOrderItemSubscriberHandleInvalidJSON(t *testing.T) {
 	repo := NewMockTicketRepo()
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 	// Should not return error - just logs and continues
 	err := s.handleEvent(context.Background(), []byte("invalid json"))
@@ -614,10 +614,10 @@ func TestOrderItemSubscriberCacheUpdate(t *testing.T) {
 	orderItemID := uuid.New()
 
 	repo := NewMockTicketRepo()
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 	evt := event.OrderItemEvent{
 		EventType:          event.EventOrderItemCreated,
@@ -657,13 +657,13 @@ func TestOrderItemSubscriberPublishError(t *testing.T) {
 	orderItemID := uuid.New()
 
 	repo := NewMockTicketRepo()
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 	publisher.PublishFunc = func(ctx context.Context, topic string, data []byte) error {
 		return errors.New("publish error")
 	}
 
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 	evt := event.OrderItemEvent{
 		EventType:          event.EventOrderItemCreated,
@@ -687,10 +687,10 @@ func TestOrderItemSubscriberFindByOrderItemIDError(t *testing.T) {
 		return nil, errors.New("database error")
 	}
 
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 	evt := event.OrderItemEvent{
 		EventType:          event.EventOrderItemCreated,
@@ -714,7 +714,7 @@ func TestOrderItemSubscriberNilCache(t *testing.T) {
 	publisher := NewMockPublisher()
 
 	// Create subscriber with nil cache
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, nil, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, nil, publisher, apt.NewNoopLogger())
 
 	evt := event.OrderItemEvent{
 		EventType:          event.EventOrderItemCreated,
@@ -734,10 +734,10 @@ func TestOrderItemSubscriberNilCache(t *testing.T) {
 
 func TestOrderItemSubscriberCreatedPublishesEvent(t *testing.T) {
 	repo := NewMockTicketRepo()
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 	evt := event.OrderItemEvent{
 		EventType:          event.EventOrderItemCreated,
@@ -779,10 +779,10 @@ func TestOrderItemSubscriberOccurredAtTimestamp(t *testing.T) {
 	before := time.Now()
 
 	repo := NewMockTicketRepo()
-	cache := kitchen.NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := kitchen.NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
-	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, aqm.NewNoopLogger())
+	s := NewOrderItemSubscriber(&MockSubscriber{}, repo, cache, publisher, apt.NewNoopLogger())
 
 	evt := event.OrderItemEvent{
 		EventType:          event.EventOrderItemCreated,

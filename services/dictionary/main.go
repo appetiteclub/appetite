@@ -9,8 +9,8 @@ import (
 
 	"github.com/appetiteclub/appetite/services/dictionary/internal/dictionary"
 	"github.com/appetiteclub/appetite/services/dictionary/internal/mongo"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/middleware"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/middleware"
 )
 
 const (
@@ -20,13 +20,13 @@ const (
 )
 
 func main() {
-	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
+	config, err := apt.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
 		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -41,7 +41,7 @@ func main() {
 	optionRepo := mongo.NewOptionRepo(setRepo, config, logger)
 	handler := dictionary.NewHandler(setRepo, optionRepo, config, logger)
 
-	seedHooks := aqm.LifecycleHooks{
+	seedHooks := apt.LifecycleHooks{
 		OnStart: dictionary.SeedingFunc(appName, setRepo.GetDatabase, logger),
 	}
 
@@ -53,16 +53,16 @@ func main() {
 	// This complements (does not replace) network policies at the infrastructure level.
 	stack = append(stack, middleware.InternalOnly())
 
-	options := []aqm.Option{
-		aqm.WithConfig(config),
-		aqm.WithLogger(logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithLifecycle(setRepo, optionRepo, seedHooks),
-		aqm.WithHealthChecks(appName),
+	options := []apt.Option{
+		apt.WithConfig(config),
+		apt.WithLogger(logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithHTTPServerModules("web.port", handler),
+		apt.WithLifecycle(setRepo, optionRepo, seedHooks),
+		apt.WithHealthChecks(appName),
 	}
 
-	ms := aqm.NewMicro(options...)
+	ms := apt.NewMicro(options...)
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	if err := ms.Run(ctx); err != nil {

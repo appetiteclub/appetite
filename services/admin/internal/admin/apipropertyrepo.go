@@ -4,25 +4,25 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
 // APIPropertyRepo implements PropertyRepo using ServiceClient to call table service.
 type APIPropertyRepo struct {
-	client *aqm.ServiceClient
-	logger aqm.Logger
+	client *apt.ServiceClient
+	logger apt.Logger
 }
 
 // NewAPIPropertyRepo creates a new API-based property repository.
 // Returns an error if table service URL is not configured.
-func NewAPIPropertyRepo(config *aqm.Config, logger aqm.Logger) (*APIPropertyRepo, error) {
+func NewAPIPropertyRepo(config *apt.Config, logger apt.Logger) (*APIPropertyRepo, error) {
 	tableURL, _ := config.GetString("services.table.url")
 	if tableURL == "" {
 		return nil, fmt.Errorf("services.table.url is required")
 	}
 
-	client := aqm.NewServiceClient(tableURL)
+	client := apt.NewServiceClient(tableURL)
 	if client == nil {
 		return nil, fmt.Errorf("failed to create table service client")
 	}

@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/appetiteclub/appetite/services/authz/internal/authz"
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	authpkg "github.com/appetiteclub/apt/auth"
 )
 
 // RoleMongoRepo implements the RoleRepo interface using MongoDB
@@ -20,14 +20,14 @@ type RoleMongoRepo struct {
 	client     *mongo.Client
 	db         *mongo.Database
 	collection *mongo.Collection
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
 // NewRoleMongoRepo creates a new MongoDB repository for Role entities
-func NewRoleMongoRepo(config *aqm.Config, logger aqm.Logger) *RoleMongoRepo {
+func NewRoleMongoRepo(config *apt.Config, logger apt.Logger) *RoleMongoRepo {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &RoleMongoRepo{
 		logger: logger,
@@ -332,6 +332,6 @@ func (r *RoleMongoRepo) ListByStatus(ctx context.Context, status string) ([]*aut
 	return roles, nil
 }
 
-func (r *RoleMongoRepo) Log() aqm.Logger {
+func (r *RoleMongoRepo) Log() apt.Logger {
 	return r.logger
 }

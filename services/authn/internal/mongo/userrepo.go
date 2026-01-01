@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,14 +20,14 @@ type UserMongoRepo struct {
 	client     *mongo.Client
 	db         *mongo.Database
 	collection *mongo.Collection
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
 // NewUserMongoRepo creates a new MongoDB repository for User entities.
-func NewUserMongoRepo(config *aqm.Config, logger aqm.Logger) *UserMongoRepo {
+func NewUserMongoRepo(config *apt.Config, logger apt.Logger) *UserMongoRepo {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &UserMongoRepo{
 		logger: logger,
@@ -421,6 +421,6 @@ func (r *UserMongoRepo) ListByStatus(ctx context.Context, status string) ([]*aut
 	return users, nil
 }
 
-func (r *UserMongoRepo) Log() aqm.Logger {
+func (r *UserMongoRepo) Log() apt.Logger {
 	return r.logger
 }

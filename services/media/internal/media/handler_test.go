@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 func setupHandler(t *testing.T) (*Handler, *stubDictionary, *stubStorage) {
@@ -19,7 +19,7 @@ func setupHandler(t *testing.T) (*Handler, *stubDictionary, *stubStorage) {
 	dict := &stubDictionary{}
 	store := &stubStorage{path: "stored/http"}
 	service := NewService(NewInMemoryRepository(), store, dict, ServiceOptions{})
-	deps := aqm.DefaultDeps()
+	deps := apt.DefaultDeps()
 	return NewHandler(service, deps), dict, store
 }
 
@@ -155,7 +155,7 @@ func TestHandlerUpdateInvalidCategory(t *testing.T) {
 	dict := &stubDictionary{failCat: true}
 	store := &stubStorage{}
 	svc := NewService(NewInMemoryRepository(), store, dict, ServiceOptions{})
-	deps := aqm.DefaultDeps()
+	deps := apt.DefaultDeps()
 	handler := NewHandler(svc, deps)
 
 	router := chi.NewRouter()

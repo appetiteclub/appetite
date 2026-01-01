@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -42,7 +42,7 @@ func (s *Set) SetID(id uuid.UUID) {
 // New creates a new Set with a generated ID.
 func NewSet() *Set {
 	return &Set{
-		ID:     aqm.GenerateNewID(),
+		ID:     apt.GenerateNewID(),
 		Active: true,
 	}
 }
@@ -50,7 +50,7 @@ func NewSet() *Set {
 // EnsureID ensures the aggregate root has a valid ID.
 func (s *Set) EnsureID() {
 	if s.ID == uuid.Nil {
-		s.ID = aqm.GenerateNewID()
+		s.ID = apt.GenerateNewID()
 	}
 }
 

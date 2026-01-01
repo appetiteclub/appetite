@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/appetiteclub/appetite/pkg"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/middleware"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/middleware"
 
 	"github.com/appetiteclub/appetite/services/order/internal/mongo"
 	"github.com/appetiteclub/appetite/services/order/internal/order"
@@ -23,13 +23,13 @@ const (
 )
 
 func main() {
-	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
+	config, err := apt.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
 		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -77,7 +77,7 @@ func main() {
 	}
 
 	tableURL, _ := config.GetString("services.table.url")
-	tableClient := aqm.NewServiceClient(tableURL)
+	tableClient := apt.NewServiceClient(tableURL)
 	tableStateCache := order.NewTableStateCache(tableClient, logger)
 	tableStatusSub := order.NewTableStatusSubscriber(sub, tableStateCache, logger)
 
@@ -86,7 +86,7 @@ func main() {
 	if kitchenURL == "" {
 		log.Fatalf("Cannot create kitchen service client: %v", err)
 	}
-	kitchenClient := aqm.NewServiceClient(kitchenURL)
+	kitchenClient := apt.NewServiceClient(kitchenURL)
 
 	// Initialize gRPC streaming server for real-time order item events
 	orderEvents := order.NewOrderEventStreamServer(orderItemRepo, logger)
@@ -95,13 +95,13 @@ func main() {
 	kitchenSub := order.NewKitchenTicketSubscriber(sub, orderItemRepo, logger)
 	kitchenSub.SetStreamServer(orderEvents)
 
-	publisherLifecycle := aqm.LifecycleHooks{
+	publisherLifecycle := apt.LifecycleHooks{
 		OnStop: func(context.Context) error {
 			return pub.Close()
 		},
 	}
 
-	subLifecycle := aqm.LifecycleHooks{
+	subLifecycle := apt.LifecycleHooks{
 		OnStop: func(context.Context) error {
 			return sub.Close()
 		},
@@ -119,10 +119,10 @@ func main() {
 
 	// Setup demo seeding if enabled
 	demoEnabled, _ := config.GetString("seeding.demo")
-	var seedHooks aqm.LifecycleHooks
+	var seedHooks apt.LifecycleHooks
 	if demoEnabled == "true" {
 		logger.Info("Demo seeding enabled for order service")
-		seedHooks = aqm.LifecycleHooks{
+		seedHooks = apt.LifecycleHooks{
 			OnStart: order.DemoSeedingFunc(seedCtx, repos, db, logger),
 			OnStop: func(context.Context) error {
 				cancelSeeds()
@@ -142,7 +142,7 @@ func main() {
 
 	// Build lifecycle hooks
 	lifecycles := []interface{}{
-		aqm.LifecycleHooks{OnStop: baseRepo.Stop},
+		apt.LifecycleHooks{OnStop: baseRepo.Stop},
 		tableStatusSub,
 		kitchenSub,
 		publisherLifecycle,
@@ -152,17 +152,17 @@ func main() {
 		lifecycles = append(lifecycles, seedHooks)
 	}
 
-	options := []aqm.Option{
-		aqm.WithConfig(config),
-		aqm.WithLogger(logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithHTTPServerModules("web.port", handler),
-		aqm.WithGRPCServerModules("grpc.port", orderEvents),
-		aqm.WithLifecycle(lifecycles...),
-		aqm.WithHealthChecks(appName),
+	options := []apt.Option{
+		apt.WithConfig(config),
+		apt.WithLogger(logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithHTTPServerModules("web.port", handler),
+		apt.WithGRPCServerModules("grpc.port", orderEvents),
+		apt.WithLifecycle(lifecycles...),
+		apt.WithHealthChecks(appName),
 	}
 
-	ms := aqm.NewMicro(options...)
+	ms := apt.NewMicro(options...)
 	logger.Infof("Starting %s(%s)", appName, appVersion)
 
 	err = ms.Run(ctx)

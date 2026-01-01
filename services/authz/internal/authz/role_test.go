@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	authpkg "github.com/appetiteclub/apt/auth"
 )
 
 func TestNewRole(t *testing.T) {

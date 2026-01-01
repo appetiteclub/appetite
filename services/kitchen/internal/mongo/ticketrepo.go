@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/appetiteclub/appetite/services/kitchen/internal/kitchen"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -16,11 +16,11 @@ type TicketRepo struct {
 	client     *mongo.Client
 	db         *mongo.Database
 	collection *mongo.Collection
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
-func NewTicketRepo(config *aqm.Config, logger aqm.Logger) *TicketRepo {
+func NewTicketRepo(config *apt.Config, logger apt.Logger) *TicketRepo {
 	return &TicketRepo{
 		logger: logger,
 		config: config,

@@ -3,18 +3,18 @@ package admin
 import (
 	"net/http"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
-	"github.com/aquamarinepk/aqm/telemetry"
-	aqmtemplate "github.com/aquamarinepk/aqm/template"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
+	"github.com/appetiteclub/apt/telemetry"
+	aqmtemplate "github.com/appetiteclub/apt/template"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
 // AdminHandler manages the web interface for system administration
 type AdminHandler struct {
-	logger    aqm.Logger
-	config     *aqm.Config
+	logger    apt.Logger
+	config     *apt.Config
 	tmplMgr   *aqmtemplate.Manager
 	userRepo  UserRepo
 	roleRepo  RoleRepo
@@ -22,7 +22,7 @@ type AdminHandler struct {
 	tlm       *telemetry.HTTP
 }
 
-func NewAdminHandler(tmplMgr *aqmtemplate.Manager, userRepo UserRepo, roleRepo RoleRepo, grantRepo GrantRepo, logger aqm.Logger, config *aqm.Config) *AdminHandler {
+func NewAdminHandler(tmplMgr *aqmtemplate.Manager, userRepo UserRepo, roleRepo RoleRepo, grantRepo GrantRepo, logger apt.Logger, config *apt.Config) *AdminHandler {
 	return &AdminHandler{
 		logger:    logger,
 		config:     config,
@@ -759,11 +759,11 @@ func (h *AdminHandler) ListTables(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *AdminHandler) log(req ...*http.Request) aqm.Logger {
+func (h *AdminHandler) log(req ...*http.Request) apt.Logger {
 	if len(req) > 0 && req[0] != nil {
 		r := req[0]
 		return h.logger.With(
-			"request_id", aqm.RequestIDFrom(r.Context()),
+			"request_id", apt.RequestIDFrom(r.Context()),
 			"method", r.Method,
 			"path", r.URL.Path,
 		)

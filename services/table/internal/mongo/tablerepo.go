@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,8 +18,8 @@ type TableRepo struct {
 	client     *mongo.Client
 	db         *mongo.Database
 	collection *mongo.Collection
-	logger     aqm.Logger
-	config     *aqm.Config
+	logger     apt.Logger
+	config     *apt.Config
 }
 
 // tableDocument represents the MongoDB document structure.
@@ -37,9 +37,9 @@ type tableDocument struct {
 	UpdatedBy   string     `bson:"updated_by"`
 }
 
-func NewTableRepo(config *aqm.Config, logger aqm.Logger) *TableRepo {
+func NewTableRepo(config *apt.Config, logger apt.Logger) *TableRepo {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &TableRepo{
 		logger: logger,

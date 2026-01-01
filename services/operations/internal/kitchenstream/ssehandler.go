@@ -9,8 +9,8 @@ import (
 
 	kitchenproto "github.com/appetiteclub/appetite/services/operations/internal/kitchenstream/proto"
 	orderproto "github.com/appetiteclub/appetite/services/operations/internal/orderstream/proto"
-	"github.com/aquamarinepk/aqm"
-	aqmtemplate "github.com/aquamarinepk/aqm/template"
+	"github.com/appetiteclub/apt"
+	aqmtemplate "github.com/appetiteclub/apt/template"
 	"github.com/google/uuid"
 )
 
@@ -46,13 +46,13 @@ type OrderStreamClient interface {
 type SSEHandler struct {
 	kitchenClient *Client
 	orderClient   OrderStreamClient
-	logger        aqm.Logger
+	logger        apt.Logger
 	tmplMgr       *aqmtemplate.Manager
 	orderDataProv OrderDataProvider
 }
 
 // NewSSEHandler creates a new SSE handler
-func NewSSEHandler(kitchenClient *Client, logger aqm.Logger, tmplMgr *aqmtemplate.Manager, orderDataProv OrderDataProvider) *SSEHandler {
+func NewSSEHandler(kitchenClient *Client, logger apt.Logger, tmplMgr *aqmtemplate.Manager, orderDataProv OrderDataProvider) *SSEHandler {
 	return &SSEHandler{
 		kitchenClient: kitchenClient,
 		logger:        logger,

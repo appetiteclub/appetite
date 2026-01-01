@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 // orderResource mirrors the aggregate returned by the order service.
@@ -46,10 +46,10 @@ type CreateOrderRequest struct {
 
 // OrderDataAccess centralizes decoding of order service responses.
 type OrderDataAccess struct {
-	client *aqm.ServiceClient
+	client *apt.ServiceClient
 }
 
-func NewOrderDataAccess(client *aqm.ServiceClient) *OrderDataAccess {
+func NewOrderDataAccess(client *apt.ServiceClient) *OrderDataAccess {
 	return &OrderDataAccess{client: client}
 }
 

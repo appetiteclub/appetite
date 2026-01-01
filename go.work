@@ -17,5 +17,5 @@ use (
 
 replace (
 	github.com/appetiteclub/appetite v0.0.2 => .
-	github.com/aquamarinepk/aqm v0.0.1 => ../aqm
+	github.com/appetiteclub/apt v0.1.0 => ../apt
 )

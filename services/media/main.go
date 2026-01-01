@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/middleware"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/middleware"
 
 	"github.com/appetiteclub/appetite/services/media/internal/dictionary"
 	"github.com/appetiteclub/appetite/services/media/internal/media"
@@ -22,13 +22,13 @@ const (
 )
 
 func main() {
-	config, err := aqm.LoadConfig(appNamespace, os.Args[1:])
+	config, err := apt.LoadConfig(appNamespace, os.Args[1:])
 	if err != nil {
 		log.Fatalf("%s(%s) cannot setup: %v", appName, appVersion, err)
 	}
 
 	logLevel, _ := config.GetString("log.level")
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -68,18 +68,18 @@ func main() {
 	// This complements (does not replace) network policies at the infrastructure level.
 	stack = append(stack, middleware.InternalOnly())
 
-	ms := aqm.NewMicro(
-		aqm.WithConfig(config),
-		aqm.WithLogger(logger),
-		aqm.WithHTTPMiddleware(stack...),
-		aqm.WithHealthChecks(appName),
+	ms := apt.NewMicro(
+		apt.WithConfig(config),
+		apt.WithLogger(logger),
+		apt.WithHTTPMiddleware(stack...),
+		apt.WithHealthChecks(appName),
 	)
 
 	// Create handler with dependencies from Micro
 	handler := media.NewHandler(service, ms.Deps())
 
 	// Register HTTP server with handler
-	if err := aqm.WithHTTPServerModules("web.port", handler)(ms); err != nil {
+	if err := apt.WithHTTPServerModules("web.port", handler)(ms); err != nil {
 		log.Fatalf("%s(%s) cannot register HTTP modules: %v", appName, appVersion, err)
 	}
 

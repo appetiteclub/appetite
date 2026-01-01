@@ -3,7 +3,7 @@ package tables
 import (
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -31,13 +31,13 @@ func (g *Group) SetID(id uuid.UUID) {
 
 func NewGroup() *Group {
 	return &Group{
-		ID: aqm.GenerateNewID(),
+		ID: apt.GenerateNewID(),
 	}
 }
 
 func (g *Group) EnsureID() {
 	if g.ID == uuid.Nil {
-		g.ID = aqm.GenerateNewID()
+		g.ID = apt.GenerateNewID()
 	}
 }
 

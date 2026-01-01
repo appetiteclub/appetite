@@ -4,25 +4,25 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
 // APIUserRepo implements UserRepo using ServiceClient to call authn service
 type APIUserRepo struct {
-	client *aqm.ServiceClient
-	logger aqm.Logger
+	client *apt.ServiceClient
+	logger apt.Logger
 }
 
 // NewAPIUserRepo creates a new API-based user repository.
 // Returns an error if authn service URL is not configured.
-func NewAPIUserRepo(config *aqm.Config, logger aqm.Logger) (*APIUserRepo, error) {
+func NewAPIUserRepo(config *apt.Config, logger apt.Logger) (*APIUserRepo, error) {
 	authnURL, _ := config.GetString("services.authn.url")
 	if authnURL == "" {
 		return nil, fmt.Errorf("services.authn.url is required")
 	}
 
-	client := aqm.NewServiceClient(authnURL)
+	client := apt.NewServiceClient(authnURL)
 	if client == nil {
 		return nil, fmt.Errorf("failed to create authn service client")
 	}

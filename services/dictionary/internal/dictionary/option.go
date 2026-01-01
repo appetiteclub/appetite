@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -48,7 +48,7 @@ func (o *Option) SetID(id uuid.UUID) {
 // New creates a new Option with a generated ID.
 func NewOption() *Option {
 	return &Option{
-		ID:     aqm.GenerateNewID(),
+		ID:     apt.GenerateNewID(),
 		Active: true,
 		Order:  0,
 	}
@@ -57,7 +57,7 @@ func NewOption() *Option {
 // EnsureID ensures the aggregate root has a valid ID.
 func (o *Option) EnsureID() {
 	if o.ID == uuid.Nil {
-		o.ID = aqm.GenerateNewID()
+		o.ID = apt.GenerateNewID()
 	}
 }
 

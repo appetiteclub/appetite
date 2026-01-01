@@ -3,7 +3,7 @@ package tables
 import (
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -36,14 +36,14 @@ func (r *Reservation) SetID(id uuid.UUID) {
 
 func NewReservation() *Reservation {
 	return &Reservation{
-		ID:     aqm.GenerateNewID(),
+		ID:     apt.GenerateNewID(),
 		Status: "confirmed",
 	}
 }
 
 func (r *Reservation) EnsureID() {
 	if r.ID == uuid.Nil {
-		r.ID = aqm.GenerateNewID()
+		r.ID = apt.GenerateNewID()
 	}
 }
 

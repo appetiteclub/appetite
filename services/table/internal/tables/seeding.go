@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/seed"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -48,7 +48,7 @@ func loadTableSeeds(seedFS embed.FS) ([]tableSeed, error) {
 }
 
 // ApplyTableSeeds ensures all predefined tables exist.
-func ApplyTableSeeds(ctx context.Context, repo TableRepo, seedFS embed.FS, logger aqm.Logger) error {
+func ApplyTableSeeds(ctx context.Context, repo TableRepo, seedFS embed.FS, logger apt.Logger) error {
 	if repo == nil {
 		return errors.New("table repository is required")
 	}
@@ -96,7 +96,7 @@ type mongoDatabaseProvider interface {
 	GetDatabase() *mongo.Database
 }
 
-func buildTableSeedDefinitions(raw []tableSeed, repo TableRepo, logger aqm.Logger) ([]seed.Seed, error) {
+func buildTableSeedDefinitions(raw []tableSeed, repo TableRepo, logger apt.Logger) ([]seed.Seed, error) {
 	var defs []seed.Seed
 
 	for _, s := range raw {
@@ -146,7 +146,7 @@ func seedIdentifier(value string) string {
 	return result
 }
 
-func (s tableSeed) ensureTable(ctx context.Context, repo TableRepo, logger aqm.Logger) error {
+func (s tableSeed) ensureTable(ctx context.Context, repo TableRepo, logger apt.Logger) error {
 	number := strings.TrimSpace(s.Number)
 	if number == "" {
 		return errors.New("table number is required")
@@ -189,9 +189,9 @@ func (s tableSeed) ensureTable(ctx context.Context, repo TableRepo, logger aqm.L
 
 // SeedingFunc returns an aqm lifecycle OnStart-compatible function which
 // starts applying table seeds in the background.
-func SeedingFunc(seedCtx context.Context, repo TableRepo, seedFS embed.FS, logger aqm.Logger) func(ctx context.Context) error {
+func SeedingFunc(seedCtx context.Context, repo TableRepo, seedFS embed.FS, logger apt.Logger) func(ctx context.Context) error {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	return func(ctx context.Context) error {

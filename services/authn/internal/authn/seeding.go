@@ -10,11 +10,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt/seed"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/aquamarinepk/aqm"
-	authpkg "github.com/aquamarinepk/aqm/auth"
+	"github.com/appetiteclub/apt"
+	authpkg "github.com/appetiteclub/apt/auth"
 )
 
 const authnSeedApplication = "authn"
@@ -56,7 +56,7 @@ func loadUserSeeds(seedFS embed.FS) ([]userSeed, error) {
 }
 
 // ApplyUserSeeds ensures all predefined users exist (except the superadmin).
-func ApplyUserSeeds(ctx context.Context, repo UserRepo, seedFS embed.FS, logger aqm.Logger, config *aqm.Config) error {
+func ApplyUserSeeds(ctx context.Context, repo UserRepo, seedFS embed.FS, logger apt.Logger, config *apt.Config) error {
 	if repo == nil {
 		return errors.New("user repository is required")
 	}
@@ -108,7 +108,7 @@ func trackerFromRepo(repo UserRepo) (seed.Tracker, error) {
 	return seed.NewMongoTracker(db), nil
 }
 
-func buildUserSeedDefinitions(raw []userSeed, repo UserRepo, config *aqm.Config, logger aqm.Logger) ([]seed.Seed, error) {
+func buildUserSeedDefinitions(raw []userSeed, repo UserRepo, config *apt.Config, logger apt.Logger) ([]seed.Seed, error) {
 	var defs []seed.Seed
 
 	for _, s := range raw {
@@ -161,7 +161,7 @@ func seedIdentifier(value string) string {
 	return result
 }
 
-func waitForSuperadmin(ctx context.Context, repo UserRepo, config *aqm.Config, logger aqm.Logger) error {
+func waitForSuperadmin(ctx context.Context, repo UserRepo, config *apt.Config, logger apt.Logger) error {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -210,7 +210,7 @@ func (s userSeed) shouldSkip() bool {
 	return false
 }
 
-func (s userSeed) ensureUser(ctx context.Context, repo UserRepo, config *aqm.Config, logger aqm.Logger) error {
+func (s userSeed) ensureUser(ctx context.Context, repo UserRepo, config *apt.Config, logger apt.Logger) error {
 	desiredStatus := s.status()
 	username, err := s.username()
 	if err != nil {
@@ -373,9 +373,9 @@ func slugifyUsernameFromName(name string) string {
 // seed context (usually created with context.WithCancel), the user repo,
 // the embedded seed FS, a logger and config. It mirrors the behaviour of
 // the previous inline anonymous function in main.
-func SeedingFunc(seedCtx context.Context, repo UserRepo, seedFS embed.FS, config *aqm.Config, logger aqm.Logger) func(ctx context.Context) error {
+func SeedingFunc(seedCtx context.Context, repo UserRepo, seedFS embed.FS, config *apt.Config, logger apt.Logger) func(ctx context.Context) error {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	return func(ctx context.Context) error {

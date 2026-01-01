@@ -3,13 +3,13 @@ package operations
 import (
 	"testing"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 func TestDecodeSuccessResponse(t *testing.T) {
 	tests := []struct {
 		name    string
-		resp    *aqm.SuccessResponse
+		resp    *apt.SuccessResponse
 		wantErr bool
 	}{
 		{
@@ -19,7 +19,7 @@ func TestDecodeSuccessResponse(t *testing.T) {
 		},
 		{
 			name: "validMapResponse",
-			resp: &aqm.SuccessResponse{
+			resp: &apt.SuccessResponse{
 				Data: map[string]interface{}{
 					"name": "Test",
 					"id":   "123",
@@ -29,7 +29,7 @@ func TestDecodeSuccessResponse(t *testing.T) {
 		},
 		{
 			name: "validSliceResponse",
-			resp: &aqm.SuccessResponse{
+			resp: &apt.SuccessResponse{
 				Data: []interface{}{
 					map[string]interface{}{"id": "1"},
 					map[string]interface{}{"id": "2"},
@@ -39,7 +39,7 @@ func TestDecodeSuccessResponse(t *testing.T) {
 		},
 		{
 			name: "emptyDataResponse",
-			resp: &aqm.SuccessResponse{
+			resp: &apt.SuccessResponse{
 				Data: nil,
 			},
 			wantErr: false,
@@ -64,7 +64,7 @@ func TestDecodeSuccessResponseIntoStruct(t *testing.T) {
 		ID   string `json:"id"`
 	}
 
-	resp := &aqm.SuccessResponse{
+	resp := &apt.SuccessResponse{
 		Data: map[string]interface{}{
 			"name": "Test Name",
 			"id":   "test-id-123",
@@ -87,7 +87,7 @@ func TestDecodeSuccessResponseIntoStruct(t *testing.T) {
 }
 
 func TestDecodeSuccessResponseWithMeta(t *testing.T) {
-	resp := &aqm.SuccessResponse{
+	resp := &apt.SuccessResponse{
 		Data: map[string]string{"key": "value"},
 		Meta: map[string]interface{}{"total": 100},
 	}

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -16,7 +16,7 @@ func TestApplyDemoSeedsNilDB(t *testing.T) {
 		OrderGroupRepo: NewMockOrderGroupRepo(),
 	}
 
-	err := ApplyDemoSeeds(context.Background(), repos, nil, aqm.NewNoopLogger())
+	err := ApplyDemoSeeds(context.Background(), repos, nil, apt.NewNoopLogger())
 	if err == nil {
 		t.Error("ApplyDemoSeeds() with nil db should return error")
 	}
@@ -53,7 +53,7 @@ func TestDemoSeedingFuncWithLogger(t *testing.T) {
 		OrderGroupRepo: NewMockOrderGroupRepo(),
 	}
 
-	fn := DemoSeedingFunc(context.Background(), repos, nil, aqm.NewNoopLogger())
+	fn := DemoSeedingFunc(context.Background(), repos, nil, apt.NewNoopLogger())
 	if fn == nil {
 		t.Fatal("DemoSeedingFunc() returned nil function")
 	}
@@ -159,7 +159,7 @@ func TestBuildDemoOrderSeeds(t *testing.T) {
 		OrderGroupRepo: NewMockOrderGroupRepo(),
 	}
 
-	seeds := buildDemoOrderSeeds(repos, nil, aqm.NewNoopLogger())
+	seeds := buildDemoOrderSeeds(repos, nil, apt.NewNoopLogger())
 	if len(seeds) == 0 {
 		t.Error("buildDemoOrderSeeds() should return at least one seed")
 	}

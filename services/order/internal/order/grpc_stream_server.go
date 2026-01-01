@@ -5,7 +5,7 @@ import (
 	"time"
 
 	proto "github.com/appetiteclub/appetite/services/order/internal/order/proto"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -14,20 +14,20 @@ import (
 type OrderEventStreamServer struct {
 	proto.UnimplementedOrderEventStreamServer
 	orderItemRepo OrderItemRepo
-	logger        aqm.Logger
+	logger        apt.Logger
 
 	// Manage active stream subscribers
 	mu          sync.RWMutex
 	subscribers map[string]chan *proto.OrderItemEvent
 }
 
-// RegisterGRPCService registers this service with the gRPC server (aqm.GRPCServiceRegistrar interface)
+// RegisterGRPCService registers this service with the gRPC server (apt.GRPCServiceRegistrar interface)
 func (s *OrderEventStreamServer) RegisterGRPCService(server *grpc.Server) {
 	proto.RegisterOrderEventStreamServer(server, s)
 }
 
 // NewOrderEventStreamServer creates a new gRPC streaming server for order items
-func NewOrderEventStreamServer(orderItemRepo OrderItemRepo, logger aqm.Logger) *OrderEventStreamServer {
+func NewOrderEventStreamServer(orderItemRepo OrderItemRepo, logger apt.Logger) *OrderEventStreamServer {
 	return &OrderEventStreamServer{
 		orderItemRepo: orderItemRepo,
 		logger:        logger,

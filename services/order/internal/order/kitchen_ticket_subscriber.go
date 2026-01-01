@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/appetiteclub/appetite/pkg/event"
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/events"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/events"
 	"github.com/google/uuid"
 )
 
@@ -15,12 +15,12 @@ type KitchenTicketSubscriber struct {
 	subscriber    events.Subscriber
 	orderItemRepo OrderItemRepo
 	streamServer  *OrderEventStreamServer
-	logger        aqm.Logger
+	logger        apt.Logger
 }
 
-func NewKitchenTicketSubscriber(sub events.Subscriber, orderItemRepo OrderItemRepo, logger aqm.Logger) *KitchenTicketSubscriber {
+func NewKitchenTicketSubscriber(sub events.Subscriber, orderItemRepo OrderItemRepo, logger apt.Logger) *KitchenTicketSubscriber {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &KitchenTicketSubscriber{
 		subscriber:    sub,
@@ -160,6 +160,6 @@ func (s *KitchenTicketSubscriber) mapKitchenStatusToOrderStatus(kitchenStatus st
 	}
 }
 
-func (s *KitchenTicketSubscriber) log() aqm.Logger {
+func (s *KitchenTicketSubscriber) log() apt.Logger {
 	return s.logger.With("component", "KitchenTicketSubscriber")
 }

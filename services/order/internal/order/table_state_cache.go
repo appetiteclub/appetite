@@ -6,20 +6,20 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
 type TableStateCache struct {
 	mu     sync.RWMutex
 	state  map[uuid.UUID]string
-	client *aqm.ServiceClient
-	logger aqm.Logger
+	client *apt.ServiceClient
+	logger apt.Logger
 }
 
-func NewTableStateCache(client *aqm.ServiceClient, logger aqm.Logger) *TableStateCache {
+func NewTableStateCache(client *apt.ServiceClient, logger apt.Logger) *TableStateCache {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &TableStateCache{
 		state:  make(map[uuid.UUID]string),

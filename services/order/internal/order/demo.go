@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
-	"github.com/aquamarinepk/aqm/seed"
+	"github.com/appetiteclub/apt"
+	"github.com/appetiteclub/apt/seed"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,7 +16,7 @@ import (
 const orderDemoSeedApplication = "order_demo"
 
 // ApplyDemoSeeds creates realistic demo orders with items for different stations.
-func ApplyDemoSeeds(ctx context.Context, repos Repos, db *mongo.Database, logger aqm.Logger) error {
+func ApplyDemoSeeds(ctx context.Context, repos Repos, db *mongo.Database, logger apt.Logger) error {
 	if db == nil {
 		return errors.New("database is required for demo seeding")
 	}
@@ -37,7 +37,7 @@ func ApplyDemoSeeds(ctx context.Context, repos Repos, db *mongo.Database, logger
 	return nil
 }
 
-func buildDemoOrderSeeds(repos Repos, db *mongo.Database, logger aqm.Logger) []seed.Seed {
+func buildDemoOrderSeeds(repos Repos, db *mongo.Database, logger apt.Logger) []seed.Seed {
 	return []seed.Seed{
 		{
 			ID:          "2024-11-23_demo_orders_v1",
@@ -49,7 +49,7 @@ func buildDemoOrderSeeds(repos Repos, db *mongo.Database, logger aqm.Logger) []s
 	}
 }
 
-func seedDemoOrders(ctx context.Context, repos Repos, db *mongo.Database, logger aqm.Logger) error {
+func seedDemoOrders(ctx context.Context, repos Repos, db *mongo.Database, logger apt.Logger) error {
 	// Get table IDs from the table database
 	tableDB := db.Client().Database("appetite_table")
 	tablesCollection := tableDB.Collection("tables")
@@ -116,7 +116,7 @@ func seedDemoOrders(ctx context.Context, repos Repos, db *mongo.Database, logger
 }
 
 // Scenario 1: Couple having drinks and desserts
-func createScenario1(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger aqm.Logger) error {
+func createScenario1(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger apt.Logger) error {
 	order := NewOrder()
 	order.TableID = tableID
 	order.Status = "pending"
@@ -162,7 +162,7 @@ func createScenario1(ctx context.Context, repos Repos, tableID uuid.UUID, now ti
 }
 
 // Scenario 2: Group of 4 having dinner
-func createScenario2(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger aqm.Logger) error {
+func createScenario2(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger apt.Logger) error {
 	order := NewOrder()
 	order.TableID = tableID
 	order.Status = "pending"
@@ -222,7 +222,7 @@ func createScenario2(ctx context.Context, repos Repos, tableID uuid.UUID, now ti
 }
 
 // Scenario 3: Solo diner
-func createScenario3(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger aqm.Logger) error {
+func createScenario3(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger apt.Logger) error {
 	order := NewOrder()
 	order.TableID = tableID
 	order.Status = "pending"
@@ -261,7 +261,7 @@ func createScenario3(ctx context.Context, repos Repos, tableID uuid.UUID, now ti
 }
 
 // Scenario 4: Small group with cocktails
-func createScenario4(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger aqm.Logger) error {
+func createScenario4(ctx context.Context, repos Repos, tableID uuid.UUID, now time.Time, logger apt.Logger) error {
 	order := NewOrder()
 	order.TableID = tableID
 	order.Status = "pending"
@@ -320,9 +320,9 @@ func createItem(orderID uuid.UUID, groupID *uuid.UUID, dishName, category string
 }
 
 // DemoSeedingFunc returns an aqm lifecycle OnStart-compatible function for demo seeding.
-func DemoSeedingFunc(seedCtx context.Context, repos Repos, db *mongo.Database, logger aqm.Logger) func(ctx context.Context) error {
+func DemoSeedingFunc(seedCtx context.Context, repos Repos, db *mongo.Database, logger apt.Logger) func(ctx context.Context) error {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 
 	return func(ctx context.Context) error {

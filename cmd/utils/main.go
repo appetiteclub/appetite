@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/appetiteclub/appetite/cmd/utils/internal/commands"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 )
 
 const (
@@ -22,7 +22,7 @@ func main() {
 	}
 
 	// Load config from UTILS namespace (or use default mongo connection)
-	config, err := aqm.LoadConfig("UTILS", os.Args[2:])
+	config, err := apt.LoadConfig("UTILS", os.Args[2:])
 	if err != nil {
 		log.Fatalf("Cannot load config: %v", err)
 	}
@@ -31,7 +31,7 @@ func main() {
 	if logLevel == "" {
 		logLevel = "info"
 	}
-	logger := aqm.NewLogger(logLevel)
+	logger := apt.NewLogger(logLevel)
 
 	ctx := context.Background()
 	command := os.Args[1]

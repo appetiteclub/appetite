@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -43,10 +43,10 @@ type kitchenTicketResource struct {
 
 // KitchenDataAccess wraps the low-level kitchen API.
 type KitchenDataAccess struct {
-	client *aqm.ServiceClient
+	client *apt.ServiceClient
 }
 
-func NewKitchenDataAccess(client *aqm.ServiceClient) *KitchenDataAccess {
+func NewKitchenDataAccess(client *apt.ServiceClient) *KitchenDataAccess {
 	return &KitchenDataAccess{client: client}
 }
 

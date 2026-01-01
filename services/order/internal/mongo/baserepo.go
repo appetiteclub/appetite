@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -13,13 +13,13 @@ import (
 type BaseRepo struct {
 	client *mongo.Client
 	db     *mongo.Database
-	logger aqm.Logger
-	config *aqm.Config
+	logger apt.Logger
+	config *apt.Config
 }
 
-func NewBaseRepo(config *aqm.Config, logger aqm.Logger) *BaseRepo {
+func NewBaseRepo(config *apt.Config, logger apt.Logger) *BaseRepo {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &BaseRepo{
 		logger: logger,

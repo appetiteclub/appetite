@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/google/uuid"
 )
 
@@ -22,13 +22,13 @@ type AuditEntry struct {
 
 // AuditLogger handles logging of user actions for operational transparency.
 type AuditLogger struct {
-	logger aqm.Logger
+	logger apt.Logger
 }
 
 // NewAuditLogger creates a new audit logger.
-func NewAuditLogger(logger aqm.Logger) *AuditLogger {
+func NewAuditLogger(logger apt.Logger) *AuditLogger {
 	if logger == nil {
-		logger = aqm.NewNoopLogger()
+		logger = apt.NewNoopLogger()
 	}
 	return &AuditLogger{logger: logger}
 }

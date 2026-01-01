@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/appetiteclub/appetite/pkg/enums/kitchenstatus"
-	"github.com/aquamarinepk/aqm"
+	"github.com/appetiteclub/apt"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -19,8 +19,8 @@ func TestNewHandler(t *testing.T) {
 	tests := []struct {
 		name   string
 		deps   HandlerDeps
-		config *aqm.Config
-		logger aqm.Logger
+		config *apt.Config
+		logger apt.Logger
 	}{
 		{
 			name: "withAllDependencies",
@@ -29,20 +29,20 @@ func TestNewHandler(t *testing.T) {
 				Cache:     NewTicketStateCache(nil, nil, nil),
 				Publisher: NewMockPublisher(),
 			},
-			config: aqm.NewConfig(),
-			logger: aqm.NewNoopLogger(),
+			config: apt.NewConfig(),
+			logger: apt.NewNoopLogger(),
 		},
 		{
 			name:   "withNilLogger",
 			deps:   HandlerDeps{},
-			config: aqm.NewConfig(),
+			config: apt.NewConfig(),
 			logger: nil,
 		},
 		{
 			name:   "withEmptyDeps",
 			deps:   HandlerDeps{},
 			config: nil,
-			logger: aqm.NewNoopLogger(),
+			logger: apt.NewNoopLogger(),
 		},
 	}
 
@@ -57,7 +57,7 @@ func TestNewHandler(t *testing.T) {
 }
 
 func TestHandlerRegisterRoutes(t *testing.T) {
-	h := NewHandler(HandlerDeps{}, nil, aqm.NewNoopLogger())
+	h := NewHandler(HandlerDeps{}, nil, apt.NewNoopLogger())
 	r := chi.NewRouter()
 
 	// Should not panic
@@ -160,7 +160,7 @@ func TestHandlerListTickets(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupCache != nil {
@@ -171,7 +171,7 @@ func TestHandlerListTickets(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			req := httptest.NewRequest(http.MethodGet, "/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
@@ -208,7 +208,7 @@ func TestHandlerListTicketsNilCache(t *testing.T) {
 	}
 
 	deps := HandlerDeps{Repo: repo, Cache: nil, Publisher: NewMockPublisher()}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	req := httptest.NewRequest(http.MethodGet, "/tickets", nil)
 	w := httptest.NewRecorder()
@@ -270,7 +270,7 @@ func TestHandlerGetTicket(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: nil, Publisher: NewMockPublisher()}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Get("/tickets/{id}", h.GetTicket)
@@ -320,7 +320,7 @@ func TestHandlerAcceptTicket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
@@ -328,7 +328,7 @@ func TestHandlerAcceptTicket(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Patch("/tickets/{id}/accept", h.AcceptTicket)
@@ -391,7 +391,7 @@ func TestHandlerStartTicket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
@@ -399,7 +399,7 @@ func TestHandlerStartTicket(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Patch("/tickets/{id}/start", h.StartTicket)
@@ -467,7 +467,7 @@ func TestHandlerReadyTicket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
@@ -475,7 +475,7 @@ func TestHandlerReadyTicket(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Patch("/tickets/{id}/ready", h.ReadyTicket)
@@ -543,7 +543,7 @@ func TestHandlerDeliverTicket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
@@ -551,7 +551,7 @@ func TestHandlerDeliverTicket(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Patch("/tickets/{id}/deliver", h.DeliverTicket)
@@ -581,11 +581,11 @@ func TestHandlerStandbyTicket(t *testing.T) {
 	repo := NewMockTicketRepository()
 	repo.AddTicket(&Ticket{ID: ticketID, Station: "kitchen", Status: "started"})
 
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
 	deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	r := chi.NewRouter()
 	r.Patch("/tickets/{id}/standby", h.StandbyTicket)
@@ -671,7 +671,7 @@ func TestHandlerBlockTicket(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
@@ -679,7 +679,7 @@ func TestHandlerBlockTicket(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Patch("/tickets/{id}/block", h.BlockTicket)
@@ -711,11 +711,11 @@ func TestHandlerRejectTicket(t *testing.T) {
 	repo := NewMockTicketRepository()
 	repo.AddTicket(&Ticket{ID: ticketID, Station: "kitchen", Status: "created"})
 
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
 	deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	r := chi.NewRouter()
 	r.Patch("/tickets/{id}/reject", h.RejectTicket)
@@ -736,11 +736,11 @@ func TestHandlerCancelTicket(t *testing.T) {
 	repo := NewMockTicketRepository()
 	repo.AddTicket(&Ticket{ID: ticketID, Station: "kitchen", Status: "created"})
 
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
 	deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	r := chi.NewRouter()
 	r.Patch("/tickets/{id}/cancel", h.CancelTicket)
@@ -855,7 +855,7 @@ func TestHandlerUpdateTicketStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockTicketRepository()
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			if tt.setupRepo != nil {
@@ -863,7 +863,7 @@ func TestHandlerUpdateTicketStatus(t *testing.T) {
 			}
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Patch("/tickets/{id}/status", h.UpdateTicketStatus)
@@ -916,11 +916,11 @@ func TestHandlerUpdateTicketStatusSetsTimestamps(t *testing.T) {
 			repo := NewMockTicketRepository()
 			repo.AddTicket(&Ticket{ID: ticketID, Station: "kitchen", Status: "created"})
 
-			cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			r := chi.NewRouter()
 			r.Patch("/tickets/{id}/status", h.UpdateTicketStatus)
@@ -982,11 +982,11 @@ func TestHandlerReloadCache(t *testing.T) {
 				tt.setupRepo(repo)
 			}
 
-			cache := NewTicketStateCache(nil, repo, aqm.NewNoopLogger())
+			cache := NewTicketStateCache(nil, repo, apt.NewNoopLogger())
 			publisher := NewMockPublisher()
 
 			deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-			h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+			h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 			req := httptest.NewRequest(http.MethodPost, "/internal/reload-cache", nil)
 			w := httptest.NewRecorder()
@@ -1000,7 +1000,7 @@ func TestHandlerReloadCache(t *testing.T) {
 			if tt.expectedStatus == http.StatusOK {
 				var resp map[string]interface{}
 				json.Unmarshal(w.Body.Bytes(), &resp)
-				// ReloadCache uses json.NewEncoder directly, not aqm.Respond
+				// ReloadCache uses json.NewEncoder directly, not apt.Respond
 				if resp["success"] != true {
 					t.Errorf("Response success should be true, got: %s", w.Body.String())
 				}
@@ -1011,7 +1011,7 @@ func TestHandlerReloadCache(t *testing.T) {
 
 func TestHandlerPublishStatusChange(t *testing.T) {
 	repo := NewMockTicketRepository()
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
 	ticketID := uuid.New()
@@ -1026,7 +1026,7 @@ func TestHandlerPublishStatusChange(t *testing.T) {
 	repo.AddTicket(ticket)
 
 	deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	r := chi.NewRouter()
 	r.Patch("/tickets/{id}/start", h.StartTicket)
@@ -1043,7 +1043,7 @@ func TestHandlerPublishStatusChange(t *testing.T) {
 
 func TestHandlerPublishStatusChangeError(t *testing.T) {
 	repo := NewMockTicketRepository()
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 	publisher.PublishFunc = func(ctx context.Context, topic string, data []byte) error {
 		return errors.New("publish error")
@@ -1053,7 +1053,7 @@ func TestHandlerPublishStatusChangeError(t *testing.T) {
 	repo.AddTicket(&Ticket{ID: ticketID, Station: "kitchen", Status: "created"})
 
 	deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	r := chi.NewRouter()
 	r.Patch("/tickets/{id}/start", h.StartTicket)
@@ -1075,7 +1075,7 @@ func TestHandlerNilCache(t *testing.T) {
 	repo.AddTicket(&Ticket{ID: ticketID, Station: "kitchen", Status: "created"})
 
 	deps := HandlerDeps{Repo: repo, Cache: nil, Publisher: NewMockPublisher()}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	r := chi.NewRouter()
 	r.Patch("/tickets/{id}/start", h.StartTicket)
@@ -1098,11 +1098,11 @@ func TestHandlerBlockTicketWithReasonCode(t *testing.T) {
 	repo := NewMockTicketRepository()
 	repo.AddTicket(&Ticket{ID: ticketID, Station: "kitchen", Status: "started"})
 
-	cache := NewTicketStateCache(nil, nil, aqm.NewNoopLogger())
+	cache := NewTicketStateCache(nil, nil, apt.NewNoopLogger())
 	publisher := NewMockPublisher()
 
 	deps := HandlerDeps{Repo: repo, Cache: cache, Publisher: publisher}
-	h := NewHandler(deps, aqm.NewConfig(), aqm.NewNoopLogger())
+	h := NewHandler(deps, apt.NewConfig(), apt.NewNoopLogger())
 
 	r := chi.NewRouter()
 	r.Patch("/tickets/{id}/block", h.BlockTicket)
